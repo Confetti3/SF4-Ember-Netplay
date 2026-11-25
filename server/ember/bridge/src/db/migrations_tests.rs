@@ -651,3 +651,78 @@ fn archive_games_kept_before_the_listing_index_are_indexed() {
         .unwrap();
     assert_eq!(kept, (3, 900));
 }
+
+/// Migration 067 gives the games kept before it no rounds and leaves them
+/// unread, which the backfill finds through its index, newest first. A bridge
+/// from before it, put back, keeps taking games as it did; they are unread
+/// too. Reading rounds moves no key of the listing's index.
+#[test]
+fn archive_games_kept_before_rounds_are_left_for_the_backfill() {
+    let mut connection = Connection::open_in_memory().unwrap();
+    migrate(&mut connection, &MIGRATIONS[..66]).unwrap();
+    // As `archive::admit` wrote a game before 067.
+    let insert_before = "INSERT INTO archive_games (digest, crc, saved_at, size, fighter_a, fighter_b, name_a, name_b,
+            country_a, country_b, sent_side, match_id, event_title, round_label, phase, sent_by, charged, priority,
+            replay, next_attempt_at, received_at, game)
+         VALUES (?1, '1', ?2, 100, 1, 2, NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, 'emb_p1', 1, 1,
+            x'00', 0, 0, ?1)";
+    for (digest, saved_at) in [("aa", 5), ("bb", 6), ("cc", 7)] {
+        connection
+            .execute(insert_before, rusqlite::params![digest, saved_at])
+            .unwrap();
+    }
+    connection
+        .execute_batch(
+            "UPDATE archive_games SET state = 'stored', replay = NULL WHERE digest IN ('aa', 'bb');
+             UPDATE archive_games SET state = 'duplicate' WHERE digest = 'cc';",
+        )
+        .unwrap();
+    migrate(&mut connection, MIGRATIONS).unwrap();
+    let unread = |connection: &Connection| -> Vec<String> {
+        connection
+            .prepare(
+                "SELECT digest FROM archive_games INDEXED BY archive_games_rounds_unread
+                 WHERE rounds_read_at IS NULL AND state = 'stored' ORDER BY saved_at DESC",
+            )
+            .unwrap()
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .collect::<rusqlite::Result<_>>()
+            .unwrap()
+    };
+    assert_eq!(unread(&connection), ["bb", "aa"]);
+    let rounds: Vec<(Option<u8>, Option<u8>)> = connection
+        .prepare("SELECT rounds_a, rounds_b FROM archive_games")
+        .unwrap()
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+        .unwrap()
+        .collect::<rusqlite::Result<_>>()
+        .unwrap();
+    assert_eq!(rounds, [(None, None); 3]);
+    // The bridge before 067, put back.
+    connection
+        .execute(insert_before, rusqlite::params!["dd", 8])
+        .unwrap();
+    connection
+        .execute(
+            "UPDATE archive_games SET state = 'stored', replay = NULL WHERE digest = 'dd'",
+            [],
+        )
+        .unwrap();
+    assert_eq!(unread(&connection), ["dd", "bb", "aa"]);
+    // Reading a game's rounds leaves the listing's keys as they were.
+    let keys = |connection: &Connection| -> i64 {
+        connection
+            .query_row("SELECT COUNT(*) FROM archive_keys", [], |row| row.get(0))
+            .unwrap()
+    };
+    let before = keys(&connection);
+    connection
+        .execute(
+            "UPDATE archive_games SET rounds_a = 2, rounds_b = 1, rounds_read_at = 9 WHERE digest = 'dd'",
+            [],
+        )
+        .unwrap();
+    assert_eq!(keys(&connection), before);
+    assert_eq!(unread(&connection), ["bb", "aa"]);
+}

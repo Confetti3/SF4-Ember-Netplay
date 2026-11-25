@@ -148,6 +148,8 @@ pub struct Listed {
     pub round: Option<String>,
     pub phase: Option<String>,
     pub classes: [Option<u8>; 2],
+    /// The rounds each side won, when the replay says (`archive::rounds`).
+    pub rounds: Option<[u8; 2]>,
 }
 
 /// One page of a listing: its games and where the next page starts.
@@ -297,7 +299,8 @@ const KEEPS: &str = "g.state = 'stored'
     AND (:top IS NULL OR MAX(COALESCE(g.class_a, 0), COALESCE(g.class_b, 0)) = :top)";
 
 const COLUMNS: &str = "g.digest, g.crc, g.saved_at, g.size, g.fighter_a, g.fighter_b, g.name_a, g.name_b,
-    g.country_a, g.country_b, g.match_id, g.event_title, g.round_label, g.phase, g.class_a, g.class_b";
+    g.country_a, g.country_b, g.match_id, g.event_title, g.round_label, g.phase, g.class_a, g.class_b,
+    g.rounds_a, g.rounds_b";
 
 fn listed_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Listed> {
     Ok(Listed {
@@ -313,6 +316,7 @@ fn listed_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Listed> {
         round: row.get(12)?,
         phase: row.get(13)?,
         classes: [row.get(14)?, row.get(15)?],
+        rounds: super::rounds::from_columns(row.get(16)?, row.get(17)?),
     })
 }
 

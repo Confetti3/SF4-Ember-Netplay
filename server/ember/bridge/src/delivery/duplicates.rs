@@ -55,7 +55,11 @@ impl Duplicates {
         key: &str,
         digest: &str,
     ) -> std::result::Result<(), String> {
-        let file = self.0.get(secret, key, MAX_REPLAY, state.now()).await?;
+        let file = self
+            .0
+            .get(secret, key, MAX_REPLAY, state.now())
+            .await?
+            .ok_or_else(|| format!("{key}: missing"))?;
         let replay = Replay::parse(&file)
             .filter(|replay| replay.digest_hex() == digest)
             .ok_or_else(|| format!("{key}: not the replay it was stored as"))?;
