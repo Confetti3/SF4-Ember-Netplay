@@ -6,15 +6,18 @@
 // (DumpChannel::ServeUntilExit), writing the dump it asks for.
 
 #include "../common/CrashDump.hxx"
+#include "../common/CrashStackSupplement.hxx"
 #include "../common/CrashUnloaded.hxx"
 #include "../sf4e/sf4e__CrashDiagnostics.hxx"
 
+#include <algorithm>
 #include <fstream>
 #include <iterator>
 #include <memory>
 #include <sstream>
 #include <stdlib.h>
 #include <string>
+#include <vector>
 
 #include <spdlog/async.h>
 
@@ -441,6 +444,73 @@ void TestReportDumpsStayPaired() {
 	RemoveDirectoryW(logs.c_str());
 }
 
+// The stack bytes of the live frames reach a freeze dump when the stack pointer
+// lies below the TEB's StackLimit, as it does under Wine: DbgHelp then stores
+// the outer range only. The child raises its own StackLimit past a marker on
+// its stack, which makes the same case; the launcher's dump carries the marker
+// in its supplement stream.
+constexpr size_t StackMarkerSize = 512;
+unsigned char StackMarkerByte(size_t i) { return static_cast<unsigned char>((i * 29 + 5) ^ 0x6B); }
+
+int RunLowLimitChild(const wchar_t* eventName) {
+	volatile unsigned char marker[StackMarkerSize];
+	for (size_t i = 0; i < StackMarkerSize; ++i) marker[i] = StackMarkerByte(i);
+	auto* tib = reinterpret_cast<NT_TIB*>(NtCurrentTeb());
+	tib->StackLimit = reinterpret_cast<void*>((reinterpret_cast<uintptr_t>(marker) + StackMarkerSize + 0xF) & ~uintptr_t(0xF));
+	HANDLE ready = OpenEventW(EVENT_MODIFY_STATE, FALSE, eventName);
+	if (!ready || !SetEvent(ready)) return 1;
+	Sleep(INFINITE);
+	return marker[0]; // keeps the marker on the stack
+}
+
+// The supplement stream of the dump at `path`, or empty when it has none.
+std::vector<unsigned char> DumpedStackSupplement(const std::wstring& path) {
+	std::ifstream in(path.c_str(), std::ios::binary);
+	std::string bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+	std::vector<unsigned char> stream;
+	MINIDUMP_DIRECTORY* entry = nullptr;
+	void* data = nullptr;
+	ULONG size = 0;
+	if (!bytes.empty() && MiniDumpReadDumpStream(bytes.data(), StackSupplementStream, &entry, &data, &size) && data)
+		stream.assign(static_cast<unsigned char*>(data), static_cast<unsigned char*>(data) + size);
+	return stream;
+}
+
+bool HoldsStackMarker(const std::vector<unsigned char>& stream) {
+	unsigned char marker[StackMarkerSize];
+	for (size_t i = 0; i < StackMarkerSize; ++i) marker[i] = StackMarkerByte(i);
+	return std::search(stream.begin(), stream.end(), marker, marker + StackMarkerSize) != stream.end();
+}
+
+void TestFreezeDumpKeepsLiveStack() {
+	const std::wstring logs = TempDirectory();
+	wchar_t name[64] = {};
+	swprintf_s(name, L"sf4e-lowlimit-%lu", GetCurrentProcessId());
+	HANDLE ready = CreateEventW(nullptr, TRUE, FALSE, name);
+	CHECK(ready);
+	wchar_t self[MAX_PATH] = {}, command[MAX_PATH + 96] = {};
+	GetModuleFileNameW(nullptr, self, MAX_PATH);
+	swprintf_s(command, L"\"%s\" low-limit %s", self, name);
+	STARTUPINFOW startup = { sizeof(startup) };
+	PROCESS_INFORMATION process = {};
+	CHECK(CreateProcessW(self, command, nullptr, nullptr, FALSE, 0, nullptr, nullptr, &startup, &process));
+	CHECK(WaitForSingleObject(ready, 20000) == WAIT_OBJECT_0);
+	DumpChannel channel;
+	channel.reportEnabled = true;
+	CHECK(channel.ServeFreeze(process.hProcess, logs.c_str()));
+	TerminateProcess(process.hProcess, 0);
+	CloseHandle(process.hThread);
+	CloseHandle(process.hProcess);
+	CloseHandle(ready);
+	for (const std::wstring& path : { std::wstring(channel.written), channel.reportWritten }) {
+		const auto stream = DumpedStackSupplement(path);
+		CHECK(stream.size() > 8 && stream[0] == StackSupplementVersion && stream[4] >= 1);
+		CHECK(HoldsStackMarker(stream));
+	}
+	PruneDumps(logs.c_str(), 0);
+	RemoveDirectoryW(logs.c_str());
+}
+
 // Dumped once per freeze, after FreezeDumpAfterMs hung; a window that cannot
 // be seen changes nothing, and one that answers after its dump is Answered.
 void TestFreezeWatchSteps() {
@@ -483,6 +553,7 @@ void TestFreezeDumpedAndForgotten() {
 	ULONGLONG size = 0;
 	CHECK(channel.written[0] && !channel.exceptionCode && CountDumps(logs) == 2);
 	CHECK(DumpedExceptionCode(channel.reportWritten, size) == 0 && size > 0 && size <= ReportDumpLimit);
+	CHECK(DumpedStackSupplement(channel.written).empty() && DumpedStackSupplement(channel.reportWritten).empty());
 	channel.ForgetFreeze();
 	CHECK(!channel.written[0] && channel.reportWritten.empty() && CountDumps(logs) == 0);
 	TerminateProcess(process.hProcess, 0);
@@ -498,6 +569,7 @@ void TestFreezeDumpedAndForgotten() {
 int main(int argc, char** argv) {
 	if (argc == 7 && std::string(argv[1]) == "child") return RunChild(argv);
 	if (argc == 2 && std::string(argv[1]) == "freeze") Sleep(INFINITE);
+	if (argc == 3 && std::string(argv[1]) == "low-limit") return RunLowLimitChild(std::wstring(argv[2], argv[2] + strlen(argv[2])).c_str());
 	if (argc == 2 && std::string(argv[1]) == "heap-check-settings") {
 		CHECK(SetEnvironmentVariableA("SF4E_HEAP_CHECK", nullptr));
 		CHECK(!HeapCheckEnabled());
@@ -521,6 +593,7 @@ int main(int argc, char** argv) {
 	TestReportDumpsStayPaired();
 	TestFreezeWatchSteps();
 	TestFreezeDumpedAndForgotten();
+	TestFreezeDumpKeepsLiveStack();
     TestSmallDumpIndependentOfFull();
 	TestHandlerRecordsAndLauncherDumps(L"private");
 	TestHandlerRecordsAndLauncherDumps(L"process");

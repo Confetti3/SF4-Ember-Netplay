@@ -50,6 +50,14 @@ BOOL WINAPI FailingFullWriter(HANDLE process, DWORD processId, HANDLE file, MINI
     } else SetLastError(ERROR_ACCESS_DENIED);
     return FALSE;
 }
+int streamedWrites = 0, plainWrites = 0;
+BOOL WINAPI OversizesWithStreamWriter(HANDLE process, DWORD processId, HANDLE file, MINIDUMP_TYPE type,
+    PMINIDUMP_EXCEPTION_INFORMATION exception, PMINIDUMP_USER_STREAM_INFORMATION streams, PMINIDUMP_CALLBACK_INFORMATION callback) {
+    if (!streams) { ++plainWrites; return MiniDumpWriteDump(process, processId, file, type, exception, streams, callback); }
+    ++streamedWrites;
+    LARGE_INTEGER size{}; size.QuadPart = ReportDumpLimit + 1;
+    return SetFilePointerEx(file, size, nullptr, FILE_BEGIN) && SetEndOfFile(file);
+}
 BOOL WINAPI OversizedReportWriter(HANDLE, DWORD, HANDLE file, MINIDUMP_TYPE,
     PMINIDUMP_EXCEPTION_INFORMATION, PMINIDUMP_USER_STREAM_INFORMATION, PMINIDUMP_CALLBACK_INFORMATION) {
     LARGE_INTEGER size{}; size.QuadPart = ReportDumpLimit + 1;
@@ -84,9 +92,24 @@ void TestSmallDumpIndependentOfFull() {
     // Oversized successful writes are never published, and leave no partial.
     const auto logs = TempDirectory();
     const auto path = logs + L"\\sf4e-crash-size-report.dmp";
-    const MINIDUMP_TYPE type = ReportDumpType;
+    const DumpAttempt oversized[] = { { ReportDumpType } };
     CHECK(!PublishDump(CreateDumpFile(path.c_str()), path.c_str(), GetCurrentProcess(), GetCurrentProcessId(),
-        GetCurrentThreadId(), nullptr, false, { &type, 1, ReportDumpLimit, 0, OversizedReportWriter }));
+        GetCurrentThreadId(), nullptr, false, { oversized, 1, ReportDumpLimit, 0, OversizedReportWriter }));
     CHECK(FileAbsent(path.c_str())); CHECK(DumpFiles(logs.c_str(), L"*").empty());
+    // A report that is over the limit only because of its extra stream is
+    // published without it, not lost.
+    const auto retried = logs + L"\\sf4e-crash-retry-report.dmp";
+    unsigned char extra[16] = {};
+    MINIDUMP_USER_STREAM stream = { StackSupplementStream, sizeof(extra), extra };
+    MINIDUMP_USER_STREAM_INFORMATION streams = { 1, &stream };
+    const ReportAttempts attempts = MakeReportAttempts(&streams);
+    streamedWrites = plainWrites = 0;
+    CHECK(PublishDump(CreateDumpFile(retried.c_str()), retried.c_str(), GetCurrentProcess(), GetCurrentProcessId(),
+        GetCurrentThreadId(), nullptr, false, { attempts.list, attempts.count, ReportDumpLimit, 0, OversizesWithStreamWriter }));
+    CHECK(streamedWrites == 1 && plainWrites == 1 && GetFileAttributesW(retried.c_str()) != INVALID_FILE_ATTRIBUTES);
+    ULONGLONG retriedSize = 0;
+    CHECK(DumpedExceptionCode(retried, retriedSize) == 0 && retriedSize > 0 && retriedSize <= ReportDumpLimit);
+    CHECK(DumpedStackSupplement(retried).empty());
+    DeleteFileW(retried.c_str());
     RemoveDirectoryW(logs.c_str());
 }
