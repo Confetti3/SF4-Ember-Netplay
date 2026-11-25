@@ -22,7 +22,8 @@ namespace sf4e { namespace netplay {
 // when every table is done, after DeadlineMs in the room, when the room, the
 // member or the host changes, and when the host edits any table's rules by
 // hand (a SetRules or NameTable of their own, or a table that shows other
-// rules than it had or was given): whatever is left is theirs.
+// rules than it had or was given): whatever is left is theirs. It also ends
+// when the room cannot take the chosen table count yet (count_not_allowed).
 //
 // An Arcade room's type and rules (the first table's) go in one SetRoomType
 // instead, while the creator is alone in it; a room that shows the type is done.
@@ -58,7 +59,7 @@ public:
     void ObservePlayer(const room::Action& action) {
         if (action.kind == room::ActionKind::SetRules || action.kind == room::ActionKind::NameTable) Cancel("edited");
         if (action.kind == room::ActionKind::SetWiredOnly) wiredOnly_ = false;
-        if (action.kind == room::ActionKind::SetTableCount) hostSetTableCount_ = true;
+        if (action.kind == room::ActionKind::SetTableCount) { tableCount_ = action.tableCount; hostSetTableCount_ = true; }
     }
     // The committed room as this member sees it. True, with `action` filled
     // in, when the next action (the type, a rule, a table's rules or name, the
@@ -84,7 +85,7 @@ public:
             action = ActionAt(room, room::ActionKind::SetRoomType);
             action.rules = setup_.rules[0];
             action.roomType = type_;
-            action.tableCount = hostSetTableCount_ ? static_cast<std::uint8_t>(room::TablesInPlay(room)) : tableCount_;
+            action.tableCount = tableCount_;
             return true;
         }
         if (wiredOnly_ && room.wiredOnly) wiredOnly_ = false;
@@ -113,7 +114,7 @@ public:
         }
         if (next < 0) {
             if (hostSetTableCount_ || room.tableCount == tableCount_) { Cancel("done"); return false; }
-            // A count the room would refuse every time (someone is at a table it takes away) is the host's to settle.
+            // A count the room refuses while someone is at a table it takes away is left to the host.
             if (!room::TableCountAllowed(room, tableCount_)) { Cancel("count_not_allowed"); return false; }
             if (!RoomRuleDue(room::ActionKind::SetTableCount, canSend, nowMs)) return false;
             action = ActionAt(room, room::ActionKind::SetTableCount);
@@ -164,10 +165,10 @@ private:
     TableSetup setup_;
     room::RoomType type_ = room::RoomType::Classic;
     // How many tables the room plays at: an Arcade type's goes with its
-    // SetRoomType, a Classic room's in a SetTableCount.
+    // SetRoomType, a Classic room's in a SetTableCount. The host's own
+    // SetTableCount replaces the count chosen on Create.
     std::uint8_t tableCount_ = room::TableCount;
-    // The host set the count themselves: it is theirs, and the type goes with
-    // the count the room shows. (This header also builds as C++14: no optional.)
+    // The host set the count themselves, so no SetTableCount is sent for it.
     bool hostSetTableCount_ = false;
     // The rule still to be sent; false once the room shows it or the host sets it.
     bool wiredOnly_ = false;
