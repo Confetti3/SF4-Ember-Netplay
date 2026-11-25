@@ -9,12 +9,11 @@
 //! the one before it.
 use std::sync::Arc;
 
-use ember_protocol::replays::{MAX_REPLAY, Replay};
 use rusqlite::{ToSql, Transaction, params};
 
 use super::{
     BATCH, Leased, Outcome, Queue, Record, Table,
-    archive::{GAMES, key, retry, settled},
+    archive::{GAMES, key, read_back, retry, settled},
 };
 use crate::{AppState, archive::duplicates::identified, error::Result, s3::Bucket};
 
@@ -47,22 +46,16 @@ impl Copy {
 pub struct Duplicates(pub Arc<Bucket>);
 
 impl Duplicates {
-    /// Reads the unread copy `digest` at `key` and records which game it is.
+    /// Reads the unread copy `digest` back and records which game it is.
     async fn read(
         &self,
         state: &AppState,
         secret: &str,
-        key: &str,
         digest: &str,
     ) -> std::result::Result<(), String> {
-        let file = self
-            .0
-            .get(secret, key, MAX_REPLAY, state.now())
+        let replay = read_back(state, &self.0, secret, digest)
             .await?
-            .ok_or_else(|| format!("{key}: missing"))?;
-        let replay = Replay::parse(&file)
-            .filter(|replay| replay.digest_hex() == digest)
-            .ok_or_else(|| format!("{key}: not the replay it was stored as"))?;
+            .ok_or_else(|| format!("{}: not the replay it was stored as", key(digest)))?;
         let (digest, game) = (digest.to_owned(), replay.game_hex());
         state
             .db
@@ -113,10 +106,9 @@ impl Queue for Duplicates {
         let Some(secret) = &state.integrations.archive_secret_key else {
             return retry("no archive secret key".into());
         };
-        let key = key(copy.digest());
         let done = match copy {
-            Copy::Unread(digest) => self.read(state, secret, &key, digest).await,
-            Copy::Duplicate(_) => self.0.delete(secret, &key, state.now()).await,
+            Copy::Unread(digest) => self.read(state, secret, digest).await,
+            Copy::Duplicate(digest) => self.0.delete(secret, &key(digest), state.now()).await,
         };
         match done {
             Ok(()) => Outcome::Delivered,

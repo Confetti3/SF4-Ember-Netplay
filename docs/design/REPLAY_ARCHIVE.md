@@ -291,23 +291,42 @@ replay still goes in, with `rounds` `null`.
 
 `archive_games.rounds_a` / `rounds_b` hold the score and `rounds_read_at`
 when the bridge read it (migration 067). A new game's is read as it comes
-in, from the copy the archive keeps, online or a set's; both players' copies
-of one game hold the same rounds and winner. The listing reads the two columns from the rows it reads
-already; they are in no key, so the index and its triggers do not move.
+in, from the copy the archive keeps, online or a set's. The listing reads
+the two columns from the rows it reads already; they are in no key, so the
+index and its triggers do not move.
+
+Both players' copies of one game hold the same rounds, but not always the
+same winner of a deciding round: that is the slot record's byte 49, which
+neither the replay's CRC nor what the archive knows a game by covers, so
+anyone can send a copy of a game that names the other winner. The archive
+keeps the first copy's rounds and never takes a later copy's instead. When a
+later copy of the game the archive holds (`archive::admit`), or an online
+copy a set's copy folds in (`duplicates::fold`), names other rounds than the
+game holds, the game is left with none (`archive::rounds::dispute`), still
+read, so nothing gives either copy's rounds back. A copy whose own rounds
+are unknown contradicts nothing. Anyone can so blank a deciding game's
+score, but not choose it: the page shows no winner rather than a wrong one.
+A game kept before 067 whose rounds are not read yet cannot be disputed;
+the backfill reads its own copy's.
 
 The games kept before migration 067 have none. `delivery::rounds` reads them
 back from the bucket (`archive::rounds`), at most 32 a pass, 4 at a time, a
-pass every 10 seconds, newest first through an index of the stored games
-still unread, and records what they say in one short write after the pass's
-reads, never holding the database while it reads. That is about three small
-reads a second: production's 258,000 games are read in about a day. A game
-is read once: one whose replay does not say, that the bucket no longer holds
-(404), or that it holds another replay for, is read as having no rounds. One
-the bucket does not answer for (unreachable, refused) is left, and a later
-pass reads it. A bridge from before 067, put back, leaves its new games
-unread, and the backfill reads them once 067's bridge runs again. The
-backfill (`archive::rounds::unread`, `delivery::rounds`) can go once
-production has no stored game without `rounds_read_at`.
+pass every 10 seconds, and records what they say in one short write after
+the pass's reads, never holding the database while it reads. That is about
+three small reads a second: production's 258,000 games are read in about a
+day. The passes sweep the unread games newest first, through an index of the
+stored games still unread: each goes on below the last game the one before
+took, and once a pass finds fewer than 32 the next starts from the newest
+again. A game is read once: one whose replay does not say, that the bucket
+answers `NoSuchKey` for, or that it holds another replay for, is read as
+having no rounds. One the bucket does not answer for (unreachable, refused,
+any other 404 such as `NoSuchBucket`, too long) is left, tried again on the
+next sweep, and holds up no other game; a pass logs one line for all the
+games it could not read. A bridge from before 067, put back, leaves its new
+games unread, and the backfill reads them once 067's bridge runs again. The
+backfill is done when no stored game is left without `rounds_read_at`; it
+(`archive::rounds::unread`, `delivery::rounds`) can go once production has
+none.
 
 The site in `server/ember/archive-site` is plain HTML. It shows the bridge's
 listing at `/v1/archive`. Tournament games are grouped by event and set.
@@ -419,9 +438,11 @@ an operator puts its file back or deletes its row; the next maintenance pass
 folds. The same queue deletes a duplicate's file from the bucket, after any
 upload of it still leased is over, and then its row. A set's copy is never
 removed. Folding and removing duplicates stay, since a set's copy folds its
-own players' online copies; only reading copies back (the queue's unread
-copies, `fold_kept_before`, `archive_fold_owed` and the bucket's GET) can go
-once production has no row without a `game`.
+own players' online copies; only reading copies back for their `game` (the
+queue's unread copies, `fold_kept_before` and `archive_fold_owed`) can go
+once production has no row without a `game`. The bucket's GET and the read
+back (`delivery::archive::read_back`) stay while the round scores' backfill
+needs them.
 
 Migration 050 rebuilt `archive_games` around the digest. It kept none of the
 games 049 held: a stored one no longer has its replay, so its digest cannot

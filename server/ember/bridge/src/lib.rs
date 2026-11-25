@@ -180,14 +180,19 @@ pub async fn maintain(state: &AppState) {
     routes::maintenance_once(state).await;
 }
 
-/// One pass of reading the round scores of the archive's games kept before
+/// One sweep of reading the round scores of the archive's games kept before
 /// them back from its bucket (`delivery::rounds`), when the bridge has an
-/// archive. `start` runs one every few seconds; tests call it.
+/// archive: passes from the newest unread game until one finds fewer than
+/// `ARCHIVE_ROUNDS_PER_PASS`. `start` runs a pass every few seconds; tests
+/// call it.
 pub async fn read_archive_rounds(state: &AppState) {
     if let Some(Ok(bucket)) = state.config.archive.as_ref().map(s3::Bucket::new) {
-        delivery::rounds::pass(state, &bucket).await;
+        delivery::rounds::sweep(state, &bucket).await;
     }
 }
+
+/// The most games one pass of `read_archive_rounds` reads back.
+pub const ARCHIVE_ROUNDS_PER_PASS: i64 = delivery::rounds::GAMES_PER_PASS;
 
 /// Marks the public rankings board as moved, as the bridge does itself when
 /// it writes a rating, the band shown, a ranking choice or a Discord account,

@@ -1,7 +1,7 @@
 //! Each archived game's round score (`Replay::rounds`): kept with a new
-//! game, online or a set's, listed with it, the same whichever player's copy
-//! came, and read back from the bucket for the games kept before migration
-//! 067, each once.
+//! game, online or a set's, listed with it, none when two copies of the game
+//! disagree, and read back from the bucket for the games kept before
+//! migration 067, each once.
 use super::*;
 
 /// The stored games whose rounds were never read (`?1` names none).
@@ -138,4 +138,88 @@ async fn games_kept_before_rounds_are_read_back_once() {
     ember_bridge::read_archive_rounds(f.bridge.state()).await;
     let list = listed(&f, "").await;
     assert_eq!(listed_game(&list, &replaced)["rounds"], Json::Null);
+}
+
+/// Games the bucket keeps failing to give back, more than a pass takes and
+/// newer than the rest, do not hold up the older games: each pass goes on
+/// below the last, and the failing ones are tried again next sweep.
+#[tokio::test]
+async fn games_that_keep_failing_do_not_hold_up_the_others() {
+    let f = fixture().await;
+    let failing = ember_bridge::ARCHIVE_ROUNDS_PER_PASS as u32 + 1;
+    let too_long = vec![0; replays::MAX_REPLAY + 1];
+    for n in 0..failing {
+        let file = scored(n as u8, &[[0, 0], [0, 1]], None, 1_800_001_000 + n);
+        kept_before(&f, &file, Some(&too_long)).await;
+    }
+    let won = scored(200, &[[0, 0], [1, 0]], None, 1_800_000_000);
+    kept_before(&f, &won, Some(&won)).await;
+    ember_bridge::read_archive_rounds(f.bridge.state()).await;
+    assert_eq!(count(&f, UNREAD, "").await, i64::from(failing));
+    let list = listed(&f, "").await;
+    assert_eq!(listed_game(&list, &won)["rounds"], json!([2, 0]));
+}
+
+/// The winner of a deciding round is the slot record's, which no hash of the
+/// replay covers: two copies of one game that name different winners leave
+/// it no rounds, whichever came first, and no later copy or read gives them
+/// back. A copy that says nothing contradicts nothing.
+#[tokio::test]
+async fn copies_that_disagree_leave_a_game_no_rounds() {
+    let f = fixture().await;
+    let deciding = [[0, 0], [1, 0], [1, 1]];
+    let claimed = scored(10, &deciding, Some(1), 1_800_000_000);
+    let honest = copy_from(&scored(10, &deciding, Some(0), 1_800_000_000), 1);
+    assert_eq!(Replay::parse(&claimed).unwrap().rounds, Some([1, 2]));
+    assert_eq!(Replay::parse(&honest).unwrap().rounds, Some([2, 1]));
+    assert_eq!(
+        Replay::parse(&claimed).unwrap().game,
+        Replay::parse(&honest).unwrap().game
+    );
+    let swept = scored(11, &[[0, 0], [0, 1]], None, 1_800_000_100);
+    // Its record names the other winner than its rounds: it says nothing.
+    let says_nothing = copy_from(&scored(11, &[[0, 0], [0, 1]], Some(0), 1_800_000_100), 1);
+    assert_eq!(Replay::parse(&says_nothing).unwrap().rounds, None);
+    for (by, file, sent) in [
+        (&f.b, &claimed, StatusCode::CREATED),
+        (&f.a, &honest, StatusCode::OK),
+        (&f.a, &copy_from(&claimed, 2), StatusCode::OK),
+        (&f.a, &swept, StatusCode::CREATED),
+        (&f.b, &says_nothing, StatusCode::OK),
+    ] {
+        assert_eq!(send(&f, by, file, "").await, sent);
+    }
+    let list = listed_when(&f, "", |list| games(list).len() == 2).await;
+    assert_eq!(listed_game(&list, &claimed)["rounds"], Json::Null);
+    assert_eq!(listed_game(&list, &swept)["rounds"], json!([0, 2]));
+    // Stored, they are read already: the backfill reads neither back.
+    assert_eq!(count(&f, UNREAD, "").await, 0);
+    ember_bridge::read_archive_rounds(f.bridge.state()).await;
+    let list = listed(&f, "").await;
+    assert_eq!(listed_game(&list, &claimed)["rounds"], Json::Null);
+}
+
+/// A set's copy that names another winner than its own players' online copy
+/// of the game, folded into it, leaves the set's game no rounds.
+#[tokio::test]
+async fn a_sets_copy_that_disagrees_with_a_folded_copy_has_no_rounds() {
+    let f = fixture().await;
+    let id = set(&f, "disputed", 1).await;
+    let deciding = [[0, 0], [1, 0], [1, 1]];
+    let saved_at = f.bridge.started_at + 1;
+    let online = copy_from(&scored(12, &deciding, Some(0), saved_at), 1);
+    let set_copy = scored(12, &deciding, Some(1), saved_at);
+    assert_eq!(
+        send(&f, &f.b, &online, "a=&b=Player2&side=1").await,
+        StatusCode::CREATED
+    );
+    assert_eq!(
+        send_to_set(&f, &f.a, &id, &set_copy, "side=0").await,
+        StatusCode::CREATED
+    );
+    let list = listed_when(&f, "", |list| {
+        games(list).len() == 1 && games(list)[0]["set"] == id.as_str()
+    })
+    .await;
+    assert_eq!(listed_game(&list, &set_copy)["rounds"], Json::Null);
 }

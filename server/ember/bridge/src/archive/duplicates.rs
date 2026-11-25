@@ -15,11 +15,12 @@
 //! `fold` and the removal of `duplicate`s stay: a set's copy folds its
 //! players' online copies. Only the reading back of copies kept before
 //! (`identified`, `fold_kept_before`, `archive_fold_owed`,
-//! `delivery::duplicates::Copy::Unread`, `s3::Bucket::get`) can go once
-//! production holds no row without a `game`.
+//! `delivery::duplicates::Copy::Unread`) can go once production holds no row
+//! without a `game`; the round scores' backfill (`delivery::rounds`) reads
+//! copies back the same way.
 use rusqlite::{OptionalExtension, Transaction, params};
 
-use super::name_side;
+use super::{name_side, rounds};
 use crate::error::Result;
 
 /// Records that the stored copy `digest` is of `game`.
@@ -66,6 +67,8 @@ struct Copy {
     names: [Option<String>; 2],
     countries: [Option<String>; 2],
     named_by: [Option<String>; 2],
+    /// The rounds its replay says each side won, when read and known.
+    rounds: Option<[u8; 2]>,
 }
 
 impl Copy {
@@ -83,7 +86,8 @@ impl Copy {
 /// Makes `game` one row again: the set's copy, or else the copy that reached
 /// the bridge first, is kept, and every other online copy, in the order they
 /// came, gives it the sides it named by the rules a late copy names a side by
-/// (`name_side`, which names no side of a set's game), then becomes a
+/// (`name_side`, which names no side of a set's game) and leaves it no
+/// rounds when theirs disagree (`rounds::dispute`), then becomes a
 /// `duplicate`. A set's copy takes in only the online copies its own
 /// players sent, never anyone else's, which stay games of their own. A set's
 /// copy is never removed.
@@ -91,7 +95,7 @@ pub(super) fn fold(tx: &Transaction<'_>, game: &str) -> Result<()> {
     let copies = tx
         .prepare(
             "SELECT digest, match_id, sent_by, sent_side, name_a, name_b, country_a, country_b,
-                    named_by_a, named_by_b
+                    named_by_a, named_by_b, rounds_a, rounds_b
              FROM archive_games WHERE game = ?1 AND state != 'duplicate'
              ORDER BY match_id IS NULL, received_at, digest",
         )?
@@ -104,6 +108,7 @@ pub(super) fn fold(tx: &Transaction<'_>, game: &str) -> Result<()> {
                 names: [row.get(4)?, row.get(5)?],
                 countries: [row.get(6)?, row.get(7)?],
                 named_by: [row.get(8)?, row.get(9)?],
+                rounds: rounds::from_columns(row.get(10)?, row.get(11)?),
             })
         })?
         .collect::<rusqlite::Result<Vec<_>>>()?;
@@ -125,6 +130,7 @@ pub(super) fn fold(tx: &Transaction<'_>, game: &str) -> Result<()> {
                 name_side(tx, &kept.digest, side, name, country, by)?;
             }
         }
+        rounds::dispute(tx, &kept.digest, copy.rounds)?;
         tx.execute(
             "UPDATE archive_games SET state = 'duplicate', replay = NULL WHERE digest = ?1",
             [&copy.digest],
