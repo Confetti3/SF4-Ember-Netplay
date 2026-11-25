@@ -6,7 +6,10 @@
 #include <windows.h>
 #include "spdlog/spdlog.h"
 
+#include "../Dimps/Dimps.hxx"
+#include "../Dimps/Dimps__Event.hxx"
 #include "../common/LoadWatch.hxx"
+#include "sf4e__BattleLoadRead.hxx"
 #include "sf4e__CrashDiagnostics.hxx"
 
 namespace {
@@ -15,7 +18,7 @@ namespace watch = sf4e::loadwatch;
 
 std::mutex s_lock;
 watch::LoadWatch s_watch;
-watch::BattleLoadFacts s_noted;
+bool s_emberSetUp = false;
 
 constexpr unsigned long long Seconds(std::uint64_t ms) { return (ms + 500) / 1000; }
 
@@ -38,24 +41,34 @@ void Announce(const std::optional<watch::Report>& report) {
 
 } // namespace
 
-void sf4e::battleload::Note(loadwatch::LoadSource source, const Dimps::GameEvents::VsMode::ConfirmedCharaConditions (&sides)[2], int stage) {
-	watch::BattleLoadFacts facts;
-	facts.source = source;
-	facts.stage = stage;
-	for (int i = 0; i < 2; ++i)
-		facts.sides[i] = { sides[i].charaID, sides[i].costume, sides[i].color, sides[i].ultraCombo, sides[i].unc_edition };
+// What the game's Versus or Training event holds for the battle about to load,
+// whoever filled it; Unread in any other mode.
+static watch::BattleLoadFacts ReadLoad() {
+	using namespace Dimps::GameEvents;
+	char* versus[] = { "VSMode" };
+	if (auto* mode = (VsMode*)Dimps::Event::EventBaseWithEC::FindForegroundEvent(Dimps::App::GetRootEvent(), versus, 1))
+		if (auto facts = sf4e::battleload::ReadVersus(mode)) return *facts;
+	char* training[] = { "TrainingMode" };
+	if (auto* mode = (TrainingMode*)Dimps::Event::EventBaseWithEC::FindForegroundEvent(Dimps::App::GetRootEvent(), training, 1))
+		if (auto facts = sf4e::battleload::ReadTraining(mode, TrainingBattle::stagePush)) return *facts;
+	return {};
+}
+
+void sf4e::battleload::NoteEmberSetUp() {
 	std::lock_guard<std::mutex> guard(s_lock);
-	s_noted = facts;
+	s_emberSetUp = true;
 }
 
 void sf4e::battleload::Started() {
-	watch::BattleLoadFacts facts;
+	bool emberSetUp;
 	{
 		std::lock_guard<std::mutex> guard(s_lock);
-		facts = s_noted;
-		s_noted = watch::BattleLoadFacts();
+		emberSetUp = s_emberSetUp;
+		s_emberSetUp = false;
 		s_watch.LoadStarted(GetTickCount64());
 	}
+	watch::BattleLoadFacts facts = ReadLoad();
+	facts.emberSetUp = emberSetUp;
 	spdlog::info("Battle load: {}", watch::FormatBattleLoad(facts));
 	crash::NoteMatchBoundary("battle_load");
 }
@@ -72,7 +85,7 @@ void sf4e::battleload::FirstFrame() {
 void sf4e::battleload::Closed() {
 	std::lock_guard<std::mutex> guard(s_lock);
 	s_watch.BattleClosed(GetTickCount64());
-	s_noted = watch::BattleLoadFacts();
+	s_emberSetUp = false;
 }
 
 void sf4e::battleload::Tick() {

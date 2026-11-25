@@ -5,18 +5,16 @@
 // engine starts its battle jobs, its first frame is the battle's first update
 // and the battle's close ends it. The watch is ticked every frame by the
 // frame limiter, which keeps running while the load is stuck. The state is
-// behind one lock, so the calls may come from any thread.
-
-#include "../Dimps/Dimps__GameEvents.hxx"
-#include "../common/BattleLoadFacts.hxx"
+// behind one lock. Started runs on the game thread at JobManager::Start and
+// reads the foreground Versus or Training event there; the other calls may
+// come from any thread.
 
 namespace sf4e {
 namespace battleload {
 
-// The fighters and stage Ember has just put into the battle that is about to
-// load. The next load's description takes them once; a battle with none noted
-// says that its fighters were not read.
-void Note(loadwatch::LoadSource source, const Dimps::GameEvents::VsMode::ConfirmedCharaConditions (&sides)[2], int stage);
+// Ember set up the battle that is about to load (a room's match, the developer
+// jump, Training's select or a dummy change); the load's description says so.
+void NoteEmberSetUp();
 // The engine started loading a battle: logs what is known of it and the process.
 void Started();
 // The battle's first update ran: the load finished.

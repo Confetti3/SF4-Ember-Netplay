@@ -124,12 +124,6 @@ void VsMode::Locate(HMODULE peRoot) {
 	staticMethods.Factory = (VsMode * (*)(DWORD, DWORD, DWORD))(peRootOffset + 0x23dde0);
 }
 
-static_assert(sizeof(GameEvents::TrainingMode::Selection) == 0x14, "Training's selection is 0x14 bytes a side");
-
-GameEvents::TrainingMode::Selection* GameEvents::TrainingMode::GetSelection(TrainingMode* e, int side) {
-	return (Selection*)((unsigned int)e + 0x60 + side * sizeof(Selection));
-}
-
 BYTE* GameEvents::TrainingBattle::stagePush = nullptr;
 BYTE* GameEvents::TrainingBattle::stageMusicPush = nullptr;
 

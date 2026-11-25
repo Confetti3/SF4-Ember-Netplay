@@ -89,14 +89,22 @@ static void TestClockGoingBackwardsIsNotAStall() {
 static void TestLoadLine() {
 	BattleLoadFacts facts;
 	CHECK(FormatBattleLoad(facts) == "mode=native select, fighters and stage not read");
-	facts.source = LoadSource::EmberVersus;
+	facts.emberSetUp = true;
+	CHECK(FormatBattleLoad(facts) == "mode=unread, fighters and stage not read");
+	facts.mode = LoadMode::Versus;
 	facts.sides[0] = { 1, 2, 3, 1, 4 };
 	facts.sides[1] = { 5, 6, 7, 0, 8 };
 	facts.stage = 9;
+	// Ember's own loads keep the line they had.
 	CHECK(FormatBattleLoad(facts) ==
 		"mode=versus P1 fighter=1 costume=2 color=3 ultra=1 edition=4, P2 fighter=5 costume=6 color=7 ultra=0 edition=8, stage=9");
-	facts.source = LoadSource::EmberTraining;
+	facts.mode = LoadMode::Training;
 	CHECK(FormatBattleLoad(facts).rfind("mode=training P1 fighter=1", 0) == 0);
+	// The game's own select reads into the same line, one grep for both.
+	facts.emberSetUp = false;
+	facts.stage.reset();
+	CHECK(FormatBattleLoad(facts) ==
+		"mode=native training P1 fighter=1 costume=2 color=3 ultra=1 edition=4, P2 fighter=5 costume=6 color=7 ultra=0 edition=8, stage=not read");
 }
 
 int main() {

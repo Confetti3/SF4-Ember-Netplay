@@ -331,7 +331,16 @@ namespace Dimps {
 				int cursorCharaID;
 				BOOL chosen;
 			};
-			static Selection* GetSelection(TrainingMode* e, int side);
+			static_assert(sizeof(Selection) == 0x14, "Training's selection is 0x14 bytes a side");
+			static Selection* GetSelection(TrainingMode* e, int side) {
+				return (Selection*)((unsigned int)e + 0x60 + side * sizeof(Selection));
+			}
+			// Both sides' conditions; false, `out` untouched, unless both are chosen.
+			static bool GetChosenSides(TrainingMode* e, VsMode::ConfirmedCharaConditions (&out)[2]) {
+				if (!GetSelection(e, 0)->chosen || !GetSelection(e, 1)->chosen) return false;
+				for (int i = 0; i < 2; ++i) out[i] = GetSelection(e, i)->conditions;
+				return true;
+			}
 		};
 
 		// The `push 0` (6A 00) giving the stage, then its music, in
