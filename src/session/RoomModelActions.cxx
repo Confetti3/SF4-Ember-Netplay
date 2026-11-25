@@ -19,7 +19,7 @@ Result RoomAuthority::ApplySetCapacity(MemberId member, const Action& action) {
 	snapshot_.capacity = action.capacity; TouchRoom(); return Accept();
 }
 
-// A private room (TableCountChangeable) grows to any count up to
+// Any room but a tournament's (TableCountChangeable) grows to any count up to
 // TableCount. It shrinks only past tables nobody is at and whose last game is
 // wholly over: every recipient of its terminal receipt, an ending spectator as
 // much as a fighter, has acknowledged it. So no place, game or result is lost

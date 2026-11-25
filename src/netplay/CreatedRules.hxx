@@ -22,7 +22,8 @@ namespace sf4e { namespace netplay {
 // when every table is done, after DeadlineMs in the room, when the room, the
 // member or the host changes, and when the host edits any table's rules by
 // hand (a SetRules or NameTable of their own, or a table that shows other
-// rules than it had or was given): whatever is left is theirs.
+// rules than it had or was given): whatever is left is theirs. It also ends
+// when the room cannot take the chosen table count yet (count_not_allowed).
 //
 // An Arcade room's type and rules (the first table's) go in one SetRoomType
 // instead, while the creator is alone in it; a room that shows the type is done.
@@ -41,11 +42,11 @@ public:
     static constexpr std::uint64_t JoinMs = 60000;
     // How long the tables are given, from the creator's first sight of the room.
     static constexpr std::uint64_t DeadlineMs = 15000;
-    // A SetRules with no answer by then is sent again.
+    // An action with no answer by then is sent again.
     static constexpr std::uint64_t RetryMs = 1500;
 
     // `charter`: the room as it was created; its type, its seat rules and how
-    // many tables an Arcade type plays at are what is set here.
+    // many tables it plays at are what is set here.
     void Start(const TableSetup& setup, std::uint64_t nowMs, const room::Charter& charter = room::Charter()) {
         *this = CreatedRules();
         active_ = true; setup_ = setup; type_ = charter.type; tableCount_ = charter.tableCount; armedAtMs_ = nowMs;
@@ -61,7 +62,7 @@ public:
         if (action.kind == room::ActionKind::SetRules || action.kind == room::ActionKind::NameTable) Cancel("edited");
         if (action.kind == room::ActionKind::SetWiredOnly) wiredOnly_ = false;
         if (action.kind == room::ActionKind::SetMaxPing) maxPingMs_ = 0;
-        if (action.kind == room::ActionKind::SetTableCount) tableCount_ = 0;
+        if (action.kind == room::ActionKind::SetTableCount) { tableCount_ = action.tableCount; hostSetTableCount_ = true; }
     }
     // The committed room as this member sees it. True, with `action` filled
     // in, when a table's rules or name are to be sent now; `canSend` says the room
@@ -117,7 +118,9 @@ public:
             if (next < 0) next = table.id;
         }
         if (next < 0) {
-            if (!tableCount_ || room.tableCount == tableCount_) { Cancel("done"); return false; }
+            if (hostSetTableCount_ || room.tableCount == tableCount_) { Cancel("done"); return false; }
+            // A count the room refuses while someone is at a table it takes away is left to the host.
+            if (!room::TableCountAllowed(room, tableCount_)) { Cancel("count_not_allowed"); return false; }
             if (!RoomRuleDue(room::ActionKind::SetTableCount, canSend, nowMs)) return false;
             action = ActionAt(room, room::ActionKind::SetTableCount);
             action.tableCount = tableCount_;
@@ -167,9 +170,11 @@ private:
     TableSetup setup_;
     room::RoomType type_ = room::RoomType::Classic;
     // How many tables the room plays at: an Arcade type's goes with its
-    // SetRoomType, a Classic room's in a SetTableCount. 0 once the host has
-    // set the count themselves.
+    // SetRoomType, a Classic room's in a SetTableCount. The host's own
+    // SetTableCount replaces the count chosen on Create.
     std::uint8_t tableCount_ = room::TableCount;
+    // The host set the count themselves, so no SetTableCount is sent for it.
+    bool hostSetTableCount_ = false;
     // The seat rules still to be sent; off once the room shows them or the
     // host sets them.
     bool wiredOnly_ = false;

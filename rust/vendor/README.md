@@ -16,8 +16,8 @@ Source: `iroh-1.1.0.crate` from crates.io, sha256
 the MIT licence (the crate is MIT OR Apache-2.0). The crate ships only
 `LICENSE-BSD3` (for the parts derived from Tailscale), so `LICENSE-MIT` and
 `LICENSE-APACHE` were added from the v1.1.0 tag of n0-computer/iroh. Modified
-by SF4 Ember Netplay, 2026-11-23; every change is marked `Ember patch` in
-`src/net_report.rs`.
+by SF4 Ember Netplay, 2026-11-23 and 2026-11-25; every change is marked
+`Ember patch` in `src/net_report.rs`.
 
 ### How iroh picks the home relay
 
@@ -39,7 +39,7 @@ On a network that blocks UDP, HTTPS probes measure the relays instead. Every
    previous report to plan its probes, and upstream lost the current relay
    with it, so it picked without the two-thirds rule. Two relays a few
    milliseconds apart (n0's and Ember's relay in one region) swapped the home
-   relay every 5 minutes. `Reports::last_preferred` carries the relay across;
+   relay every 5 minutes. `Reports::chosen` carries the relay across;
    a report in which no relay answered keeps it too.
 3. **The stored probe connection is the home relay's.** Upstream keeps the
    connection of the first relay to answer a probe. Its address is read again
@@ -47,11 +47,26 @@ On a network that blocks UDP, HTTPS probes measure the relays instead. Every
    alone, which became the home relay with no comparison. The connection is
    now closed unless its relay is the one the report chose
    (`QadConns::keep_only`).
+4. **One report without the home relay does not leave it** (2026-11-25).
+   A report holds only the first 3 answers, so the home relay can be missing
+   from it while it works. Players' 1.6.4 logs showed exactly that on most
+   full reports: the home relay went to whichever relay had answered and came
+   back one or two reports later, 20 to 50 s, every 5 minutes. The relay is
+   now kept through one report that has answers but none from it
+   (`ChosenRelay::unmeasured`) and left on the second such report in a row; a
+   report in which no relay answered is not counted. Change 3 makes the next
+   report probe every relay again, since it closes the stored connection to
+   another relay. That report is the same race for the first 3 answers, so a
+   home relay that loses it twice running is still left: the switching is
+   rarer, not impossible. Having the probe round wait for the home relay's
+   own answer would measure it every time; that is a larger change to
+   `spawn_qad_probes`, not made here.
 
-The current relay is kept only when it answered in the current report, so a
-relay that stopped working is never held.
+A relay that stopped working is therefore held for one report, 20 to 26 s,
+before the home relay moves.
 
-Tests: `test_full_report_keeps_preferred_relay_hysteresis` and
+Tests: `test_full_report_keeps_preferred_relay_hysteresis`,
+`test_unmeasured_preferred_relay_is_left_on_the_second_report` and
 `test_stored_qad_conn_only_to_preferred_relay` in `src/net_report.rs`, run by
 the CTest test `IrohPatchRust`; `iroh_is_the_vendored_copy` in `sf4-net`
 fails if Cargo.lock stops using this copy. By hand, with the target directory

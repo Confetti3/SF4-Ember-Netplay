@@ -111,8 +111,8 @@ public:
     // Opens a public room: the new room's admission is joined when it arrives.
     // The service opens it with `charter`'s delay policy; `rules` go with the
     // new room's join, for the runtime to set on its tables, and so does the
-    // rest of `charter`: its type, its seat rules and how many tables an Arcade
-    // room plays at (netplay::CreatedRules).
+    // rest of `charter`: its type, its seat rules and how many tables it plays
+    // at (netplay::CreatedRules).
     void Create(const std::string& name, int capacity, const netplay::TableSetup& tables, const room::Charter& charter);
     // A create or ticket request is waiting to be sent or answered.
     bool Busy() const { return pending_.has_value(); }
