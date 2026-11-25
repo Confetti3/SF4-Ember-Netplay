@@ -184,6 +184,8 @@ bool ApplicationShell::UpdateRoomFeedback(const ShellView& v) {
  roomUpdateVisible_=healthyRoom&&clock_.Now()<roomUpdateUntil_;
  return healthyRoom;
 }
+// The shell's own save failures (not queued, not confirmed, invalid); a store error keeps its own reason.
+void ApplicationShell::FailSave() { saveFailed_=true;error_=loc::T("error.settings_not_saved"); }
 void ApplicationShell::UpdatePreferenceSave(const ShellView& v,const Submit& submit) {
  using namespace netplay; auto& nav=menu_.navigation;
  if(saveQueued_&&!v.settingsPending){
@@ -193,14 +195,21 @@ void ApplicationShell::UpdatePreferenceSave(const ShellView& v,const Submit& sub
     profileSavePending_=false;error_.clear();ShowNotice(loc::Tf("notice.profile_saved",selection::FindFighter(v.preferences.mainFighter)->name),Tone::Success,clock_.Now()+3);
     if(nav.Screen()=="main-character")nav.Return();
    }
-  }else if(clock_.Now()>saveAt_+2){saveQueued_=false;saveFailed_=true;retrySave_=false;error_=loc::T("error.settings_not_saved");}
+  }else if(clock_.Now()>saveAt_+2){saveQueued_=false;retrySave_=false;FailSave();}
  }
  if(!preferencesDirty_&&!saveQueued_&&!saveFailed_&&!v.settingsPending)preferences_=v.preferences;
  SyncLayoutPaths(v);
  if(!v.settingsError.empty()&&!retrySave_&&!saveQueued_)saveFailed_=true;
- if(preferencesDirty_&&!saveQueued_&&!saveFailed_&&!v.settingsPending&&MaySave(v,preferences_)&&preferences_.Valid()&&clock_.Now()>=saveAt_){
-  DropStaleAwards(v);
-  if(SavePreferences(v,submit)){saveQueued_=true;savingPreferences_=preferences_;saveAt_=clock_.Now();}else saveFailed_=true;
+ if(preferencesDirty_&&!saveQueued_&&!saveFailed_&&!v.settingsPending&&MaySave(v,preferences_)){
+  // Invalid preferences are never sent; this ends Saving... in Save failed.
+  if(const auto invalid=preferences_.InvalidPart();!invalid.empty()){
+   FailSave();
+   // The shell's only channel to the log is LayoutLog, so the line reads "Input: settings not saved: ...".
+   LayoutLog(v,submit,"settings not saved: invalid "+invalid);
+  }else if(clock_.Now()>=saveAt_){
+   DropStaleAwards(v);
+   if(SavePreferences(v,submit)){saveQueued_=true;savingPreferences_=preferences_;saveAt_=clock_.Now();}else FailSave();
+  }
  }
 }
 std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std::string& screen,bool idle,bool opening,const DrawSelection& selection,const DrawSelection& developer,std::string& title) {

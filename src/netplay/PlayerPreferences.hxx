@@ -1,5 +1,6 @@
 #pragma once
 #include <array>
+#include <cstdio>
 #include <string>
 #include <map>
 #include <vector>
@@ -323,22 +324,39 @@ struct PlayerPreferences {
     room::RoomType publicRoomType = room::RoomType::Classic;
     int publicArcadeTables = static_cast<int>(room::TableCount);
     std::string publicRoomTemplate;
-    bool Valid() const {
-        if (roomTemplates.size() > MaxRoomTemplates || !std::all_of(roomTemplates.begin(), roomTemplates.end(), [](const RoomTemplate& saved) { return saved.Valid(); })) return false;
-        if (buttonLayouts.size() > 32 || !std::all_of(buttonLayouts.begin(), buttonLayouts.end(), [](const gamepads::StoredLayout& layout) { return gamepads::ValidLayout(layout.buttons) && gamepads::ValidBoundButtons(layout.bound) && gamepads::ValidExtraCopies(layout.extras); })) return false;
-        if (!gamepads::Valid(buttonPrompts) || displayName.empty() || displayName.size() >= 32 || mainFighter<0 || mainFighter>=selection::FighterCount || inputDelay < MinimumInputDelay || inputDelay > MaximumInputDelay || autoDelayStyle < 0 || autoDelayStyle >= AutoDelayStyles ||
-            matchHudSize < 0 || matchHudSize > 2 || matchHudAnchor < 0 || matchHudAnchor > MaxMatchHudAnchor || matchHudLayout < 0 || matchHudLayout > 1 || pictureSpot < 0 || pictureSpot > 11 || pictureMode < PictureSmall || pictureMode > PictureOff || roomColumn < MinRoomColumn || roomColumn > MaxRoomColumn || roomSplit < MinRoomSplit || roomSplit > MaxRoomSplit || matchHudNameOffset < -MaxMatchHudNameOffset || matchHudNameOffset > MaxMatchHudNameOffset || readySoundVolume < 10 || readySoundVolume > 100 || !(interfaceScale >= MinInterfaceScale && interfaceScale <= MaxInterfaceScale) ||
-            !lobby.Valid() ||
-            roomName.empty() || roomName.size() > 64 || roomCapacity < 2 || roomCapacity > static_cast<int>(room::MaxMembers) ||
-            roomTableCount < 1 || roomTableCount > static_cast<int>(room::TableCount) || !room::MaxPingValid(roomMaxPingMs) || publicRoomType > room::RoomType::King || publicArcadeTables < 1 || publicArcadeTables > static_cast<int>(room::TableCount) || publicRoomTemplate.size() > 32) return false;
-        for (unsigned char c : displayName) if (c < 32 || c == 127) return false;
-        for (unsigned char c : roomName) if (c < 32 || c == 127) return false;
+    static std::string HexOf(std::uint32_t value) { char text[9]; std::snprintf(text, sizeof text, "%X", static_cast<unsigned>(value)); return text; }
+    // The first check that fails, named for the log; empty when every one passes.
+    std::string InvalidPart() const {
+        if (roomTemplates.size() > MaxRoomTemplates || !std::all_of(roomTemplates.begin(), roomTemplates.end(), [](const RoomTemplate& saved) { return saved.Valid(); })) return "room templates";
+        if (buttonLayouts.size() > 32) return "button layouts: more than 32";
+        for (std::size_t i = 0; i < buttonLayouts.size(); ++i) {
+            const auto& layout = buttonLayouts[i];
+            const auto bad = gamepads::ForeignButton(layout.buttons);
+            if (bad != layout.buttons.size()) return "button layout " + std::to_string(i) + ": button " + std::to_string(bad) + " holds mask 0x" + HexOf(layout.buttons[bad]);
+            if (!gamepads::ValidBoundButtons(layout.bound)) return "button layout " + std::to_string(i) + ": bound buttons";
+            if (!gamepads::ValidExtraCopies(layout.extras)) return "button layout " + std::to_string(i) + ": extra copies";
+        }
+        if (!gamepads::Valid(buttonPrompts)) return "button prompts";
+        if (displayName.empty() || displayName.size() >= 32) return "display name length";
+        if (mainFighter<0 || mainFighter>=selection::FighterCount || inputDelay < MinimumInputDelay || inputDelay > MaximumInputDelay || autoDelayStyle < 0 || autoDelayStyle >= AutoDelayStyles) return "main fighter or delay";
+        if (matchHudSize < 0 || matchHudSize > 2 || matchHudAnchor < 0 || matchHudAnchor > MaxMatchHudAnchor || matchHudLayout < 0 || matchHudLayout > 1 || pictureSpot < 0 || pictureSpot > 11 || pictureMode < PictureSmall || pictureMode > PictureOff || roomColumn < MinRoomColumn || roomColumn > MaxRoomColumn || roomSplit < MinRoomSplit || roomSplit > MaxRoomSplit || matchHudNameOffset < -MaxMatchHudNameOffset || matchHudNameOffset > MaxMatchHudNameOffset || readySoundVolume < 10 || readySoundVolume > 100 || !(interfaceScale >= MinInterfaceScale && interfaceScale <= MaxInterfaceScale)) return "interface or match HUD setting";
+        if (!lobby.Valid()) return "lobby settings";
+        if (roomName.empty() || roomName.size() > 64 || roomCapacity < 2 || roomCapacity > static_cast<int>(room::MaxMembers) ||
+            roomTableCount < 1 || roomTableCount > static_cast<int>(room::TableCount) || !room::MaxPingValid(roomMaxPingMs) || publicRoomType > room::RoomType::King || publicArcadeTables < 1 || publicArcadeTables > static_cast<int>(room::TableCount) || publicRoomTemplate.size() > 32) return "room defaults";
+        for (unsigned char c : displayName) if (c < 32 || c == 127) return "display name characters";
+        for (unsigned char c : roomName) if (c < 32 || c == 127) return "room name characters";
         if (cardDevice < 0 || cardDevice > 5 || (cardLooking & ~profiles::LookingBitsAll) != 0 || profiles::LookingCount(cardLooking) > profiles::MaxLooking ||
-            cardPins.size() > profiles::MaxPins) return false;
+            cardPins.size() > profiles::MaxPins) return "player card";
         for (std::size_t i = 0; i < cardPins.size(); ++i)
-            if (!profiles::FamilyIdShaped(cardPins[i]) || std::find(cardPins.begin(), cardPins.begin() + i, cardPins[i]) != cardPins.begin() + i) return false;
-        return country.Valid() && area.Valid() && speech.Valid() && roomFilter.Valid() && tableRules.Valid() && publicTableRules.Valid();
+            if (!profiles::FamilyIdShaped(cardPins[i]) || std::find(cardPins.begin(), cardPins.begin() + i, cardPins[i]) != cardPins.begin() + i) return "player card pins";
+        if (!country.Valid()) return "country";
+        if (!area.Valid()) return "area";
+        if (!speech.Valid()) return "speech";
+        if (!roomFilter.Valid()) return "room filter";
+        if (!tableRules.Valid() || !publicTableRules.Valid()) return "table rules";
+        return {};
     }
+    bool Valid() const { return InvalidPart().empty(); }
 };
 
 // Share my replays' cutoff once `sharing` is taken over a cutoff of `since`

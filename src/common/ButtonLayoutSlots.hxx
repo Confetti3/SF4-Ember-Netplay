@@ -9,6 +9,12 @@ inline bool ReadSlot(const PadBindingRecords& records, unsigned slot, ButtonLayo
     for (unsigned i = 0; i < layout.size(); ++i) layout[i] = table[LayoutBits[i]];
     return true;
 }
+// The slot's table as Ember edits it (a layout's start). The game copy a restore needs is ReadSlot's, with every bit.
+inline bool ReadFightSlot(const PadBindingRecords& records, unsigned slot, ButtonLayout& layout) {
+    if (!ReadSlot(records, slot, layout)) return false;
+    layout = FightFunctions(layout);
+    return true;
+}
 inline bool WriteSlot(const PadBindingRecords& records, unsigned slot, const ButtonLayout& layout) {
     auto* table = records.FightTable(slot);
     if (!table || slot >= 4) return false;

@@ -828,6 +828,7 @@ std::string memberAsk_;
     // Sets an extra button to copy the layout button a choice names, or nothing for "off".
     void ChangeExtraCopy(const gamepads::PadView& pad, unsigned extra, const std::string& choice, const ShellView& view, const Submit& submit);
     void LayoutLog(const ShellView& view, const Submit& submit, std::string text);
+    void FailSave();
     void BeginPadSetup(const gamepads::PadView& pad,const ShellView& view,const Submit& submit);
     void UpdatePadSetup(const ShellView& view,const Submit& submit,bool visible);
     bool DrawPadSetup(const ShellView& view,const Submit& submit);

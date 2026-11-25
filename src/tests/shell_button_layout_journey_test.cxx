@@ -327,4 +327,16 @@ void TrainingButtonRows() {
     SetMenuEntriesProbe({}); SetMenuStatusProbe({});
 }
 }
-void ButtonLayoutJourneys() { RedFocusAndCaptureRows(); LayoutAssignPresetReset(); LayoutEditorWarningRoom(); LayoutRoom(); LayoutCancelsAndEdges(); WizardLayoutEntry(); TargetNavigation(); GuidFallbackEdit(); MenuButtonRows(); ExtraButtonRows(); TrainingButtonRows(); }
+// Preferences that cannot be sent end in Save failed, never in Saving... for good.
+void InvalidPreferencesSaveFailed() {
+    Harness h; h.view.preferences.displayName.clear(); Prepare(h);
+    std::string status; Tone tone = Tone::Neutral; SetMenuStatusProbe([&](const char* text, Tone t) { status = text; tone = t; });
+    h.Choose("training-record"); h.view.pads[0].held = {"RS"}; h.Frame(); h.view.pads[0].held.clear(); h.Frame();
+    h.Wait(.5f); h.Frame(0, 1, 3.f);
+    Check(std::none_of(h.actions.begin(), h.actions.end(), [](const ShellAction& a) { return Is<commands::SavePreferences>(a); }), "Invalid preferences were sent");
+    // As a save the runtime never confirms ends: the failure text replaces the status line, in the error tone.
+    Check(status == loc::T("error.settings_not_saved") && tone == Tone::Error, "Invalid preferences did not end in Save failed");
+    Check(PadLogHas(h.actions.back(), "settings not saved: invalid display name length"), "The invalid check was not logged");
+    SetMenuStatusProbe({});
+}
+void ButtonLayoutJourneys() { RedFocusAndCaptureRows(); LayoutAssignPresetReset(); LayoutEditorWarningRoom(); LayoutRoom(); LayoutCancelsAndEdges(); WizardLayoutEntry(); TargetNavigation(); GuidFallbackEdit(); MenuButtonRows(); ExtraButtonRows(); TrainingButtonRows(); InvalidPreferencesSaveFailed(); }

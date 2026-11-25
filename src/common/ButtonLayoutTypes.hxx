@@ -22,8 +22,17 @@ inline bool ValidExtraCopies(const ExtraCopies& copies) {
 }
 // The glyph id of what an extra button copies (ExtraCopies), as held glyphs name it.
 inline const char* CopyTargetGlyph(int copy) { return copy == CopiesView ? "View" : copy == CopiesStart ? "Start" : LayoutGlyphs[copy]; }
-inline bool ValidLayout(const ButtonLayout& layout) {
-    return std::all_of(layout.begin(), layout.end(), [](std::uint32_t mask) { return !(mask & ~FightMask); });
+// The first button holding a bit outside the fight functions, which no stored layout may have; layout.size() when none does
+// (built as C++14 by some tests, so no std::optional).
+inline std::size_t ForeignButton(const ButtonLayout& layout) {
+    for (std::size_t i = 0; i < layout.size(); ++i) if (layout[i] & ~FightMask) return i;
+    return layout.size();
+}
+inline bool ValidLayout(const ButtonLayout& layout) { return ForeignButton(layout) == layout.size(); }
+// Keeps the fight functions of a table, so a bit outside them cannot make a layout unsaveable (ValidLayout).
+inline ButtonLayout FightFunctions(ButtonLayout layout) {
+    for (auto& mask : layout) mask &= FightMask;
+    return layout;
 }
 // Ember's own actions a player binds to a layout button by pressing it on the
 // button layout page: confirm and go back in Ember's menus; record, play and

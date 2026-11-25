@@ -96,7 +96,7 @@ void Read(PadFrame& frame, const Inventory& inventory) {
     const auto match = FindLayout(layouts, frame.pad.identity, Connected(inventory));
     if (match.index) { frame.layout = layouts[*match.index].buttons; frame.bound = layouts[*match.index].bound; frame.extras = layouts[*match.index].extras; }
     frame.table = frame.layout.value_or(DefaultLayout);
-    if (frame.pad.slot >= 0) ReadSlot(Dimps::Pad::BindingRecords(), frame.pad.slot, frame.table);
+    if (frame.pad.slot >= 0) ReadFightSlot(Dimps::Pad::BindingRecords(), frame.pad.slot, frame.table);
 }
 void LendGameTables(GameTableUse use) {
     if (gameTables.Open(use, owners, Dimps::Pad::BindingRecords()) && use == GameTableUse::ButtonScreen)

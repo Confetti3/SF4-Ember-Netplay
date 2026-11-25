@@ -210,6 +210,21 @@ static void TrainingButtons() {
     auto chosenOnAttack = DefaultBoundButtons; chosenOnAttack[TrainingControlsButton] = 9;
     CHECK(TrainingTable(attackTable, chosenOnAttack)[9] == 0);
 }
+// A bit outside the fight functions in the game's table: the layout starts without it, the restore copy keeps it.
+static void FightTableRead() {
+    alignas(std::uint32_t) std::array<unsigned char, PadBindingRecords::Stride * 6> memory;
+    memory.fill(0);
+    PadBindingRecords records(memory.data(), memory.data() + memory.size());
+    ButtonLayout game = DefaultLayout; game[0] |= 0x1000; game[9] = 0x1000;
+    CHECK(WriteSlot(records, 0, game) && !ValidLayout(game));
+    ButtonLayout read; CHECK(ReadFightSlot(records, 0, read));
+    CHECK(ValidLayout(read) && read[0] == DefaultLayout[0] && read[9] == 0 && read[1] == DefaultLayout[1]);
+    LayoutOwners owners; LayoutPlacements placements; std::array<bool, 4> occupied{};
+    placements[0] = LayoutPlacement{Pad(1), read}; occupied[0] = true;
+    CHECK(ApplySlotWrites(owners, placements, SlotWritePlan(owners, placements, occupied), records));
+    CHECK(owners[0]->gameCopy == game);
+    CHECK(RestoreGameLayouts(owners, records) && ReadSlot(records, 0, read) && read == game);
+}
 static void Writer() {
     alignas(std::uint32_t) std::array<unsigned char, PadBindingRecords::Stride * 6> memory;
     memory.fill(0x5A); const auto untouched = memory;
@@ -332,4 +347,4 @@ static void Capture() {
     capture.Begin(0, {}); CHECK(capture.Left(0) == 1 && capture.Left(2.5) == .75 && capture.Left(12) == 0);
     CHECK(capture.Read(10, {}, AllLayoutButtons).cancelled == LayoutCancel::Timeout && capture.Left(10) == 0);
 }
-int main() { Model(); Persistence(); ExtraButtons(); TrainingButtons(); Writer(); Reload(); ReloadEqual(); Capture(); }
+int main() { Model(); Persistence(); ExtraButtons(); TrainingButtons(); Writer(); FightTableRead(); Reload(); ReloadEqual(); Capture(); }
