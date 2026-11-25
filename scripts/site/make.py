@@ -32,13 +32,13 @@ ARCHIVE_SOURCE = ROOT / "server/ember/archive-site/site"
 WIKI = "https://github.com/Confetti3/SF4-Ember-Netplay.wiki.git"
 # Screenshots the home page shows, by the name it serves them under (assets/shots/<name>.webp).
 SHOTS = {
-    "fighters": "docs/images/ember-fighter-selection.png",
+    "match": "docs/images/ember-match.webp",
     "room": "docs/images/ember-room.png",
     "king": "docs/images/ember-king-of-the-hill.png",
     "training": "docs/images/guides/training_lab/meter.webp",
     "replays": "docs/images/guides/user_netplay/replays.webp",
 }
-SHOT_WIDTH = 960
+SHOT_WIDTH = 1280
 # What a script or stylesheet of the archive page calls a file the build must not rename: the archive's
 # setup.sh finds these names to stamp each with its file's hash.
 ARCHIVE_STAMPED = {"index.html": ['href="assets/archive.css"', 'src="assets/archive.js"', "<title>Ember replay archive</title>"],
