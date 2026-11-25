@@ -76,7 +76,8 @@ impl From<Refused> for ApiFailure {
 /// an online game (`name_own_side`). A new
 /// game is taken when there is room for it (`refusal`), with what
 /// `attribution` says of its sides and the rounds `replay` says each side
-/// won, read now (`rounds`). A set's copy of a game is kept over its
+/// won, read now; a later copy whose rounds disagree leaves the game none
+/// (`rounds::dispute`). A set's copy of a game is kept over its
 /// own players' online copies of it, which are folded into it
 /// (`duplicates::fold`); only the same file is the same online game to a set.
 /// A set's copy of a file folded away before takes that file's row back.
@@ -106,6 +107,7 @@ pub fn admit(
             }
             Attribution::Online(sides) => name_own_side(tx, &held, sender, sides)?,
         }
+        rounds::dispute(tx, &held, replay.rounds)?;
         return Ok(Admission::Held);
     }
     let (names, countries, set, sent_side) = match attribution {

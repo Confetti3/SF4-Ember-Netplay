@@ -31,6 +31,9 @@ const DAY: i64 = 24 * 60 * 60;
 /// deleted since.
 type Stored = Arc<Mutex<Vec<(String, Vec<u8>)>>>;
 
+/// What S3 answers a GET of an object it does not hold with.
+const NO_SUCH_KEY: &[u8] = b"<?xml version=\"1.0\"?><Error><Code>NoSuchKey</Code></Error>";
+
 /// An S3 stand-in that takes any signed PUT whose content hash is right, and
 /// answers signed GETs and DELETEs of what it holds, unless it is
 /// `refusing`.
@@ -71,7 +74,7 @@ async fn bucket(refusing: Arc<AtomicBool>) -> (String, Stored) {
                     axum::http::Method::GET => {
                         match held.iter().rev().find(|(at, _)| *at == path) {
                             Some((_, file)) => (StatusCode::OK, file.clone()),
-                            None => (StatusCode::NOT_FOUND, Vec::new()),
+                            None => (StatusCode::NOT_FOUND, NO_SUCH_KEY.to_vec()),
                         }
                     }
                     axum::http::Method::DELETE => {

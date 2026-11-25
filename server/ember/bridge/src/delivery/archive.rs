@@ -6,6 +6,7 @@
 //! passed. Sets' packs are stored by `packs`.
 use std::sync::Arc;
 
+use ember_protocol::replays::{MAX_REPLAY, Replay};
 use rusqlite::{ToSql, Transaction, params};
 
 use super::{BATCH, Leased, Outcome, Outcomes, Queue, Record, Settled, Table};
@@ -116,6 +117,24 @@ pub(super) fn settled(record: &Record) -> (bool, u64, Option<&String>) {
 /// A game's file in the bucket.
 pub(super) fn key(digest: &str) -> String {
     format!("games/{digest}.emberreplay")
+}
+
+/// The replay `bucket` holds as game `digest`, read back with `secret`:
+/// none when it has no such object, or holds anything else than the whole
+/// replay the digest names; an error when it did not answer for it.
+pub(super) async fn read_back(
+    state: &AppState,
+    bucket: &Bucket,
+    secret: &str,
+    digest: &str,
+) -> std::result::Result<Option<Replay>, String> {
+    let file = bucket
+        .get(secret, &key(digest), MAX_REPLAY, state.now())
+        .await?;
+    Ok(file
+        .as_deref()
+        .and_then(Replay::parse)
+        .filter(|replay| replay.digest_hex() == digest))
 }
 
 pub(super) fn retry(error: String) -> Outcome {

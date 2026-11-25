@@ -29,6 +29,11 @@ pub fn origin(endpoint: &str) -> Result<Url, &'static str> {
         .ok_or("archive.endpoint must be an http(s) origin without a path, query or credentials")
 }
 
+/// The code of S3's error document for an object that is not there, and the
+/// most of an error document read.
+const NO_SUCH_KEY: &str = "<Code>NoSuchKey</Code>";
+const ERROR_BODY: usize = 4096;
+
 /// The archive's bucket, as the delivery queues write to it. Each object's
 /// URL is built once, from the endpoint read once, and both the signature
 /// and the request are made from that URL, so they name the same host.
@@ -74,7 +79,9 @@ impl Bucket {
     }
 
     /// The object at `key`, at most `limit` bytes, none when the bucket has
-    /// no such object, or why it could not be read.
+    /// no such object, or why it could not be read. Only S3's `NoSuchKey`
+    /// says the object is not there: a 404 for anything else (`NoSuchBucket`,
+    /// a misconfigured endpoint) is a read that failed.
     pub async fn get(
         &self,
         secret: &str,
@@ -86,7 +93,12 @@ impl Bucket {
             .answer(Method::GET, secret, key, Vec::new(), now)
             .await?;
         if response.status() == reqwest::StatusCode::NOT_FOUND {
-            return Ok(None);
+            let error = read_bounded(response, ERROR_BODY).await.unwrap_or_default();
+            return if String::from_utf8_lossy(&error).contains(NO_SUCH_KEY) {
+                Ok(None)
+            } else {
+                Err(format!("{key}: status 404"))
+            };
         }
         let response = succeeded(key, response)?;
         read_bounded(response, limit)
@@ -335,9 +347,18 @@ mod tests {
         }
     }
 
-    /// The Host header of the first request `listener` takes, which it
-    /// reads whole and answers 200.
-    async fn host_sent(listener: TcpListener) -> String {
+    /// Header `wanted` of a request's head.
+    fn header(head: &str, wanted: &str) -> Option<String> {
+        head.lines().find_map(|line| {
+            let (name, value) = line.split_once(':')?;
+            name.eq_ignore_ascii_case(wanted)
+                .then(|| value.trim().to_owned())
+        })
+    }
+
+    /// The head of the first request `listener` takes, which it reads whole
+    /// and answers with `answer`.
+    async fn answered(listener: TcpListener, answer: Vec<u8>) -> String {
         let (mut socket, _) = listener.accept().await.unwrap();
         let mut head = Vec::new();
         while !head.ends_with(b"\r\n\r\n") {
@@ -346,20 +367,57 @@ mod tests {
             head.push(byte[0]);
         }
         let head = String::from_utf8(head).unwrap();
-        let header = |wanted: &str| {
-            head.lines().find_map(|line| {
-                let (name, value) = line.split_once(':')?;
-                name.eq_ignore_ascii_case(wanted)
-                    .then(|| value.trim().to_owned())
-            })
-        };
-        let length: usize = header("content-length").unwrap().parse().unwrap();
+        let length: usize =
+            header(&head, "content-length").map_or(0, |length| length.parse().unwrap());
         socket.read_exact(&mut vec![0; length]).await.unwrap();
-        socket
-            .write_all(b"HTTP/1.1 200 OK\r\ncontent-length: 0\r\n\r\n")
-            .await
-            .unwrap();
-        header("host").unwrap()
+        socket.write_all(&answer).await.unwrap();
+        head
+    }
+
+    /// An HTTP answer of `status` with `body`.
+    fn answer(status: &str, body: &str) -> Vec<u8> {
+        format!(
+            "HTTP/1.1 {status}\r\ncontent-length: {}\r\n\r\n{body}",
+            body.len()
+        )
+        .into_bytes()
+    }
+
+    /// The Host header of the first request `listener` takes, which it
+    /// reads whole and answers 200.
+    async fn host_sent(listener: TcpListener) -> String {
+        let head = answered(listener, answer("200 OK", "")).await;
+        header(&head, "host").unwrap()
+    }
+
+    /// A GET's object, none when S3 says there is no such key, and a failed
+    /// read for any other 404, such as a bucket that is not there.
+    #[tokio::test]
+    async fn only_no_such_key_says_an_object_is_not_there() {
+        crate::install_crypto_provider();
+        let error =
+            |code: &str| format!("<?xml version=\"1.0\"?><Error><Code>{code}</Code></Error>");
+        let cases = [
+            (answer("200 OK", "game"), Ok(Some(b"game".to_vec()))),
+            (answer("404 Not Found", &error("NoSuchKey")), Ok(None)),
+            (
+                answer("404 Not Found", &error("NoSuchBucket")),
+                Err("k: status 404".to_owned()),
+            ),
+            (answer("404 Not Found", ""), Err("k: status 404".to_owned())),
+            (
+                answer("500 Internal Server Error", ""),
+                Err("k: status 500".to_owned()),
+            ),
+        ];
+        for (sent, expected) in cases {
+            let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let bucket = bucket(&format!("http://{}", listener.local_addr().unwrap()));
+            let server = tokio::spawn(answered(listener, sent));
+            let got = bucket.get("secret", "k", 100, 1_792_576_171).await;
+            server.await.unwrap();
+            assert_eq!(got, expected);
+        }
     }
 
     /// What reqwest sends as the host is what the signature signed.
