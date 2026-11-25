@@ -394,6 +394,43 @@ void TypedLetterScrollsAfterPointer() {
  io.AddMousePosEvent(-FLT_MAX, -FLT_MAX); h.Frame();
 }
 
+// B142 r3: the pointer record ends when the focus leaves the pointed country:
+// typing a far letter and then the pointed country's own letter comes back to
+// it, and the list scrolls it into view.
+void TypedLetterReturnsToPointedCountry() {
+ Harness h; Drawn drawn; h.imgui.io.DisplaySize = ImVec2(560, 420);
+ h.Screen("tab-player/country"); h.Choose("country"); h.Frame(0, 3);
+ ImGuiWindow* list = nullptr;
+ for (auto* w : GImGui->Windows) if (w->Active && w->ScrollMax.y > 0 && std::strstr(w->Name, "EmberShell/")) list = w;
+ Check(list != nullptr, "The narrow country picker does not scroll");
+ if (!list) return;
+ auto& io = ImGui::GetIO();
+ const auto inside = [&](const MenuRect* r) { return r && r->y0 >= list->InnerRect.Min.y - 1 && r->y1 <= list->InnerRect.Max.y + 1; };
+ // The first country of a letter, scrolled up to by the wheel.
+ std::string first;
+ for (const auto& e : drawn.rows) if (first.empty() && e.id.size() == 10 && e.id.compare(0, 8, "country-") == 0 && std::isupper(static_cast<unsigned char>(e.id[8]))) first = e.id;
+ Check(!first.empty(), "The picker shows no country");
+ if (first.empty()) return;
+ const ImVec2 over(list->InnerRect.Min.x + 20, list->InnerRect.Min.y + 20);
+ for (int i = 0; i < 40 && !inside(h.shell.Navigation().PlacedNow(first)); ++i) {
+  io.AddMousePosEvent(over.x, over.y); io.AddMouseWheelEvent(0, -1); h.Frame(0, 2);
+ }
+ const MenuRect* top = h.shell.Navigation().PlacedNow(first);
+ Check(inside(top), "The first country could not be scrolled into view");
+ if (!inside(top)) return;
+ const ImVec2 mid((top->x0 + top->x1) * .5f, (top->y0 + top->y1) * .5f);
+ io.AddMousePosEvent(mid.x, mid.y + 2); h.Frame();
+ io.AddMousePosEvent(mid.x, mid.y); h.Frame(0, 3);
+ Check(h.shell.Navigation().Focus() == first, "Hovering did not focus the first country");
+ io.AddMousePosEvent(-FLT_MAX, -FLT_MAX); h.Frame(0, 3);
+ io.AddInputCharactersUTF8("Z"); h.Frame(0, 3);
+ Check(h.shell.Navigation().Focus().compare(0, 9, "country-Z") == 0, "Typing Z did not jump to a Z country");
+ const std::string initial(1, first[8]);
+ io.AddInputCharactersUTF8(initial.c_str()); h.Frame(0, 3);
+ Check(h.shell.Navigation().Focus() == first, "Typing the initial did not return to the pointed country");
+ Check(inside(h.shell.Navigation().PlacedNow(first)), "Returning to the pointed country left it out of view");
+}
+
 // B142 r2: a click on a letter hands the focus to its first country by the
 // shell's own move (Prefer), and the list scrolls that country into view.
 void ClickedLetterScrollsToItsCountry() {
@@ -416,6 +453,7 @@ void ClickedLetterScrollsToItsCountry() {
 void SettingsJourneys() {
  ClickedLetterScrollsToItsCountry();
  TypedLetterScrollsAfterPointer();
+ TypedLetterReturnsToPointedCountry();
  PointerFocusKeepsScroll();
  RoomSettingsFollowOneRule();
  RetrySaveOnPanelScreens();

@@ -172,6 +172,10 @@ void NavigationModel() {
  Check(nav.Focus()=="0","A direction held at the gate moved focus");
  Check(nav.Update({MenuInput::Down|MenuInput::Select,time+5.1},rows).kind==MenuAction::Activate,"Select beside a held direction was swallowed");
  nav.Focus("0",rows);nav.Update({0,time+6},rows);nav.Update({MenuInput::Down,time+6.1},rows);Check(nav.Focus()!="0","A released direction did not count again");
+ // A row the pointer focused stops counting once the focus leaves it, even if
+ // a move that is not the pointer's brings the focus back (typed letter).
+ nav.Point("1",rows);Check(nav.Pointed(),"The pointer's row was not pointed");
+ nav.Focus("2",rows);nav.Update({0,time+7},rows);nav.Focus("1",rows);Check(!nav.Pointed(),"A row the pointer left stayed pointed when the focus came back");
  // A choice returns the option the player saw, by id. One whose options
  // change meaning closes rather than send something never picked, and Back
  // cancels without choosing either side.

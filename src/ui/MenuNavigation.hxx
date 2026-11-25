@@ -362,8 +362,9 @@ public:
     void ChoiceIndex(std::size_t index) { if (index < choiceIds_.size()) choiceIndex_ = index; }
     // The pointer focused the row (moving onto it or pressing it), or
     // highlighted the option: while the focus and option are still the ones it
-    // gave, lists leave their scroll alone (ScrollToFocus). Any other move, a
-    // press or a screen opening hands them back.
+    // gave, lists leave their scroll alone (ScrollToFocus). Any other move ends
+    // the record at the next Read, so coming back to the row later scrolls; a
+    // press or a screen opening ends it too.
     void Point(const std::string& id, const std::vector<MenuEntry>& entries) { Focus(id, entries); if (Focus() == id) pointed_ = Here(); }
     void PointChoice(std::size_t index) { ChoiceIndex(index); pointed_ = Here(); }
     bool Pointed() const { return !pointed_.first.empty() && pointed_ == Here(); }
@@ -677,7 +678,7 @@ private:
         if((raw&12)==12) raw&=~12u;
         const bool opening=!gate_.Armed();
         held=gate_.Held(raw); pressed=gate_.Pressed(held);
-        if(pressed) pointed_={};
+        if(pressed || pointed_!=Here()) pointed_={};
         return !opening;
     }
     const Placement* Placed(const std::string& id) const {
