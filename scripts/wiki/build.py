@@ -244,24 +244,34 @@ def mark(lines, owners):
     return out + lines[done:]
 
 
-def rewrite(lines, path, pages, images, repo):
-    def target(match):
+def rewrite(lines, path, target):
+    """Point every relative link and image of a guide at `target(full, anchor)`.
+
+    `full` is the linked file's path in the repository and `anchor` its "#heading" or "". Links with a
+    scheme, to a heading of the same page or from the site's root stay as they are, and so does code.
+    """
+    def new(match):
         link = match.group(2)
         if re.match(r"[a-z][a-z0-9+.-]*:|#|/", link):
             return match.group(0)
         file, _, anchor = link.partition("#")
         full = os.path.normpath(PurePosixPath(path).parent / file).replace(os.sep, "/")
-        anchor = "#" + anchor if anchor else ""
-        if full in pages:
-            new = slug(pages[full]) + anchor
-        elif PurePosixPath(full).suffix.lower() in IMAGES:
-            images.add(full)
-            new = "images/" + full.removeprefix("docs/images/")
-        else:
-            new = f"https://github.com/{repo}/blob/{BRANCH}/{full}{anchor}"
-        return match.group(1) + new
+        return match.group(1) + target(full, "#" + anchor if anchor else "")
 
-    return [line if code else LINK.sub(target, line) for line, code in zip(lines, fenced(lines))]
+    return [line if code else LINK.sub(new, line) for line, code in zip(lines, fenced(lines))]
+
+
+def wiki_target(pages, images, repo):
+    """Where the wiki sends a link: a guide's page, an image in images/, or the file on GitHub."""
+    def target(full, anchor):
+        if full in pages:
+            return slug(pages[full]) + anchor
+        if PurePosixPath(full).suffix.lower() in IMAGES:
+            images.add(full)
+            return "images/" + full.removeprefix("docs/images/")
+        return f"https://github.com/{repo}/blob/{BRANCH}/{full}{anchor}"
+
+    return target
 
 
 def theme():
@@ -344,11 +354,12 @@ def build(src, repo, out, auth, label=PR_LABEL, overlay_prs=True, framedata=None
         shutil.rmtree(out)
     (out / "images").mkdir(parents=True)
     colors, images, sidebar = theme(), set(), {}
+    target = wiki_target(pages, images, repo)
     for path, doc in docs.items():
         page, section = known[path]
         lines = doc.lines[1:] if doc.lines and doc.lines[0].startswith("# ") else doc.lines
         owners = doc.owners[len(doc.owners) - len(lines):]
-        write_page(out, page, page, section, mark(rewrite(lines, path, pages, images, repo), owners), colors)
+        write_page(out, page, page, section, mark(rewrite(lines, path, target), owners), colors)
         sidebar.setdefault(section, []).append(page)
 
     # Frame data pages are generated elsewhere and come as they are: an index and a page per fighter.
