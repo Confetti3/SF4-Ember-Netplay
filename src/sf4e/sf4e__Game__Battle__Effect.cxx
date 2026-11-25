@@ -16,7 +16,7 @@ void fEffect::Install() {
 }
 
 void fActorManager::Install() {
-    size_t(fActorManager:: * _fGetMementoSize)() = &GetMementoSize;
+    size_t(fActorManager:: * _fGetMementoSize)() = &fActorManager::GetMementoSize;
     DetourAttach((PVOID*)&rActorManager::publicMethods.GetMementoSize, *(PVOID*)&_fGetMementoSize);
 }
 

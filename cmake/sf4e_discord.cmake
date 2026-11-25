@@ -24,14 +24,13 @@ if(SF4E_BUILD_DISCORD)
     set(SF4E_DISCORD_SDK_ROOT "${CMAKE_BINARY_DIR}/discord-sdk/discord_social_sdk")
     find_path(SF4E_JSON_INCLUDE nlohmann/json.hpp REQUIRED)
     include(ExternalProject)
-    string(REGEX REPLACE "/VC/.*$" "" discord_vs_instance "${CMAKE_CXX_COMPILER}")
+    include("${CMAKE_SOURCE_DIR}/cmake/sf4e_x64_subbuild.cmake")
+    sf4e_x64_subbuild_args(discord_x64_args "${CMAKE_BINARY_DIR}/discord-x64")
     ExternalProject_Add(EmberDiscord
         BUILD_ALWAYS TRUE
         SOURCE_DIR "${CMAKE_SOURCE_DIR}/src/discord"
         BINARY_DIR "${CMAKE_BINARY_DIR}/discord-x64"
-        CMAKE_GENERATOR "Visual Studio 18 2026"
-        CMAKE_GENERATOR_PLATFORM x64
-        CMAKE_GENERATOR_INSTANCE "${discord_vs_instance}"
+        ${discord_x64_args}
         CMAKE_ARGS "-DSF4E_PRODUCT_VERSION=${PROJECT_VERSION}"
             "-DSF4E_DISCORD_SDK_ROOT=${SF4E_DISCORD_SDK_ROOT}"
             "-DSF4E_DISCORD_APPLICATION_ID=${SF4E_DISCORD_APPLICATION_ID}"

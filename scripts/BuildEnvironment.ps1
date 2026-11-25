@@ -79,6 +79,71 @@ function Get-EmberToolPaths([string]$SourceRoot, [string]$VisualStudioPath, [str
     [pscustomobject]@{VisualStudioPath=[IO.Path]::GetFullPath($VisualStudioPath);VcpkgRoot=[IO.Path]::GetFullPath($VcpkgRoot)}
 }
 
+# The cross build's tools on a Linux build PC (docs/release/LAPTOP_BUILD.md): clang-cl and lld-link from SF4E_LLVM_BIN
+# against the Microsoft CRT and Windows SDK in the xwin splat SF4E_XWIN, vcpkg from VCPKG_ROOT, and the program that
+# runs a Windows test program (CMAKE_CROSSCOMPILING_EMULATOR) from SF4E_TEST_EMULATOR. CMake, CTest and Ninja are
+# the ones on PATH. Throws, naming what is missing, before anything is built.
+function Get-EmberCrossTools([string]$VcpkgRoot) {
+    if (!$IsLinux) { throw 'The cross build runs on Linux; on Windows build-current.ps1 uses Visual Studio.' }
+    foreach ($name in 'SF4E_XWIN', 'SF4E_LLVM_BIN', 'SF4E_TEST_EMULATOR') {
+        if (![Environment]::GetEnvironmentVariable($name)) { throw "The cross build needs $name (docs/release/LAPTOP_BUILD.md)." }
+    }
+    if (!$VcpkgRoot) { $VcpkgRoot = $env:VCPKG_ROOT }
+    if (!$VcpkgRoot -or !(Test-Path -LiteralPath (Join-Path $VcpkgRoot 'vcpkg') -PathType Leaf)) { throw 'Bootstrap vcpkg and set -VcpkgRoot or VCPKG_ROOT.' }
+    $xwin = [IO.Path]::GetFullPath($env:SF4E_XWIN)
+    $llvm = [IO.Path]::GetFullPath($env:SF4E_LLVM_BIN)
+    if (!(Test-Path -LiteralPath (Join-Path $xwin 'crt/include/crtversion.h') -PathType Leaf)) { throw "SF4E_XWIN is not an xwin splat: $xwin" }
+    foreach ($tool in 'clang-cl', 'lld-link', 'llvm-lib', 'llvm-rc', 'llvm-mt', 'llvm-ml') {
+        if (!(Test-Path -LiteralPath (Join-Path $llvm $tool) -PathType Leaf)) { throw "SF4E_LLVM_BIN has no ${tool}: $llvm" }
+    }
+    $paths = [ordered]@{}
+    foreach ($tool in 'cmake', 'ctest', 'ninja', 'cargo', 'python3', 'bash') {
+        $found = Get-Command $tool -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+        if (!$found) { throw "The cross build needs $tool on PATH." }
+        $paths[$tool] = $found.Source
+    }
+    $emulator = Get-Command $env:SF4E_TEST_EMULATOR -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (!$emulator) { throw "SF4E_TEST_EMULATOR is not a program: $env:SF4E_TEST_EMULATOR" }
+    $crt = Get-Content -LiteralPath (Join-Path $xwin 'crt/include/crtversion.h') | ForEach-Object {
+        if ($_ -match '^#define _VC_CRT_(MAJOR|MINOR|BUILD)_VERSION (\d+)') { $Matches[2] } }
+    $sdk = @(Get-ChildItem -LiteralPath (Join-Path $xwin 'sdk/include') -Directory -ErrorAction SilentlyContinue | Where-Object Name -match '^\d+\.\d+\.\d+\.\d+$' | Sort-Object { [version]$_.Name } | Select-Object -Last 1 -ExpandProperty Name)
+    $splat = (Get-Content -LiteralPath (Join-Path $xwin '.xwin-version') -ErrorAction SilentlyContinue | Select-Object -First 1)
+    [pscustomobject]@{
+        VcpkgRoot=[IO.Path]::GetFullPath($VcpkgRoot); Xwin=$xwin; LlvmBin=$llvm; Emulator=$emulator.Source
+        Cmake=$paths.cmake; Ctest=$paths.ctest; Ninja=$paths.ninja; Bash=$paths.bash; Python=$paths.python3
+        Toolchain=[ordered]@{
+            compiler="$(& (Join-Path $llvm 'clang-cl') --version | Select-Object -First 1)".Trim()
+            linker='lld-link'
+            crt=($crt -join '.')
+            sdk=$(if ($sdk) { $sdk } else { $null })
+            splat=$(if ($splat) { "xwin $splat".Trim() } else { $null })
+        }
+    }
+}
+
+# The environment of a cross build (Get-EmberCrossTools), for this process and what it starts: the Rust helper's
+# x64 build (its linker, C compiler, rc.exe and ml64.exe through cmake/cross/rust-wrappers.sh in <build>/cross-bin)
+# and its tests, which run through the test emulator; Windows test programs find vcpkg's DLLs through WINEPATH.
+# The xwin splat gets the import-library case links the sources need (cmake/cross/case-links.py).
+function Enter-EmberCrossEnvironment([object]$Tools, [string]$SourceRoot, [string]$BuildRoot, [string]$DependencyBin) {
+    & $Tools.Python -I (Join-Path $SourceRoot 'cmake/cross/case-links.py') $SourceRoot $Tools.Xwin
+    if ($LASTEXITCODE) { throw 'Import-library case links failed' }
+    $wrappers = Join-Path $BuildRoot 'cross-bin'
+    & $Tools.Bash (Join-Path $SourceRoot 'cmake/cross/rust-wrappers.sh') $wrappers
+    if ($LASTEXITCODE) { throw 'The Rust helper''s tool wrappers failed' }
+    $env:PATH = "$wrappers$([IO.Path]::PathSeparator)$($Tools.LlvmBin)$([IO.Path]::PathSeparator)$env:PATH"
+    $env:CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER = Join-Path $wrappers 'lld-link-x64'
+    $env:CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUNNER = $Tools.Emulator
+    $env:CC_x86_64_pc_windows_msvc = Join-Path $wrappers 'clang-cl-x64'
+    $env:CXX_x86_64_pc_windows_msvc = Join-Path $wrappers 'clang-cl-x64'
+    $env:AR_x86_64_pc_windows_msvc = Join-Path $Tools.LlvmBin 'llvm-lib'
+    $env:WINEPATH = "Z:$DependencyBin"
+    if (!$env:SF4E_GIT_BASH) { $env:SF4E_GIT_BASH = $Tools.Bash }
+    # Under Wine the helper's network tests run slower than on Windows; a test binary's default of one thread per
+    # processor starves the timed ones (checkpoint export, latency tables), which pass alone. RUST_TEST_THREADS overrides.
+    if (!$env:RUST_TEST_THREADS) { $env:RUST_TEST_THREADS = '6' }
+}
+
 # Runs vcvarsall once per process. vcvarsall prepends to PATH, INCLUDE and LIB each time it runs, so a second
 # entry would double them; when this process already holds the environment of the same installation and target
 # architecture (VSINSTALLDIR and VSCMD_ARG_TGT_ARCH, which vcvarsall sets), it returns at once.

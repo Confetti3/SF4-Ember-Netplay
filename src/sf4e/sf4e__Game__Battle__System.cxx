@@ -159,14 +159,14 @@ int fSystem::GetGameMode() {
 }
 
 void fSystem::Install() {
-    void (fSystem:: * _fBattleUpdate)() = &BattleUpdate;
-    int (fSystem:: * _fGetGameMode)() = &GetGameMode;
-    void (fSystem:: * _fCloseBattle)() = &CloseBattle;
-    void (fSystem:: * _fSysMain_HandleTrainingModeFeatures)() = &SysMain_HandleTrainingModeFeatures;
-    void (fSystem:: * _fSysMain_UpdatePauseState)() = &SysMain_UpdatePauseState;
-    int (fSystem:: * _fGetMementoSize)() = &GetMementoSize;
-    int (fSystem:: * _fRecordToMemento)(Memento * m, GameMementoKey::MementoID * id) = &RecordToMemento;
-    int (fSystem:: * _fRestoreFromMemento)(Memento * m, GameMementoKey::MementoID * id) = &RestoreFromMemento;
+    void (fSystem:: * _fBattleUpdate)() = &fSystem::BattleUpdate;
+    int (fSystem:: * _fGetGameMode)() = &fSystem::GetGameMode;
+    void (fSystem:: * _fCloseBattle)() = &fSystem::CloseBattle;
+    void (fSystem:: * _fSysMain_HandleTrainingModeFeatures)() = &fSystem::SysMain_HandleTrainingModeFeatures;
+    void (fSystem:: * _fSysMain_UpdatePauseState)() = &fSystem::SysMain_UpdatePauseState;
+    int (fSystem:: * _fGetMementoSize)() = &fSystem::GetMementoSize;
+    int (fSystem:: * _fRecordToMemento)(Memento * m, GameMementoKey::MementoID * id) = &fSystem::RecordToMemento;
+    int (fSystem:: * _fRestoreFromMemento)(Memento * m, GameMementoKey::MementoID * id) = &fSystem::RestoreFromMemento;
 
     DetourAttach((PVOID*)&rSystem::mementoableMethods.GetMementoSize, *(PVOID*)&_fGetMementoSize);
     DetourAttach((PVOID*)&rSystem::mementoableMethods.RecordToMemento, *(PVOID*)&_fRecordToMemento);

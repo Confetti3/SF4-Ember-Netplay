@@ -15,11 +15,17 @@ function(tool_version out_var)
     endif()
     set(${out_var} "${version}" PARENT_SCOPE)
 endfunction()
-set(BRIDGE "${EMBER_TARGET}/debug/ember-bridge.exe")
+# The host's programs: .exe on Windows, none on the Linux build PC (docs/release/LAPTOP_BUILD.md).
+if(CMAKE_HOST_WIN32)
+    set(host_exe ".exe")
+else()
+    set(host_exe "")
+endif()
+set(BRIDGE "${EMBER_TARGET}/debug/ember-bridge${host_exe}")
 # The protocol contract the SDK test compares its tables with (the ember-protocol
 # example contract), built here beside the bridge so the test finds it without
 # cargo on its PATH.
-set(CONTRACT "${EMBER_TARGET}/debug/examples/contract.exe")
+set(CONTRACT "${EMBER_TARGET}/debug/examples/contract${host_exe}")
 # On the processors CTest reserves for this test (SF4E_CARGO_TEST_JOBS).
 if(NOT JOBS MATCHES "^[1-9][0-9]*$")
     message(FATAL_ERROR "SDK validation needs JOBS, a positive integer")

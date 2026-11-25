@@ -167,7 +167,12 @@ private:
     void Finish(const ShellView& view);
     // The answer to the setup's own request in flight.
     void SetupFinish(const ShellView& view);
-    void Queue(netplay::IdentityRequest request, bool lookUp = false, std::string account = {}, AccountReads reads = {});
+    void Queue(netplay::IdentityRequest request, bool lookUp, std::string account, AccountReads reads);
+    // Overloads instead of default arguments: clang (the laptop's cross build) rejects a default argument of a
+    // nested type with default member initializers inside the enclosing class.
+    void Queue(netplay::IdentityRequest request) { Queue(std::move(request), false, std::string(), AccountReads{}); }
+    void Queue(netplay::IdentityRequest request, bool lookUp) { Queue(std::move(request), lookUp, std::string(), AccountReads{}); }
+    void Queue(netplay::IdentityRequest request, bool lookUp, std::string account) { Queue(std::move(request), lookUp, std::move(account), AccountReads{}); }
     void QueueSetup(netplay::IdentityRequest request);
     // A request of the setup's is waiting or out.
     bool SetupPending() const;

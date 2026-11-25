@@ -9,3 +9,5 @@ server/**/deploy/** text eol=lf
 server/*/docker/** text eol=lf
 # Vendored crates stay byte-for-byte as published (rust/vendor/README.md).
 rust/vendor/** -text
+# The Linux build PC's cross build reads these as they are (a port's patch applies to LF sources).
+cmake/cross/** text eol=lf

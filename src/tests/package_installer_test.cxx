@@ -335,12 +335,19 @@ static void ArtPatterns() {
     CHECK_WITH_ERROR(IsAllowed(L"assets\\input\\License.txt") && IsAllowed(L"assets\\flags\\LICENSE") && !IsAllowed(L"assets\\input\\License.txt.png.exe"));
     CHECK_WITH_ERROR(sf4e::package::IsListed(L"assets\\input\\xbox_lb.png") && !sf4e::package::IsListed(L"assets\\input\\a.png"));
 }
+// The source tree this file was compiled from, or SF4E_SOURCE_ROOT: a build made on another machine (the Linux
+// build PC's, docs/release/LAPTOP_BUILD.md) runs here from scripts/import-build.ps1, which names this checkout.
+static fs::path SourceRoot() {
+    wchar_t named[MAX_PATH] = {};
+    const DWORD length = GetEnvironmentVariableW(L"SF4E_SOURCE_ROOT", named, MAX_PATH);
+    return length && length < MAX_PATH ? fs::path(named) : fs::path(__FILE__).parent_path().parent_path().parent_path();
+}
 // Packaging copies only what PackageInventory.inc names, so art in the source
 // tree it misses never ships (57 controller glyphs once did not). Every file in
 // these art folders is listed, and every listed one is there.
 static void SourceArtListed() {
     std::string error;
-    const auto repo=fs::path(__FILE__).parent_path().parent_path().parent_path();
+    const auto repo=SourceRoot();
     for (const auto* folder : {L"input", L"flags", L"brand"}) {
         CHECK_WITH_ERROR(fs::is_directory(repo/L"assets"/folder));
         for (const auto& entry : fs::directory_iterator(repo/L"assets"/folder)) {
@@ -400,7 +407,7 @@ int wmain(int argc, wchar_t** argv) {
     const auto staging = root/L"staging", install = root/L"install";
     fs::create_directories(staging); fs::create_directories(install);
     // The recovery outcomes both readers share, found beside this source file.
-    const auto fixtures=fs::path(__FILE__).parent_path()/L"data"/L"upgrade-recovery"/L"fixtures.json";
+    const auto fixtures=SourceRoot()/L"src"/L"tests"/L"data"/L"upgrade-recovery"/L"fixtures.json";
     CHECK_WITH_ERROR(fs::is_regular_file(fixtures));
     CHECK_WITH_ERROR(RunRecoveryFixtures(fixtures,root/L"fixtures")==0);
     Package(staging,"new");
