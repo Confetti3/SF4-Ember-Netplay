@@ -5,7 +5,7 @@
 //! etc and reachability to the configured relays.
 // Based on <https://github.com/tailscale/tailscale/blob/main/net/netcheck/netcheck.go>
 //
-// Modified by SF4 Ember Netplay (2026-11-23): see rust/vendor/README.md. Every change
+// Modified by SF4 Ember Netplay (2026-11-23, 2026-11-25): see rust/vendor/README.md. Every change
 // is marked "Ember patch".
 
 #![cfg_attr(wasm_browser, allow(unused))]
@@ -263,6 +263,10 @@ struct Reports {
     /// `last` for its probe plan; this keeps the current relay, and so the
     /// switching rule, across it.
     last_preferred: Option<RelayUrl>,
+    /// Ember patch: the last report had no latency for `last_preferred`. The
+    /// probes stop at the first few answers, so one such report says nothing
+    /// about that relay; the relay is left only by a second one in a row.
+    preferred_unmeasured: bool,
     /// Time of last full (non-incremental) report.
     last_full: Instant,
 }
@@ -274,6 +278,7 @@ impl Default for Reports {
             prev: Default::default(),
             last: Default::default(),
             last_preferred: None,
+            preferred_unmeasured: false,
             last_full: Instant::now(),
         }
     }
@@ -835,10 +840,17 @@ impl Client {
             // If we're changing our preferred relay but the old one's still
             // accessible and the new one's not much better, just stick with
             // where we are.
+            // Ember patch: a report without the old one's latency sticks too,
+            // once (`Reports::preferred_unmeasured`).
+            let stick = if old_relay_cur_latency.is_zero() {
+                !self.reports.preferred_unmeasured
+            } else {
+                best_any > old_relay_cur_latency / 3 * 2
+            };
             if prev_relay.is_some()
+                && r.preferred_relay.is_some()
                 && r.preferred_relay != prev_relay
-                && !old_relay_cur_latency.is_zero()
-                && best_any > old_relay_cur_latency / 3 * 2
+                && stick
             {
                 r.preferred_relay = prev_relay;
             }
@@ -849,6 +861,11 @@ impl Client {
         if r.preferred_relay.is_some() {
             self.reports.last_preferred.clone_from(&r.preferred_relay);
         }
+        self.reports.preferred_unmeasured = self
+            .reports
+            .last_preferred
+            .as_ref()
+            .is_some_and(|url| r.relay_latency.get(url).is_none());
         self.reports.last = Some(r.clone());
     }
 }
@@ -1310,8 +1327,8 @@ mod tests {
             ("not_fast_enough", &[(1, 40), (2, 27)], 1),
             // under two thirds of d1: switch
             ("much_faster", &[(1, 40), (2, 20)], 2),
-            // d1 did not answer this time: the best that did
-            ("previous_missing", &[(2, 50), (3, 60)], 2),
+            // d1 is not among the answers this once: stay on d1
+            ("previous_unmeasured", &[(2, 50), (3, 60)], 1),
         ];
         let resolver = DnsResolver::new();
         let tls_config = CaTlsConfig::insecure_skip_verify()
@@ -1347,6 +1364,69 @@ mod tests {
         let mut full = report(&[(1, 40), (2, 39)]);
         client.add_report_history_and_set_preferred_relay(&mut full);
         assert_eq!(full.preferred_relay, Some(relay_url(1)), "after an empty report");
+        Ok(())
+    }
+
+    /// Ember patch: the relay is left for another only after two reports in a
+    /// row had no latency for it (`Reports::preferred_unmeasured`).
+    #[tokio::test(flavor = "current_thread", start_paused = true)]
+    async fn test_unmeasured_preferred_relay_is_left_on_the_second_report() -> Result {
+        fn relay_url(i: u16) -> RelayUrl {
+            format!("http://{i}.com").parse().unwrap()
+        }
+        let tls_config = CaTlsConfig::insecure_skip_verify()
+            .client_config(default_provider())
+            .expect("infallible");
+        // Each step is a report's latencies and the relay it must name.
+        type Step = (&'static [(u16, u64)], Option<u16>);
+        let sequences: [(&str, &[Step]); 3] = [
+            (
+                "missed_then_measured",
+                &[
+                    (&[(1, 40), (2, 50)], Some(1)),
+                    (&[(2, 50), (3, 60)], Some(1)),
+                    (&[(1, 40), (2, 50)], Some(1)),
+                    // The count starts again after a report that measured d1.
+                    (&[(2, 50), (3, 60)], Some(1)),
+                ],
+            ),
+            (
+                "missed_twice",
+                &[
+                    (&[(1, 40), (2, 50)], Some(1)),
+                    (&[(2, 50), (3, 60)], Some(1)),
+                    (&[(2, 50), (3, 60)], Some(2)),
+                    // d2 is the relay now: one report without it keeps it.
+                    (&[(1, 40), (3, 60)], Some(2)),
+                ],
+            ),
+            (
+                "no_answer_then_missed",
+                &[
+                    (&[(1, 40), (2, 50)], Some(1)),
+                    (&[], None),
+                    (&[(2, 50), (3, 60)], Some(2)),
+                ],
+            ),
+        ];
+        for (name, steps) in sequences {
+            let opts = Options::new(tls_config.clone());
+            let mut client =
+                Client::new(DnsResolver::new(), RelayMap::empty(), opts, Default::default());
+            for (step, &(latencies, want)) in steps.iter().enumerate() {
+                tokio::time::advance(Duration::from_secs(20)).await;
+                let mut report = Report::default();
+                for &(id, ms) in latencies {
+                    report.relay_latency.update_relay(
+                        relay_url(id),
+                        Duration::from_millis(ms),
+                        Probe::QadIpv4,
+                    );
+                }
+                client.add_report_history_and_set_preferred_relay(&mut report);
+                assert_eq!(report.preferred_relay, want.map(relay_url), "{name}: step {step}");
+            }
+        }
         Ok(())
     }
 

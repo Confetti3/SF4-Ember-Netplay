@@ -16,7 +16,7 @@ Source: `iroh-1.1.0.crate` from crates.io, sha256
 the MIT licence (the crate is MIT OR Apache-2.0). The crate ships only
 `LICENSE-BSD3` (for the parts derived from Tailscale), so `LICENSE-MIT` and
 `LICENSE-APACHE` were added from the v1.1.0 tag of n0-computer/iroh. Modified
-by SF4 Ember Netplay, 2026-11-23; every change is marked `Ember patch` in
+by SF4 Ember Netplay, 2026-11-23 and 2026-11-25; every change is marked `Ember patch` in
 `src/net_report.rs`.
 
 ### How iroh picks the home relay
@@ -48,10 +48,21 @@ On a network that blocks UDP, HTTPS probes measure the relays instead. Every
    now closed unless its relay is the one the report chose
    (`QadConns::keep_only`).
 
-The current relay is kept only when it answered in the current report, so a
-relay that stopped working is never held.
+4. **One report without the home relay does not leave it** (2026-11-25).
+   A report holds only the first 3 answers, so the home relay can be missing
+   from it while it works. Players' 1.6.4 logs showed exactly that on most
+   full reports: the home relay went to whichever relay had answered and came
+   back on the next report, 20 to 50 s later, every 5 minutes. The relay is
+   now kept through one report that has no latency for it
+   (`Reports::preferred_unmeasured`) and left on the second in a row. Change 3
+   is what makes the next report measure it again: the stored connection to
+   another relay is closed, so every relay is probed.
 
-Tests: `test_full_report_keeps_preferred_relay_hysteresis` and
+A relay that stopped working is therefore held for one report, 20 to 26 s,
+before the home relay moves.
+
+Tests: `test_full_report_keeps_preferred_relay_hysteresis`,
+`test_unmeasured_preferred_relay_is_left_on_the_second_report` and
 `test_stored_qad_conn_only_to_preferred_relay` in `src/net_report.rs`, run by
 the CTest test `IrohPatchRust`; `iroh_is_the_vendored_copy` in `sf4-net`
 fails if Cargo.lock stops using this copy. By hand, with the target directory
