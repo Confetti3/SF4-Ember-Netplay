@@ -4,11 +4,13 @@
 //! `PUT /v1/replays/{crc}` (`routes::archive`), and a tournament set's games
 //! as the set holds them (`sets`). `delivery::archive` stores each game in
 //! the bucket, tournament games first, and `delivery::packs` each set's
-//! pack; `GET /v1/archive` lists what is stored. Games kept before they were
-//! known by `game` are folded into one by `duplicates`.
+//! pack; `GET /v1/archive` lists what is stored, each game with its round
+//! score (`rounds`). Games kept before they were known by `game` are folded
+//! into one by `duplicates`.
 pub mod classes;
 pub mod duplicates;
 pub mod listing;
+pub mod rounds;
 pub mod sets;
 
 use ember_protocol::{
@@ -73,7 +75,8 @@ impl From<Refused> for ApiFailure {
 /// and only an account other than the first sender can name an empty side of
 /// an online game (`name_own_side`). A new
 /// game is taken when there is room for it (`refusal`), with what
-/// `attribution` says of its sides. A set's copy of a game is kept over its
+/// `attribution` says of its sides and the rounds `replay` says each side
+/// won, read now (`rounds`). A set's copy of a game is kept over its
 /// own players' online copies of it, which are folded into it
 /// (`duplicates::fold`); only the same file is the same online game to a set.
 /// A set's copy of a file folded away before takes that file's row back.
@@ -115,10 +118,12 @@ pub fn admit(
     if let Some(refused) = refusal(tx, now, sender, file.len(), set.is_none())? {
         return Ok(Admission::Refused(refused));
     }
+    let rounds = rounds::columns(replay.rounds);
     tx.execute(
         "INSERT INTO archive_games (digest, crc, saved_at, size, fighter_a, fighter_b, name_a, name_b, country_a, country_b,
-            sent_side, match_id, event_title, round_label, phase, sent_by, charged, priority, replay, next_attempt_at, received_at, game)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?20, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?19, ?21)
+            sent_side, match_id, event_title, round_label, phase, sent_by, charged, priority, replay, next_attempt_at, received_at, game,
+            rounds_a, rounds_b, rounds_read_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?20, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?19, ?21, ?22, ?23, ?19)
          ON CONFLICT (digest) DO UPDATE SET
             name_a = excluded.name_a, name_b = excluded.name_b, country_a = excluded.country_a,
             country_b = excluded.country_b, sent_side = excluded.sent_side, match_id = excluded.match_id,
@@ -126,7 +131,8 @@ pub fn admit(
             sent_by = excluded.sent_by, charged = excluded.charged, priority = excluded.priority,
             replay = excluded.replay, received_at = excluded.received_at, named_by_a = NULL, named_by_b = NULL,
             state = 'pending', stored_at = NULL, last_error = NULL, first_attempt_at = NULL,
-            next_attempt_at = MAX(archive_games.next_attempt_at, excluded.next_attempt_at)
+            next_attempt_at = MAX(archive_games.next_attempt_at, excluded.next_attempt_at),
+            rounds_a = excluded.rounds_a, rounds_b = excluded.rounds_b, rounds_read_at = excluded.rounds_read_at
          WHERE archive_games.state = 'duplicate'",
         params![
             digest,
@@ -149,7 +155,9 @@ pub fn admit(
             file,
             now,
             sent_side,
-            game
+            game,
+            rounds[0],
+            rounds[1]
         ],
     )?;
     crate::db::queued();

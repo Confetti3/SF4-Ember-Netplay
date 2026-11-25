@@ -99,7 +99,8 @@ fn signed_in_with_discord(tx: &Transaction<'_>, player: &EmberId) -> Result<()> 
 
 /// `GET /v1/archive`: the stored games the filter keeps, newest first or by
 /// class, with no credential, as the archive page shows them: each game's
-/// file in the bucket and each side's class, and each tournament set's score
+/// file in the bucket, each side's class and the rounds each side won when
+/// its replay says (`archive::rounds`), and each tournament set's score
 /// and pack once the bucket holds it. `next`, when there is more to look
 /// through, is the `cursor` that goes on. Also the events and countries of
 /// the archive's games, for the page's filters, and how many games the
@@ -171,6 +172,7 @@ pub async fn list(
                     event: game.event,
                     round: game.round,
                     phase: game.phase,
+                    rounds: game.rounds,
                 })
                 .collect();
             let (events, countries) = listing::choices(tx)?;

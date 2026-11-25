@@ -5,6 +5,8 @@
 mod common;
 #[path = "archive/duplicates.rs"]
 mod duplicates;
+#[path = "archive/rounds.rs"]
+mod rounds;
 
 use std::sync::{
     Arc, Mutex,

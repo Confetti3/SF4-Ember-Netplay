@@ -153,6 +153,10 @@ pub fn start(state: AppState, listener: TcpListener) -> std::io::Result<Running>
             state.clone(),
             delivery::packs::Packs(bucket.clone()),
         )));
+        workers.push(tokio::spawn(delivery::rounds::run(
+            state.clone(),
+            bucket.clone(),
+        )));
         workers.push(tokio::spawn(delivery::run(
             state.clone(),
             delivery::duplicates::Duplicates(bucket),
@@ -174,6 +178,15 @@ pub fn start(state: AppState, listener: TcpListener) -> std::io::Result<Running>
 /// runs it every few seconds; tests call it after moving the clock.
 pub async fn maintain(state: &AppState) {
     routes::maintenance_once(state).await;
+}
+
+/// One pass of reading the round scores of the archive's games kept before
+/// them back from its bucket (`delivery::rounds`), when the bridge has an
+/// archive. `start` runs one every few seconds; tests call it.
+pub async fn read_archive_rounds(state: &AppState) {
+    if let Some(Ok(bucket)) = state.config.archive.as_ref().map(s3::Bucket::new) {
+        delivery::rounds::pass(state, &bucket).await;
+    }
 }
 
 /// Marks the public rankings board as moved, as the bridge does itself when

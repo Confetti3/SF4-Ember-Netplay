@@ -202,7 +202,9 @@ to 10, either side), and `sort` (`class` for the higher class of the two
 sides first, else newest first) and `cursor`. It answers with up to 400
 games, newest first by save time, then by digest (by class: Grand Master
 games newest first, then Master, down to games with no class), each with
-its digest, CRC, download URL and each side's class. It also answers with
+its digest, CRC, download URL, each side's class and `rounds`, the rounds
+each side won, P1 first (`[2, 1]`), or `null` when its replay does not say
+who won (see Rounds); the side with more rounds won. It also answers with
 each listed set's score, and its pack's URL once the bucket holds one
 (`null` before), the events and countries the filters can choose from, the
 order it used (`sort`: `class`, or `newest`, which a class order becomes
@@ -267,6 +269,45 @@ pages through it can show up twice or not at all on their pages.
 The events and countries are kept in `archive_events` and
 `archive_countries` as games are stored or join a set, so a listing does not
 read the whole archive for them.
+
+### Rounds
+
+A game's round score is read from its replay as the game reads it
+(`replays::Replay::rounds`, a port of `Parse` and `Score` in
+`src/common/ReplayInputs.hxx`). The body must be laid out as the game's
+recorder lays it out and its sizes must add up: the round count at 0x18, one
+0x88-byte record per round from 0x320, and their input streams filling the
+rest exactly. Each round's record holds the rounds each side had won as it
+started; the rounds must add up from 0-0, give each side at most one win a
+round (a draw gives both one), and leave nobody with the match before the
+last round, of a match played to one of the game's settings (0x2E0: 1, 3, 5,
+7, 15 or 99 rounds). The last round's winner is not in the body: it follows
+from the rounds when only one side was a round short of the match, and for a
+deciding round it is the winner the slot record names (byte 49), which only
+a record the game wrote has; the record Ember makes up for a replay saved
+without one (it has a title) names nobody. A record whose winner the rounds
+disagree with leaves the score unknown, as does anything else above: the
+replay still goes in, with `rounds` `null`.
+
+`archive_games.rounds_a` / `rounds_b` hold the score and `rounds_read_at`
+when the bridge read it (migration 067). A new game's is read as it comes
+in, from the copy the archive keeps, online or a set's; both players' copies
+of one game hold the same rounds and winner. The listing reads the two columns from the rows it reads
+already; they are in no key, so the index and its triggers do not move.
+
+The games kept before migration 067 have none. `delivery::rounds` reads them
+back from the bucket (`archive::rounds`), at most 32 a pass, 4 at a time, a
+pass every 10 seconds, newest first through an index of the stored games
+still unread, and records what they say in one short write after the pass's
+reads, never holding the database while it reads. That is about three small
+reads a second: production's 258,000 games are read in about a day. A game
+is read once: one whose replay does not say, that the bucket no longer holds
+(404), or that it holds another replay for, is read as having no rounds. One
+the bucket does not answer for (unreachable, refused) is left, and a later
+pass reads it. A bridge from before 067, put back, leaves its new games
+unread, and the backfill reads them once 067's bridge runs again. The
+backfill (`archive::rounds::unread`, `delivery::rounds`) can go once
+production has no stored game without `rounds_read_at`.
 
 The site in `server/ember/archive-site` is plain HTML. It shows the bridge's
 listing at `/v1/archive`. Tournament games are grouped by event and set.

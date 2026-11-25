@@ -155,6 +155,10 @@ pub struct Game {
     /// Each side's class (band 1 to 10), none while the bridge hides classes.
     #[serde(default)]
     pub classes: [Option<u8>; 2],
+    /// The rounds each side won, P1 first, when the replay says who won
+    /// (`replays::Replay::rounds`): the side with more won the game.
+    #[serde(default)]
+    pub rounds: Option<[u8; 2]>,
 }
 
 impl Game {
@@ -252,6 +256,7 @@ mod tests {
             round: Some("Top 8".into()),
             phase: None,
             classes: [Some(7), None],
+            rounds: Some([2, 1]),
         }
     }
 
@@ -286,7 +291,7 @@ mod tests {
                     "saved_at": 1_700_000_000i64, "size": 2048, "fighters": [0, 17],
                     "names": ["Player 1", null], "countries": ["GB", null],
                     "set": "emt_a", "event": "Player 1's Cup", "round": "Top 8", "phase": null,
-                    "classes": [7, null],
+                    "classes": [7, null], "rounds": [2, 1],
                 }],
                 "sets": { "emt_a": { "score": [2, 1], "pack": null } },
                 "events": ["Player 1's Cup"], "countries": ["BE", "GB"],
@@ -323,6 +328,15 @@ mod tests {
         .unwrap();
         assert_eq!(least.games[0].names, [None, None]);
         assert_eq!((least.games[0].saved_at, least.games[0].size), (0, 0));
+        // A game whose replay does not say who won.
+        assert_eq!(least.games[0].rounds, None);
+        let unscored = Game {
+            rounds: None,
+            ..game()
+        };
+        let written = serde_json::to_value(&unscored).unwrap();
+        assert_eq!(written["rounds"], Value::Null);
+        assert_eq!(serde_json::from_value::<Game>(written).unwrap(), unscored);
     }
 
     #[test]

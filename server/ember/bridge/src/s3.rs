@@ -73,18 +73,25 @@ impl Bucket {
             .map(drop)
     }
 
-    /// The object at `key`, at most `limit` bytes, or why it could not be
-    /// read.
+    /// The object at `key`, at most `limit` bytes, none when the bucket has
+    /// no such object, or why it could not be read.
     pub async fn get(
         &self,
         secret: &str,
         key: &str,
         limit: usize,
         now: u64,
-    ) -> Result<Vec<u8>, String> {
-        let response = self.send(Method::GET, secret, key, Vec::new(), now).await?;
+    ) -> Result<Option<Vec<u8>>, String> {
+        let response = self
+            .answer(Method::GET, secret, key, Vec::new(), now)
+            .await?;
+        if response.status() == reqwest::StatusCode::NOT_FOUND {
+            return Ok(None);
+        }
+        let response = succeeded(key, response)?;
         read_bounded(response, limit)
             .await
+            .map(Some)
             .ok_or_else(|| format!("{key}: unreadable"))
     }
 
@@ -106,6 +113,20 @@ impl Bucket {
         body: Vec<u8>,
         now: u64,
     ) -> Result<reqwest::Response, String> {
+        let response = self.answer(method, secret, key, body, now).await?;
+        succeeded(key, response)
+    }
+
+    /// Sends a signed `method` for `key` with `body`: the bucket's answer,
+    /// whatever its status, or that none came.
+    async fn answer(
+        &self,
+        method: Method,
+        secret: &str,
+        key: &str,
+        body: Vec<u8>,
+        now: u64,
+    ) -> Result<reqwest::Response, String> {
         let client = self.client.client().map_err(|_| "client".to_owned())?;
         let url = self.url(key);
         let mut request = client.request(method.clone(), url.clone());
@@ -115,11 +136,11 @@ impl Bucket {
         for (name, value) in self.signed(&method, &url, secret, &body, now) {
             request = request.header(name, value);
         }
-        match request.body(body).send().await {
-            Ok(response) if response.status().is_success() => Ok(response),
-            Ok(response) => Err(format!("{key}: status {}", response.status().as_u16())),
-            Err(_) => Err(format!("{key}: unreachable")),
-        }
+        request
+            .body(body)
+            .send()
+            .await
+            .map_err(|_| format!("{key}: unreachable"))
     }
 
     /// The headers that sign a `method` of `body` to `url` at `now`:
@@ -162,6 +183,15 @@ impl Bucket {
                 ),
             ),
         ]
+    }
+}
+
+/// `response` when the bucket answered `key` with success, else why not.
+fn succeeded(key: &str, response: reqwest::Response) -> Result<reqwest::Response, String> {
+    if response.status().is_success() {
+        Ok(response)
+    } else {
+        Err(format!("{key}: status {}", response.status().as_u16()))
     }
 }
 
