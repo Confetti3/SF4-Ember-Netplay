@@ -1196,6 +1196,28 @@ mod tests {
                     },
                 ],
                 want_prev_len: 3,
+                // Ember patch: one report without d1 keeps it (upstream: d2,
+                // the only option)
+                want_relay: Some(relay_url(1)),
+            },
+            Test {
+                // Ember patch: the second report in a row without d1
+                name: "d1_gone_twice",
+                steps: vec![
+                    Step {
+                        after: 0,
+                        r: report([("d1", 2), ("d2", 3)]),
+                    },
+                    Step {
+                        after: 1,
+                        r: report([("d2", 3)]),
+                    },
+                    Step {
+                        after: 2,
+                        r: report([("d2", 3)]),
+                    },
+                ],
+                want_prev_len: 3,
                 want_relay: Some(relay_url(2)), // only option
             },
             Test {
@@ -1246,7 +1268,9 @@ mod tests {
                     },
                 ],
                 want_prev_len: 1, // t=[0123]s all gone. (too old, older than 10 min)
-                want_relay: Some(relay_url(3)), // only option
+                // Ember patch: one report without d1 keeps it (upstream: d3,
+                // the only option)
+                want_relay: Some(relay_url(1)),
             },
             Test {
                 name: "preferred_relay_hysteresis_no_switch",
