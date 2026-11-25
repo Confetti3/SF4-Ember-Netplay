@@ -123,7 +123,7 @@ void TakePointer(const RoomBoardFrame& f,const MenuEntry& e,const CardPointer& p
  case CardButtons::Kind::Place:offer(buttons.choices[index],pressed,true);break;
  case CardButtons::Kind::Question:
   // The chosen answer follows the mouse, but only a moving one takes the choice.
-  if(moving)nav.ChoiceIndex(index);
+  if(moving)nav.PointChoice(index);
   if(pressed)f.action=nav.Pick(index,f.rows);
   break;
  }

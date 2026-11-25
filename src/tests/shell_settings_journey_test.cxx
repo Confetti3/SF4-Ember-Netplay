@@ -394,7 +394,27 @@ void TypedLetterScrollsAfterPointer() {
  io.AddMousePosEvent(-FLT_MAX, -FLT_MAX); h.Frame();
 }
 
+// B142 r2: a click on a letter hands the focus to its first country by the
+// shell's own move (Prefer), and the list scrolls that country into view.
+void ClickedLetterScrollsToItsCountry() {
+ Harness h; Drawn drawn; h.imgui.io.DisplaySize = ImVec2(560, 420);
+ h.Screen("tab-player/country"); h.Choose("country"); h.Frame(0, 3);
+ ImGuiWindow* list = nullptr;
+ for (auto* w : GImGui->Windows) if (w->Active && w->ScrollMax.y > 0 && std::strstr(w->Name, "EmberShell/")) list = w;
+ std::string letter;
+ for (const auto& e : drawn.rows) if (e.id.compare(0, 7, "letter-") == 0) letter = e.id;
+ const MenuRect* at = h.shell.Navigation().PlacedNow(letter);
+ Check(list && at, "The narrow country picker did not scroll or place its last letter");
+ if (!list || !at) return;
+ Click(h, ImVec2((at->x0 + at->x1) * .5f, (at->y0 + at->y1) * .5f)); h.Frame(0, 3);
+ const std::string& focus = h.shell.Navigation().Focus();
+ const MenuRect* country = h.shell.Navigation().PlacedNow(focus);
+ Check(focus.compare(0, 8, "country-") == 0, "A clicked letter did not focus its first country");
+ Check(country && country->y0 >= list->InnerRect.Min.y - 1 && country->y1 <= list->InnerRect.Max.y + 1, "A clicked letter left its country out of view");
+}
+
 void SettingsJourneys() {
+ ClickedLetterScrollsToItsCountry();
  TypedLetterScrollsAfterPointer();
  PointerFocusKeepsScroll();
  RoomSettingsFollowOneRule();
