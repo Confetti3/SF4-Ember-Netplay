@@ -21,6 +21,9 @@ ATTRIBUTES = {"alt", "height", "href", "id", "src", "title", "width"}
 TAG = re.compile(r"<(/?)([A-Za-z][\w-]*)((?:\s+[^<>]*?)?)\s*/?>")
 ATTRIBUTE = re.compile(r"""([A-Za-z][\w-]*)\s*=\s*(?:"([^"]*)"|'([^']*)')""")
 ALIGN = {"text-align:right": "num", "text-align:center": "mid", "text-align:left": ""}
+# The inline tokens that are a text's words, and the ones that break its line.
+WORDS = {"text", "code_inline"}
+BREAKS = {"softbreak", "hardbreak"}
 # Headings a page's own contents list names.
 LISTED = {"h2", "h3"}
 
@@ -60,8 +63,9 @@ def allowed(text):
 
 
 def plain(inline):
-    """An inline token's text without its markup."""
-    return "".join(child.content for child in inline.children or [] if child.type in ("text", "code_inline"))
+    """An inline token's text without its markup, a line break in it as a space."""
+    return "".join(" " if child.type in BREAKS else child.content
+                   for child in inline.children or [] if child.type in WORDS | BREAKS)
 
 
 class Prose:

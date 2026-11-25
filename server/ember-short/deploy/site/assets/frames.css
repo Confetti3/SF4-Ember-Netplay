@@ -53,8 +53,8 @@
 /* The move tables use the page's whole width: ten columns of numbers. The
    move's name leads each row and its notation sits under it. */
 .frames h2 { margin-top: 32px; }
-.frames td { white-space: nowrap; }
-.frames td:first-child { color: var(--ivory); font-weight: 600; white-space: normal; min-width: 11rem; }
+.frames td { padding: 6px 12px; white-space: nowrap; }
+.frames td:first-child { color: var(--ivory); font-weight: 600; line-height: 1.3; white-space: normal; min-width: 11rem; }
 .frames td:first-child code { padding: 0; color: var(--meta); background: none; font-size: 0.8rem; }
 .frames th { position: sticky; top: 0; }
 .frames tbody tr:hover td { background: var(--accent-wash); }

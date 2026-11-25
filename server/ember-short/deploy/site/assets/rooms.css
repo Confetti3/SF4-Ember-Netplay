@@ -74,23 +74,9 @@
 
 .room-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 32px; }
 .room-faces { display: flex; align-items: center; gap: 4px; }
-.room-face {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  background-color: var(--face);
-  background-image: url("faces.webp");
-  background-size: calc(44 * 32px) 32px;
-  background-repeat: no-repeat;
-  border-radius: 2px;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
-  color: var(--muted);
-  font-size: 0.875rem;
-}
-.room-face.none { background-image: none; }
-.dimmed .room-face { filter: brightness(0.55); }
+/* The faces are site.css's; one nobody has chosen yet shows a question mark. */
+.room-faces .face.none { display: inline-flex; align-items: center; justify-content: center; color: var(--muted); font-size: 0.875rem; }
+.dimmed .face { filter: brightness(0.55); }
 .room-more { margin-left: 2px; color: var(--muted); font-size: 0.875rem; }
 .room-rules { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 1 auto; }
 .room-standing { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
