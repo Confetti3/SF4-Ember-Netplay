@@ -1,6 +1,6 @@
 # SF4 Ember Netplay v1.6.5
 
-v1.6.5 is a patch for 1.6.4. Your relay no longer changes every few minutes, which 1.6.4 was meant to stop and did not for many players, and a room table no longer stays stuck after a game.
+v1.6.5 is a patch for 1.6.4. One relay check that misses your relay no longer moves you off it, which is what kept changing relays every few minutes on 1.6.4. A room table no longer stays stuck after a game, and public Classic rooms can have up to 8 tables.
 
 Experimental unofficial rollback netplay for Ultra Street Fighter IV, based on [sf4e by Anthony Danducci and contributors](https://codeberg.org/adanducci/sf4e). Preserve upstream attribution and bundled licenses.
 
@@ -14,11 +14,12 @@ Experimental unofficial rollback netplay for Ultra Street Fighter IV, based on [
 
 ### Connection
 
-- **Your relay stays where it is.** Every five minutes Ember measures the relays again and keeps only the first few answers. When your own relay was not among them, 1.6.4 moved you to another relay, often a farther one, and moved you back about half a minute later. Players' logs showed this happening on most of those checks. Ember now keeps your relay through one check that did not measure it, and only moves when a second check in a row misses it or another relay is clearly faster.
+- **One missed check no longer moves your relay.** Ember measures the relays about every 20 seconds and keeps only the first few answers. When your own relay was not among them, 1.6.4 moved you to another relay, often a farther one, and moved you back about half a minute later. Players' logs showed this happening about every five minutes. Ember now keeps your relay through one check that did not measure it. It moves when the next check, about 20 seconds later, misses it too, or when another relay is clearly faster, so a change of relay is now rare rather than impossible.
 - **The Europe relay was holding packets, and that is fixed on the server.** Since mid-November Ember's Europe relay held game packets for about a tenth of a second every few seconds, which shows in a match as rollback jumping to 7 frames. It was fixed on the relay on 25 November and needs no update. If you still see these spikes in relayed matches, send a report with **Report a problem**.
 
 ### Rooms
 
+- **Public Classic rooms choose their tables, up to 8.** A public Classic room always opened with four tables and its host could not change that. Create room now offers the number of tables for it, as for a private room, and the host can add tables or take empty ones away in Room settings. When everyone has left, the room goes back to four. A tournament room keeps the tables it was given.
 - **A table frees itself after a game.** When one player's game was slow to close after a match, or their connection to the room had restarted, the table stayed on "Waiting for all players and spectators to finish returning from the previous match" until that player left the room. The room now stops waiting after 15 seconds.
 - **The unresolved result messages say where Abandon is.** They now point to **Table options**.
 - **Player 2 faces player 1.** On table cards and Arcade cabinets the second player's picture is mirrored, so the pair face each other. A cabinet's FP moved to the top-left corner, clear of the Ultra mark.
