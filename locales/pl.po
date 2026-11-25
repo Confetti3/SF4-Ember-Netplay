@@ -8857,6 +8857,12 @@ msgstr "Filtr czatu"
 msgid "settings.chat_filter_detail"
 msgstr "Ukrywa przekleństwa i obelgi na czacie pokoju pod gwiazdkami, tylko na Twoim ekranie. Wiadomości nadal są wysyłane tak, jak zostały napisane."
 
+msgid "settings.chat_results"
+msgstr "Wyniki na czacie"
+
+msgid "settings.chat_results_detail"
+msgstr "Pokazuje na czacie pokoju wiersze o wygranych walkach i setach. Wyłączenie ukrywa je tylko na Twoim ekranie, a włączenie je przywraca."
+
 msgid "room.v2.unread"
 msgstr "Nieprzeczytane: {0}"
 

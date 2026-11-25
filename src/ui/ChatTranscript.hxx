@@ -35,6 +35,8 @@ struct ChatLine {
     // cabinets move players between tables, so the table's number says little
     // there; the line names who the set was won against instead.
     std::string opponent;
+    // A game or a set won: the lines Results in chat, off, hides.
+    bool Result() const { return kind == Kind::GameWon || kind == Kind::SetWon; }
 };
 // The line of a room event (any kind but Message), in the player's language now.
 std::string ChatEventText(const ChatLine& line);

@@ -8857,6 +8857,12 @@ msgstr "聊天过滤"
 msgid "settings.chat_filter_detail"
 msgstr "在房间聊天中用星号遮住脏话和侮辱性词语，只在你的屏幕上生效。消息仍按原样发送。"
 
+msgid "settings.chat_results"
+msgstr "聊天中的对战结果"
+
+msgid "settings.chat_results_detail"
+msgstr "在房间聊天中显示赢下一局和对战组的消息。关闭后只在你的屏幕上隐藏，重新开启后会再次显示。"
+
 msgid "room.v2.unread"
 msgstr "{0} 条未读"
 

@@ -500,6 +500,8 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
    const auto shownPart=[&](const char* part,bool on){return loc::Tf("room.v2.part_state",loc::T(part),loc::T(on?"common.on":"common.off"));};
    more.choices.push_back({"room-show-members",shownPart("room.members",preferences_.roomShowMembers),loc::T("room.v2.part_detail"),layoutOpen});
    more.choices.push_back({"room-show-chat",shownPart("room.chat",preferences_.roomShowChat),loc::T("room.v2.part_detail"),layoutOpen});
+   // The chat's lines for games and sets won, one press from the board in a busy room.
+   more.choices.push_back({"room-show-results",shownPart("settings.chat_results",preferences_.chatResults),loc::T("settings.chat_results_detail"),layoutOpen});
    more.choices.push_back({"room-picture",loc::Tf("room.v2.part_state",loc::T("room.v2.picture"),loc::T(pictureNames[preferences_.pictureMode])),loc::T("room.v2.picture_detail"),layoutOpen});
   }
   rows.push_back(std::move(more));

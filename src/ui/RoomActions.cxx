@@ -177,6 +177,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   const std::string& id=a.kind==MenuAction::Chosen?a.text:a.id;auto p=preferences_;bool changed=true;
   if(id=="room-show-members"||id=="room-hide-members")p.roomShowMembers=id=="room-show-members"&&!p.roomShowMembers;
   else if(id=="room-show-chat"||id=="room-hide-chat")p.roomShowChat=id=="room-show-chat"&&!p.roomShowChat;
+  else if(id=="room-show-results")p.chatResults=!p.chatResults;
   else if(id=="room-hide-picture")p.pictureMode=netplay::PictureOff;
   else if(const auto mode=RowKey<int>(id,"picture-");mode&&*mode<=netplay::PictureOff)p.pictureMode=*mode;
   else if(id=="room-picture"){morePicture_=moreAsk_=true;return;}

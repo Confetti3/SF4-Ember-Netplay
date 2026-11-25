@@ -216,7 +216,7 @@ static void BoolPreferenceRoundTrips(const Path& root) {
         {"welcomed", &PlayerPreferences::welcomed, true},
         {"roomShowMembers", &PlayerPreferences::roomShowMembers, true}, {"roomShowChat", &PlayerPreferences::roomShowChat, true},
         {"roomTableGrid", &PlayerPreferences::roomTableGrid, false}, {"roomCharacterPictures", &PlayerPreferences::roomCharacterPictures, true},
-        {"chatFilter", &PlayerPreferences::chatFilter, true},
+        {"chatFilter", &PlayerPreferences::chatFilter, true}, {"chatResults", &PlayerPreferences::chatResults, true},
         {"matchFrameMeter", &PlayerPreferences::matchFrameMeter, false}, {"backgroundPlay", &PlayerPreferences::backgroundPlay, false}, {"endlessLobbyMusic", &PlayerPreferences::endlessLobbyMusic, true},
         {"lowerInputLag", &PlayerPreferences::lowerInputLag, false}, {"lowerKeyboardLag", &PlayerPreferences::lowerKeyboardLag, false},
         {"fasterDisplay", &PlayerPreferences::fasterDisplay, true}, {"borderless", &PlayerPreferences::borderless, false},
