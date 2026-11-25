@@ -330,6 +330,46 @@ static void TestPublicTableCount() {
 		setTables(room, 0, static_cast<int>(room::ClassicTableCount));
 		CHECK(room.Run(100).empty() && std::string(room.rules.Ended()) == "done");
 	}
+	{
+		// With Wired players only chosen too: that rule, the tables, then the
+		// count, each sent at once after the one before it.
+		Room room;
+		auto wired = eight; wired.wiredOnly = true;
+		room.rules.Start(netplay::TableSetup::Same(Chosen()), room.now, wired);
+		room::Action sent;
+		CHECK(room.Tick(sent) && sent.kind == room::ActionKind::SetWiredOnly && room.Apply(sent));
+		setTables(room, 0, static_cast<int>(room::ClassicTableCount));
+		CHECK(room.Tick(sent) && sent.kind == room::ActionKind::SetTableCount && room.Apply(sent));
+		setTables(room, static_cast<int>(room::ClassicTableCount), static_cast<int>(room::TableCount));
+		CHECK(room.Run(100).empty() && std::string(room.rules.Ended()) == "done" && room.authority.SnapshotView().wiredOnly);
+	}
+	{
+		// An Arcade room whose host set the count themselves before the type
+		// was the room's: the type goes with the count the room shows.
+		Room room;
+		room.rules.Start(netplay::TableSetup::Same(Chosen()), room.now, Created(room::RoomType::Arcade));
+		auto own = room.Made(room.creator, 0, room::ActionKind::SetTableCount);
+		own.tableCount = 2;
+		own.actionId = room.nextActionId++; // the creator's own, in order with what the operation sends next
+		CHECK(room.Apply(own));
+		room.rules.ObservePlayer(own);
+		room::Action sent;
+		CHECK(room.Tick(sent) && sent.kind == room::ActionKind::SetRoomType && sent.tableCount == 2 && room.Apply(sent));
+		CHECK(room.Run(32).empty() && std::string(room.rules.Ended()) == "done");
+		CHECK(room.authority.SnapshotView().type == room::RoomType::Arcade && room::TablesInPlay(room.authority.SnapshotView()) == 2);
+	}
+	{
+		// Fewer tables than it opened with, and someone already at one of
+		// those it would take away: the room would refuse it every time, so
+		// the count is left to the host.
+		Room room;
+		room::Charter two; two.tableCount = 2;
+		room.rules.Start(netplay::TableSetup::Same(Chosen()), room.now, two);
+		setTables(room, 0, static_cast<int>(room::ClassicTableCount));
+		const auto guest = room.Join("emb1-guest", 2);
+		CHECK(room.authority.Apply(guest, room.Made(guest, 3, room::ActionKind::Queue)).accepted);
+		CHECK(room.Run(100).empty() && std::string(room.rules.Ended()) == "count_not_allowed");
+	}
 }
 
 int main() {

@@ -105,8 +105,8 @@ public:
     void Abandon();
     // Opens a public room: the new room's admission is joined when it arrives.
     // `rules` go with the new room's join, for the runtime to set on its tables,
-    // and so do its type, its Wired players only rule and how many tables an
-    // Arcade room plays at.
+    // and so do its type, its Wired players only rule and how many tables it
+    // plays at (netplay::CreatedRules).
     void Create(const std::string& name, int capacity, const netplay::TableSetup& tables, room::DelayPolicy delayPolicy,
         room::RoomType type = room::RoomType::Classic, bool wiredOnly = false, std::uint8_t tableCount = room::TableCount);
     // A create or ticket request is waiting to be sent or answered.

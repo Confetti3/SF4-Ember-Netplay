@@ -518,7 +518,7 @@ struct Snapshot {
 	// not Classic, with the cabinet fields below.
 	RoomType type = RoomType::Classic;
 	// How many tables a room plays at, the first ones (TablesInPlay): chosen
-	// when it is created and changed by a private room's host (SetTableCount).
+	// when it is created and changed by the room's host (SetTableCount).
 	// An Arcade or King of the hill room's pairs play there, and whoever finds
 	// no seat at them waits in line.
 	// Serialized only when not its type's DefaultTableCount, so a room at the
