@@ -1,0 +1,21 @@
+/* The link page (a room, match or public room link opens it; open.js) and the
+   404 page: one column of panels at a reading width. */
+.code {
+  margin: 4px 0 16px;
+  font-size: clamp(1.3rem, 7vw, 2.4rem);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum", "zero";
+  letter-spacing: 0.06em;
+  text-align: center;
+  user-select: all;
+  overflow-wrap: anywhere;
+}
+.panel .actions:first-child, #link .actions { justify-content: center; }
+#link .status, #fallback .status { text-align: center; }
+#open { min-width: 12rem; min-height: 52px; padding: 12px 24px; font-size: 1.1rem; }
+
+@media (max-width: 700px) {
+  .actions .button { flex: 1 1 auto; }
+  .actions .primary { flex-basis: 100%; }
+}

@@ -20,10 +20,12 @@
 # BUCKET.
 #
 # Expects, next to this script: the templates and files of this folder,
-# site/ (the page: index.html and assets/archive.css, assets/archive.js) and
-# short-assets/ (ember-emblem.png and fonts/ from
+# site/ (the built page: index.html and assets/archive.css, assets/archive.js,
+# which `python3 scripts/site/make.py` writes as build/archive-site from the
+# main site's layout and this folder's ../site sources) and short-assets/ (the
+# emblems, the menu artwork, the faces, the flags and fonts/ from
 # server/ember-short/deploy/site/assets). Run from the repository, it finds
-# both there. The rustfs binary is the musl build of 1.0.4, from the rustfs
+# the second there; the first must be the built folder. The rustfs binary is the musl build of 1.0.4, from the rustfs
 # releases. Running it again installs a newer binary, page or configuration;
 # the credentials and the stored games stay.
 #
@@ -119,10 +121,10 @@ BASE=https://$HOST$PREFIX
 
 # The page files, relative to site/ here and to $WEBROOT on the server, and
 # the ones that come from the short-link site assets.
-if [ ! -d "$SRC/site" ] && [ -d "$SRC/../site" ]; then SITEDIR="$SRC/../site"; else SITEDIR="$SRC/site"; fi
+if [ ! -d "$SRC/site" ] && [ -d "$SRC/../../../../build/archive-site" ]; then SITEDIR="$SRC/../../../../build/archive-site"; else SITEDIR="$SRC/site"; fi
 if [ -d "$SRC/short-assets" ]; then SHORT="$SRC/short-assets"; else SHORT="$SRC/../../../ember-short/deploy/site/assets"; fi
 PAGE="index.html assets/archive.css assets/archive.js"
-BORROWED="ember-emblem.png faces.webp flags.png flags.json flags-LICENSE.txt fonts/inter-latin-400.woff2 fonts/inter-latin-600.woff2 fonts/OFL.txt"
+BORROWED="ember-emblem.png sfv-ember-mark.png ember-background.webp ember-background.jpg faces.webp flags.png flags.json flags-LICENSE.txt fonts/inter-latin-400.woff2 fonts/inter-latin-600.woff2 fonts/OFL.txt"
 for file in rustfs-archive.service.in bucket.sh bucket-policy.json.in nginx/archive-zone.conf.in \
     nginx/archive.conf.in nginx/archive-locations.conf.in nginx/ember-archive-headers.conf; do
     [ -f "$SRC/$file" ] || { echo "Missing $SRC/$file" >&2; exit 1; }

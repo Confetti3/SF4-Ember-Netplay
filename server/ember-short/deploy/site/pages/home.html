@@ -1,109 +1,99 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="referrer" content="no-referrer">
-<meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#141312">
-<title>SF4 Ember Netplay</title>
-<meta name="description" content="Rollback netplay rooms, public rooms, sets and tournaments for Ultra Street Fighter IV on Steam.">
-<meta property="og:type" content="website">
-<meta property="og:site_name" content="SF4 Ember Netplay">
-<meta property="og:title" content="SF4 Ember Netplay">
-<meta property="og:description" content="Rollback netplay rooms, public rooms, sets and tournaments for Ultra Street Fighter IV on Steam.">
-<meta property="og:url" content="https://embernetplay.link/">
-<meta property="og:image" content="https://embernetplay.link/assets/og.jpg">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta name="twitter:card" content="summary_large_image">
-<link rel="icon" href="/favicon.ico" sizes="any">
-<link rel="icon" href="/assets/ember-emblem.png" type="image/png">
-<link rel="preload" href="/assets/fonts/inter-latin-400.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="/assets/fonts/inter-latin-600.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/assets/site.css">
-<script src="/assets/home.js" defer></script>
-</head>
-<body class="wide home">
-<div class="shell">
-<header class="site-header">
-<a class="brand-home" href="/" aria-label="SF4 Ember Netplay home"><img src="/assets/ember-emblem.png" width="44" height="44" alt=""><span class="brand-text"><span class="brand-name">EMBER</span><span class="brand-sub">SF4 / Rollback netplay</span></span></a>
-<nav class="site-nav" aria-label="Site"><a href="/rooms">Public rooms</a><a href="/rankings">Rankings</a><a href="https://archive.embernetplay.link/">Replays</a><a href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/latest" rel="noopener">Download</a><a href="https://discord.gg/uPNqF5A5uq" rel="noopener">Discord</a><a href="https://ko-fi.com/confetti3" rel="noopener">Support</a><a href="https://x.com/kabiefox" rel="noopener">Twitter</a><a href="https://github.com/Confetti3/SF4-Ember-Netplay" rel="noopener">GitHub</a></nav>
-</header>
-<main>
+<!--
+file: index.html
+path: /
+title: SF4 Ember Netplay
+description: Rollback netplay, rooms, spectating, a training lab and frame data for Ultra Street Fighter IV on Steam. Free and open source.
+styles: faces frames home
+scripts: site home
+body: home
+-->
 <section class="hero">
-<p class="eyebrow">Ultra Street Fighter IV on Steam</p>
-<h1 class="hero-title">Rollback netplay for Ultra Street Fighter IV</h1>
-<p class="lead">Ember adds rooms with rollback netplay, spectators and training tools to the Steam game. Make a room and send the link, or drop into a public room and play.</p>
-<div class="actions hero-actions">
-<a class="button primary" href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/latest" rel="noopener">Download Ember</a>
-<a class="button live-button" href="/rooms">Browse public rooms<span class="live" id="live" hidden></span></a>
+<div class="hero-text">
+<h1>Ultra Street Fighter IV online, with rollback</h1>
+<p class="lead">Ember adds rollback netplay, rooms, spectating and a training lab to the Steam game. It is free and open source.</p>
+<div class="actions">
+<a class="button primary large" id="get" href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/latest" rel="noopener">Download Ember</a>
+<a class="button large" href="/docs/install">How to install</a>
 </div>
-<p class="note">Free and open source. Runs on Windows, and on Linux or Steam Deck through Proton.</p>
+<p class="note">For Windows, and for Linux or Steam Deck through Proton. You need your own copy of Ultra Street Fighter IV on Steam.</p>
+</div>
+<figure class="hero-shot"><img src="/assets/shots/match.webp" width="960" height="540" alt="A match in Ember: each player's name under their health bar, and the connection at the bottom of the screen"></figure>
 </section>
 
-<section class="features" aria-labelledby="features-title">
-<h2 class="section-title" id="features-title">What Ember adds</h2>
-<div class="feature-grid">
-<article class="feature">
-<h3>Rooms with rollback</h3>
-<p>Up to four tables play at once while everyone else watches live. Each player chooses their own delay. A match plays at the higher of the two, or a room can let each fighter keep their own. Auto is on by default, checks each new opponent's connection and picks 1 to 3 frames, using 2 before a recommendation is available. Players can choose a manual delay from 0 to 5.</p>
-</article>
-<article class="feature">
-<h3>Public rooms</h3>
-<p>Find players without an invitation. Cards show the host, players and free seats, and Quick join finds an open seat near you. Games there give you one of USF4's classes, D to Grand Master. <a href="/rooms">See who is playing</a> or <a href="/rankings">players by class</a></p>
-</article>
-<article class="feature">
-<h3>Sets and rotation</h3>
-<p>Play sets of first to 1 up to first to 10, then Winner stays, Loser stays or Both rotate. The score and win streak sit on the match HUD.</p>
-</article>
-<article class="feature">
-<h3>Links that open the game</h3>
-<p>Copy your room's short link and send it anywhere. Your friend opens it in a browser and Ember joins the room.</p>
-</article>
-<article class="feature">
-<h3>Tournaments</h3>
-<p>Your Ember ID keeps your record. Sites such as BluMint send match links that open the match in Ember, and results are reported for you. <a href="/start">Set up tournaments</a></p>
-</article>
-<article class="feature">
-<h3>Made for your setup</h3>
-<p>Room chat, 14 languages, Steam Input controllers, and Play in the background for streamers who keep OBS in front.</p>
-</article>
+<section class="live" id="live" aria-labelledby="live-title" hidden>
+<div class="live-head">
+<h2 id="live-title">Playing now</h2>
+<p class="live-count" id="live-count" role="status"></p>
+<a href="/rooms">All public rooms</a>
 </div>
+<div class="live-rooms" id="live-rooms"></div>
+</section>
+
+<section class="tour" aria-label="What Ember adds">
+<div class="tour-row">
+<img src="/assets/shots/room.webp" width="960" height="540" alt="An Ember room: four tables on the left, the members and the chat on the right" loading="lazy">
+<div>
+<h2>Rooms for the whole group</h2>
+<p>Up to four tables play at once while everyone else watches live. Play sets from first to 1 up to first to 10, with the winner or the loser staying on, and keep the score and the streak on the match HUD.</p>
+<p>Each player picks their own input delay. Auto checks every new opponent's connection and chooses 1 to 3 frames; you can set 0 to 5 yourself.</p>
+<p class="tour-links"><a href="/docs/custom-rooms">How rooms work</a><a href="/docs/player-guide">Player guide</a></p>
+</div>
+</div>
+<div class="tour-row">
+<img src="/assets/shots/king.webp" width="960" height="540" alt="A King of the hill room: sixteen cabinets, the member list and the chat" loading="lazy">
+<div>
+<h2>Public rooms, open all day</h2>
+<p>Find a game without an invitation. Quick join takes a free seat near you, in a Classic room with a queue, an Arcade room of sixteen cabinets, or King of the hill.</p>
+<p>Games there earn one of Ultra Street Fighter IV's classes, from D up to Grand Master.</p>
+<p class="tour-links"><a href="/rooms">See who is playing</a><a href="/rankings">Players by class</a></p>
+</div>
+</div>
+<div class="tour-row">
+<img src="/assets/shots/training.webp" width="960" height="540" alt="Training mode with Ember's frame meter along the bottom of the screen" loading="lazy">
+<div>
+<h2>A training lab with a frame meter</h2>
+<p>In Training, Ember draws every move frame by frame: startup, active and recovery, and who is ahead when it ends. Record the dummy, set its position, and wait in Training between games without leaving your room.</p>
+<p>The same numbers are here for every fighter.</p>
+<p class="tour-links"><a href="/docs/training-lab">Training lab guide</a><a href="/frame-data">Frame data</a></p>
+</div>
+</div>
+<div class="tour-row">
+<img src="/assets/shots/replays.webp" width="960" height="540" alt="Ember's Replays screen: a list of saved matches with both fighters and the score" loading="lazy">
+<div>
+<h2>Every match is a replay</h2>
+<p>Ember keeps your matches. Watch them again, read both players' inputs, or share them: the archive holds games from players around the world, and any of them opens in your own game.</p>
+<p class="tour-links"><a href="{{replays}}">Browse the replay archive</a></p>
+</div>
+</div>
+</section>
+
+<section class="frames-teaser" aria-labelledby="frames-title">
+<div class="section-head">
+<h2 id="frames-title">Frame data for all 44 fighters</h2>
+<p>Measured by Ember from the game's own files and checked in the game. Pick a fighter.</p>
+</div>
+{{roster}}
 </section>
 
 <section class="start" aria-labelledby="start-title">
-<h2 class="section-title" id="start-title">Start playing</h2>
-<ol class="step-list">
-<li><strong>Download Ember.</strong> <code>setup.exe</code> installs it with a Start menu entry, or unzip the zip into a new folder.</li>
-<li><strong>Start Launcher.exe.</strong> It finds Ultra Street Fighter IV and starts it with Ember.</li>
-<li><strong>Choose Online play.</strong> Make a room and send its link, or open Public rooms and join one.</li>
+<h2 id="start-title">Start playing</h2>
+<ol class="steps">
+<li><strong>Install Ember.</strong> <code>setup.exe</code> puts it in a folder of its own with a Start menu entry. There is a zip if you would rather not run an installer.</li>
+<li><strong>Start Ember.</strong> It finds Ultra Street Fighter IV and starts the game with Ember in it. Press <strong>F10</strong>, or Start at the main menu, to open it.</li>
+<li><strong>Choose Online play.</strong> Join a public room, or make a room and send its link to your friends.</li>
 </ol>
+<div class="start-more">
+<section>
+<h3>Joining a friend</h3>
+<p>Open the link they sent and choose <strong>Open in Ember</strong>. Or, in Ember, choose <strong>Online play</strong>, then <strong>Join room</strong>, and paste the invitation. Everyone in a room needs the same Ember version.</p>
 </section>
-
-<div class="panel-grid">
-<section class="panel rule">
-<h2>Join a friend's room</h2>
-<ol>
-<li>Your friend makes a room in Ember and sends you its link.</li>
-<li>Open the link and choose <strong>Open in Ember</strong>.</li>
-<li>Or, in Ember, choose <strong>Online play</strong>, then <strong>Join room</strong>, and paste the invitation.</li>
-</ol>
-<p class="note">Everyone in a room needs the same Ember release.</p>
+<section>
+<h3>Tournaments</h3>
+<p>Your Ember ID keeps your record. Sites such as BluMint send match links that open the match in Ember and report the result for you. <a href="/start">Set up for tournaments</a></p>
 </section>
-<section class="panel">
-<h2>Public rooms and tournaments</h2>
-<p>Public rooms are open to anyone with an Ember ID. <a href="/rooms">Browse them here</a>, or in Ember under <strong>Online play</strong>, then <strong>Public rooms</strong>.</p>
-<p>Tournament sites send match links that open the match in Ember. Connect Discord under <strong>Ember ID</strong> so the site can find you.</p>
-<p class="note version">Public rooms and tournaments need Ember 1.1.0 or newer.</p>
+<section>
+<h3>Something not working?</h3>
+<p>The <a href="/docs/troubleshooting">troubleshooting guide</a> covers the common problems, from Windows Defender to input lag. For anything else, ask on <a href="https://discord.gg/uPNqF5A5uq" rel="noopener">Discord</a>.</p>
 </section>
 </div>
-</main>
-<footer>
-<p class="links"><a href="/">Home</a><a href="/rooms">Public rooms</a><a href="/rankings">Rankings</a><a href="https://archive.embernetplay.link/">Replays</a><a href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/latest" rel="noopener">Releases</a><a href="https://github.com/Confetti3/SF4-Ember-Netplay/issues" rel="noopener">Report a bug</a><a href="https://ko-fi.com/confetti3" rel="noopener">Support</a><a href="https://x.com/kabiefox" rel="noopener">Twitter</a><a href="https://github.com/Confetti3/SF4-Ember-Netplay/blob/HEAD/ATTRIBUTION.md" rel="noopener">Attribution</a></p>
-<p>Ember is an unofficial port of <a href="https://codeberg.org/adanducci/sf4e" rel="noopener">sf4e</a> by Anthony Danducci and contributors. It is not affiliated with Capcom or Valve; Street Fighter and its characters belong to Capcom.</p>
-<p>Text set in Inter by the Inter Project Authors, under the <a href="/assets/fonts/OFL.txt">SIL Open Font License</a>.</p>
-</footer>
-</div>
-</body>
-</html>
+</section>

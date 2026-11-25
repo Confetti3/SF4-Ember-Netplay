@@ -33,7 +33,8 @@ Put the files in a folder in your home, as for the bridge. From the repository:
 
     ssh vps mkdir -p ember-archive-staging
     scp -r server/ember/archive-site/deploy/. vps:ember-archive-staging/
-    scp -r server/ember/archive-site/site vps:ember-archive-staging/site
+    python3 scripts/site/make.py --wiki-frame-data
+    scp -r build/archive-site vps:ember-archive-staging/site
     scp -r server/ember-short/deploy/site/assets vps:ember-archive-staging/short-assets
     scp <rustfs-1.0.4-linux-x86_64-musl binary> vps:ember-archive-staging/rustfs
 

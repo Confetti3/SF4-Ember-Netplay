@@ -1,0 +1,428 @@
+{
+ "games": [
+  {
+   "digest": "7753482f4681190292b66ee0bed672d168e3176a9cce8e1ea1763ad093945214",
+   "crc": "7753482f",
+   "url": "https://archive.example/replays/games/7753482f4681190292b66ee0bed672d168e3176a9cce8e1ea1763ad093945214.emberreplay",
+   "saved_at": 1795604000,
+   "size": 9037,
+   "fighters": [
+    0,
+    1
+   ],
+   "names": [
+    "Player 1",
+    "Player 2"
+   ],
+   "countries": [
+    "GB",
+    "US"
+   ],
+   "set": null,
+   "event": null,
+   "round": null,
+   "phase": null,
+   "classes": [
+    8,
+    5
+   ],
+   "rounds": [
+    2,
+    1
+   ]
+  },
+  {
+   "digest": "bcc9610a5ebe4aa99b443230ec001c7ebec416e5f3bbb27bf3f41b0799e39381",
+   "crc": "bcc9610a",
+   "url": "https://archive.example/replays/games/bcc9610a5ebe4aa99b443230ec001c7ebec416e5f3bbb27bf3f41b0799e39381.emberreplay",
+   "saved_at": 1795603700,
+   "size": 9074,
+   "fighters": [
+    1,
+    0
+   ],
+   "names": [
+    "Player 2",
+    "Player 1"
+   ],
+   "countries": [
+    "US",
+    "GB"
+   ],
+   "set": null,
+   "event": null,
+   "round": null,
+   "phase": null,
+   "classes": [
+    5,
+    8
+   ],
+   "rounds": [
+    0,
+    2
+   ]
+  },
+  {
+   "digest": "430861a6abe516711d1442d0f9a6d99f84950930766c1c528fc4a45eccf79faa",
+   "crc": "430861a6",
+   "url": "https://archive.example/replays/games/430861a6abe516711d1442d0f9a6d99f84950930766c1c528fc4a45eccf79faa.emberreplay",
+   "saved_at": 1795603400,
+   "size": 9111,
+   "fighters": [
+    0,
+    1
+   ],
+   "names": [
+    "Player 1",
+    "Player 2"
+   ],
+   "countries": [
+    "GB",
+    "US"
+   ],
+   "set": null,
+   "event": null,
+   "round": null,
+   "phase": null,
+   "classes": [
+    8,
+    5
+   ],
+   "rounds": [
+    2,
+    0
+   ]
+  },
+  {
+   "digest": "5258f2550ec472480eeee8fdcb5c0d239784bcf3f96160ec69d3c3276fdd93d1",
+   "crc": "5258f255",
+   "url": "https://archive.example/replays/games/5258f2550ec472480eeee8fdcb5c0d239784bcf3f96160ec69d3c3276fdd93d1.emberreplay",
+   "saved_at": 1795603100,
+   "size": 9148,
+   "fighters": [
+    0,
+    17
+   ],
+   "names": [
+    "Player 1",
+    "Player 2"
+   ],
+   "countries": [
+    "GB",
+    "US"
+   ],
+   "set": null,
+   "event": null,
+   "round": null,
+   "phase": null,
+   "classes": [
+    8,
+    5
+   ],
+   "rounds": [
+    1,
+    2
+   ]
+  },
+  {
+   "digest": "f8e7182b7f0d2340684265be80d35d809fa52f58fdb622f10d3a386b385ae066",
+   "crc": "f8e7182b",
+   "url": "https://archive.example/replays/games/f8e7182b7f0d2340684265be80d35d809fa52f58fdb622f10d3a386b385ae066.emberreplay",
+   "saved_at": 1795602900,
+   "size": 9185,
+   "fighters": [
+    20,
+    10
+   ],
+   "names": [
+    "Player 3",
+    null
+   ],
+   "countries": [
+    "JP",
+    null
+   ],
+   "set": null,
+   "event": null,
+   "round": null,
+   "phase": null,
+   "classes": [
+    9,
+    null
+   ],
+   "rounds": [
+    2,
+    0
+   ]
+  },
+  {
+   "digest": "0e473df7acb500ab0b0a762d6acb2cd3e0f7d8d95ef2452ae65b1d4b10e1eba4",
+   "crc": "0e473df7",
+   "url": "https://archive.example/replays/games/0e473df7acb500ab0b0a762d6acb2cd3e0f7d8d95ef2452ae65b1d4b10e1eba4.emberreplay",
+   "saved_at": 1795602700,
+   "size": 9222,
+   "fighters": [
+    4,
+    20
+   ],
+   "names": [
+    null,
+    "Player 3"
+   ],
+   "countries": [
+    null,
+    "JP"
+   ],
+   "set": null,
+   "event": null,
+   "round": null,
+   "phase": null,
+   "classes": [
+    null,
+    9
+   ],
+   "rounds": [
+    2,
+    1
+   ]
+  },
+  {
+   "digest": "6dd342447546343a1641cb187d44bcd22af18015709085aad0e95c8c7a4dc15b",
+   "crc": "6dd34244",
+   "url": "https://archive.example/replays/games/6dd342447546343a1641cb187d44bcd22af18015709085aad0e95c8c7a4dc15b.emberreplay",
+   "saved_at": 1795602500,
+   "size": 9259,
+   "fighters": [
+    20,
+    6
+   ],
+   "names": [
+    "Player 3",
+    null
+   ],
+   "countries": [
+    "JP",
+    null
+   ],
+   "set": null,
+   "event": null,
+   "round": null,
+   "phase": null,
+   "classes": [
+    9,
+    null
+   ],
+   "rounds": null
+  },
+  {
+   "digest": "bfb7bdf3b104ddc520f67f7a2370f521bbd470736f5937ff1a8355d919bbed1e",
+   "crc": "bfb7bdf3",
+   "url": "https://archive.example/replays/games/bfb7bdf3b104ddc520f67f7a2370f521bbd470736f5937ff1a8355d919bbed1e.emberreplay",
+   "saved_at": 1795602300,
+   "size": 9296,
+   "fighters": [
+    20,
+    34
+   ],
+   "names": [
+    "Player 3",
+    null
+   ],
+   "countries": [
+    "JP",
+    null
+   ],
+   "set": null,
+   "event": null,
+   "round": null,
+   "phase": null,
+   "classes": [
+    9,
+    null
+   ],
+   "rounds": [
+    2,
+    1
+   ]
+  },
+  {
+   "digest": "c0810b0e25631a56d54a1d9f48988d7cc9ef15408468b352e8242f77ca12a075",
+   "crc": "c0810b0e",
+   "url": "https://archive.example/replays/games/c0810b0e25631a56d54a1d9f48988d7cc9ef15408468b352e8242f77ca12a075.emberreplay",
+   "saved_at": 1795602000,
+   "size": 9333,
+   "fighters": [
+    10,
+    6
+   ],
+   "names": [
+    "Player 4",
+    "Player 5"
+   ],
+   "countries": [
+    "FR",
+    "BR"
+   ],
+   "set": null,
+   "event": null,
+   "round": null,
+   "phase": null,
+   "classes": [
+    3,
+    4
+   ],
+   "rounds": [
+    1,
+    2
+   ]
+  },
+  {
+   "digest": "b092b310c28fbd4f7c07041f94731379739a723994c547e19e48c7b5d05e2c8f",
+   "crc": "b092b310",
+   "url": "https://archive.example/replays/games/b092b310c28fbd4f7c07041f94731379739a723994c547e19e48c7b5d05e2c8f.emberreplay",
+   "saved_at": 1795601700,
+   "size": 9370,
+   "fighters": [
+    29,
+    13
+   ],
+   "names": [
+    "Player 6",
+    null
+   ],
+   "countries": [
+    "DE",
+    null
+   ],
+   "set": null,
+   "event": null,
+   "round": null,
+   "phase": null,
+   "classes": [
+    null,
+    null
+   ],
+   "rounds": null
+  },
+  {
+   "digest": "116b41c24913ce9e61fb5c6f84abb988303d0e946b02512eb45ddc63f110894f",
+   "crc": "116b41c2",
+   "url": "https://archive.example/replays/games/116b41c24913ce9e61fb5c6f84abb988303d0e946b02512eb45ddc63f110894f.emberreplay",
+   "saved_at": 1795520000,
+   "size": 9407,
+   "fighters": [
+    2,
+    21
+   ],
+   "names": [
+    "Player 7",
+    "Player 8"
+   ],
+   "countries": [
+    "KR",
+    "CA"
+   ],
+   "set": "emt_preview",
+   "event": "Preview Cup",
+   "round": "Winners Final",
+   "phase": "Top 8",
+   "classes": [
+    10,
+    9
+   ],
+   "rounds": [
+    2,
+    1
+   ]
+  },
+  {
+   "digest": "c0998eaf5973fbc0d2ddec068ad3467328ea76a0ad11ba15a048f7e68fec7621",
+   "crc": "c0998eaf",
+   "url": "https://archive.example/replays/games/c0998eaf5973fbc0d2ddec068ad3467328ea76a0ad11ba15a048f7e68fec7621.emberreplay",
+   "saved_at": 1795519700,
+   "size": 9444,
+   "fighters": [
+    2,
+    21
+   ],
+   "names": [
+    "Player 7",
+    "Player 8"
+   ],
+   "countries": [
+    "KR",
+    "CA"
+   ],
+   "set": "emt_preview",
+   "event": "Preview Cup",
+   "round": "Winners Final",
+   "phase": "Top 8",
+   "classes": [
+    10,
+    9
+   ],
+   "rounds": [
+    0,
+    2
+   ]
+  },
+  {
+   "digest": "a53a5dfacfd80cf1e398af196c84dd4b67b453f4ef9f404d38071ab6d0b21891",
+   "crc": "a53a5dfa",
+   "url": "https://archive.example/replays/games/a53a5dfacfd80cf1e398af196c84dd4b67b453f4ef9f404d38071ab6d0b21891.emberreplay",
+   "saved_at": 1795519400,
+   "size": 9481,
+   "fighters": [
+    2,
+    21
+   ],
+   "names": [
+    "Player 7",
+    "Player 8"
+   ],
+   "countries": [
+    "KR",
+    "CA"
+   ],
+   "set": "emt_preview",
+   "event": "Preview Cup",
+   "round": "Winners Final",
+   "phase": "Top 8",
+   "classes": [
+    10,
+    9
+   ],
+   "rounds": [
+    2,
+    0
+   ]
+  }
+ ],
+ "sets": {
+  "emt_preview": {
+   "score": [
+    2,
+    1
+   ],
+   "pack": null
+  }
+ },
+ "events": [
+  "Preview Cup"
+ ],
+ "countries": [
+  "BR",
+  "CA",
+  "DE",
+  "FR",
+  "GB",
+  "JP",
+  "KR",
+  "US"
+ ],
+ "total": 13,
+ "matching": 13,
+ "sort": "newest",
+ "more": false,
+ "next": null
+}

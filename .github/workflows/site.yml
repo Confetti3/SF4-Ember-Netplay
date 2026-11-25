@@ -1,0 +1,36 @@
+name: Site
+# embernetplay.link is built from the site's sources, the player guides and
+# the frame data pages (scripts/site/make.py). This checks a change to any of
+# them still builds a site the live server's rules accept; publishing the
+# site stays a step on the server (server/ember-short/deploy/setup.sh).
+on:
+  push:
+    branches: [release, nightly]
+    paths: [README.md, docs/guides/**, docs/images/**, scripts/site/**, scripts/wiki/**, server/ember-short/deploy/site/**, server/ember/archive-site/site/**, src/common/FighterMetadata.inc, .github/workflows/site.yml]
+  pull_request:
+    paths: [README.md, docs/guides/**, docs/images/**, scripts/site/**, scripts/wiki/**, server/ember-short/deploy/site/**, server/ember/archive-site/site/**, src/common/FighterMetadata.inc, .github/workflows/site.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+defaults:
+  run:
+    shell: bash
+jobs:
+  check:
+    runs-on: ${{ github.repository == 'Confetti3/sf4-ember-builds' && 'namespace-profile-emberbuilds' || 'ubuntu-latest' }}
+    timeout-minutes: 10
+    steps:
+      - name: Check out the commit
+        run: |
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c protocol.version=2 fetch --depth=1 origin "$GITHUB_SHA"
+          git checkout --detach FETCH_HEAD
+      - name: Build the site and check it
+        run: |
+          python3 -m pip install --quiet --user markdown-it-py==4.3.0 Pillow
+          python3 scripts/wiki/test_wiki.py
+          python3 scripts/site/test_site.py
