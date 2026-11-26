@@ -579,7 +579,7 @@ void CurrentRoomJourney(){
  };
  update();
  Check(!panel.OpeningKind()&&panel.RoomLink().empty(),"A panel in no room has a room link");
- Check(panel.Join(LinkRoom),"The panel did not take a room to join");update();
+ Check(panel.Join({LinkRoom}),"The panel did not take a room to join");update();
  Check(!panel.OpeningKind(),"A room not yet admitted is the panel's room");
  admit(LinkRoom,"Open Mic");
  Check(panel.OpeningKind()==PublicRoomsPanel::OpenKind::Join&&panel.RoomLink()==tournament_link::RoomPageUrl(LinkBridge,LinkRoom),"A joined public room has no link");
@@ -597,10 +597,29 @@ void CurrentRoomJourney(){
  Check(panel.OpeningKind()==PublicRoomsPanel::OpenKind::Create&&panel.RoomLink()==tournament_link::RoomPageUrl(LinkBridge,LinkRoom),"A created room is not the panel's room");
  // A room another way of opening replaces it; a join that never started lapses.
  panel.ForgetCurrent();Check(!panel.OpeningKind(),"The room was kept after another room was opened");
- Check(panel.Join(LinkRoom),"The panel did not take a second room");update();admit(LinkRoom,"Open Mic");
+ Check(panel.Join({LinkRoom}),"The panel did not take a second room");update();admit(LinkRoom,"Open Mic");
  Check(panel.OpeningKind().has_value(),"The second room was not kept");
  update(3);Check(panel.OpeningKind().has_value(),"A join that was starting was forgotten at once");
  update(3);Check(!panel.OpeningKind(),"A join that never started was kept");
+}
+
+// Quick join's pick is read-only: QuickPick names the room and asks for nothing, and Join of it asks for the room and,
+// when the pick is not near the player's class, says so while it waits. One request waits at a time.
+void QuickPickJourney(){
+ PublicRoomsPanel panel;ShellView v;std::vector<ShellAction> sent;
+ const auto submit=[&](ShellAction a){sent.push_back(std::move(a));return true;};
+ v.identity.known=true;v.identity.state="ready";
+ v.publicRooms.bridge=LinkBridge;v.publicRooms.rooms={MakeRoom("a","Open Mic",2,8)};
+ panel.Update(v,"public-rooms",LinkBridge,false,submit,.1);
+ const auto asked=sent.size();
+ const auto pick=panel.QuickPick(v,netplay::publicrooms::Seeker{Area::None,5},netplay::publicrooms::RoomFilter());
+ Check(pick&&pick->room=="a"&&!pick->widened&&!panel.Busy()&&sent.size()==asked,"Picking a room for Quick join asked for it or kept it waiting");
+ Check(panel.Join(netplay::publicrooms::QuickJoinPick{"a",true})&&panel.Busy(),"The panel did not take Quick join's pick");
+ std::string status;Tone tone=Tone::Neutral;
+ Check(panel.Status(v,"public-rooms",status,tone,.2,netplay::publicrooms::RoomFilter())&&status==loc::T("public.quick_wider"),"A pick not near the player's class does not say so while it waits");
+ Check(!panel.Join({"a"}),"A second join was taken while one waits");
+ panel.Abandon();
+ Check(panel.Join({"a"})&&panel.Status(v,"public-rooms",status,tone,.3,netplay::publicrooms::RoomFilter())&&status==loc::T("room.joining_status"),"A plain join says it looked wider");
 }
 
 // A public room says so on its board and offers no invitation to copy, since
@@ -678,5 +697,5 @@ void RankedNoticeJourney(){
  h.Choose("pr-create");
  Check(!j.row("ranked-note"),"Create kept the line once a Discord account was linked");
 }
-int main(){try{ListJourney();RankedNoticeJourney();JoinJourney();CreateJourney();TemplateJourney();OwnDelayJourney();CreateWithRulesJourney();RestoredCreateJourney();AbandonedRequestJourney();AbandonedCreateJourney();RoomJourney();RoomLostJourney();RunPublicRoomsFilterJourneys();AutoRefreshJourney();CreateOpeningJourney();CurrentRoomJourney();HostedRoomJourney();HostedLastRoomJourney();RunPublicRoomsSetupJourneys();std::cout<<"Public rooms journeys passed.\n";return 0;}
+int main(){try{ListJourney();RankedNoticeJourney();JoinJourney();CreateJourney();TemplateJourney();OwnDelayJourney();CreateWithRulesJourney();RestoredCreateJourney();AbandonedRequestJourney();AbandonedCreateJourney();RoomJourney();RoomLostJourney();RunPublicRoomsFilterJourneys();AutoRefreshJourney();CreateOpeningJourney();CurrentRoomJourney();QuickPickJourney();HostedRoomJourney();HostedLastRoomJourney();RunPublicRoomsSetupJourneys();std::cout<<"Public rooms journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}

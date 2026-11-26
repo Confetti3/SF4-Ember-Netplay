@@ -321,6 +321,9 @@ struct PlayerPreferences {
     // Which rooms the Public rooms list shows (Region, Type, Open seats,
     // Connection); the default shows every room.
     publicrooms::RoomFilter roomFilter;
+    // Whether Quick join takes any class instead of players near the player's own
+    // (netplay/QuickJoinFit.hxx). It hides no room, so it is not part of the filter.
+    bool quickJoinAnyClass = false;
     LobbySettings lobby;
     std::string roomName = "Private room";
     int roomCapacity = 16;

@@ -62,7 +62,7 @@ public:
         auto& shell = f.shell;
         if (f.screen == PublicRoomsPanel::FiltersScreen) {
             title = loc::T("public.filters");
-            return PublicRoomsPanel::FilterRows(shell.preferences_.roomFilter, PublicRoomsPanel::FilterContextOf(f.view));
+            return PublicRoomsPanel::FilterRows(shell.preferences_.roomFilter, shell.preferences_.quickJoinAnyClass, PublicRoomsPanel::FilterContextOf(f.view));
         }
         if (f.screen == PublicRoomsPanel::AreasScreen) {
             title = loc::T("public.filter_areas_title");
@@ -119,9 +119,11 @@ private:
     static bool ChangeFilter(const ScreenFrame& f, const MenuAction& a) {
         auto& shell = f.shell;
         auto filter = shell.preferences_.roomFilter;
-        if (!PublicRoomsPanel::ChangeFilter(a, PublicRoomsPanel::FilterHome(f.view), filter)) return false;
-        if (f.view.canEditPreferences && filter != shell.preferences_.roomFilter) {
+        bool anyClass = shell.preferences_.quickJoinAnyClass;
+        if (!PublicRoomsPanel::ChangeFilter(a, PublicRoomsPanel::FilterHome(f.view), filter, anyClass)) return false;
+        if (f.view.canEditPreferences && (filter != shell.preferences_.roomFilter || anyClass != shell.preferences_.quickJoinAnyClass)) {
             shell.preferences_.roomFilter = filter;
+            shell.preferences_.quickJoinAnyClass = anyClass;
             shell.preferencesDirty_ = true; shell.saveAt_ = shell.clock_.Now() + .45; shell.error_.clear();
         }
         return true;

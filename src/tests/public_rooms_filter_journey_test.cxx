@@ -153,7 +153,7 @@ void QuickJoinJourney(){
   k.h.Choose("pr-quick");
   Check(tickets(k)==1&&lastTicketIs(k,"brg_1","q"),"Quick join found no room on a list where no room names an area");
   const auto nearMe=[]{netplay::publicrooms::RoomFilter f;f.scope=netplay::publicrooms::RoomFilter::Place::Near;return f;}();
-  Check(PublicRoomsPanel::FilterRows(nearMe,{OwnArea,false,false,true})[0].detail==loc::T("public.filter_near_unlisted")&&PublicRoomsPanel::FilterRows(nearMe,{OwnArea,true,false,true})[0].detail==loc::T("public.filter_area_detail"),
+  Check(PublicRoomsPanel::FilterRows(nearMe,false,{OwnArea,false,false,true})[0].detail==loc::T("public.filter_near_unlisted")&&PublicRoomsPanel::FilterRows(nearMe,false,{OwnArea,true,false,true})[0].detail==loc::T("public.filter_area_detail"),
    "Near me on a list without areas does not say why it lists every room");
  }
  {
@@ -188,8 +188,8 @@ void QuickJoinClassJourney(){
  Journey j;auto& h=j.h;j.OpenList();h.view.automaticArea=OwnArea;
  auto& standing=h.view.rankings.standing.value;
  standing.kind=netplay::rankings::Standing::Kind::Ranked;standing.classesShown=true;standing.badge=SkillBadge::OfClass(5,true);
- const auto waiting=[](const char* id,unsigned members,std::uint8_t band){
-  auto room=Placed(id,OwnArea,members,8,1);room.type=room::RoomType::Classic;room.waiting={{band,OwnArea}};room.classes={band};return room;
+ const auto waiting=[](const char* id,unsigned members,std::uint8_t band,Area area=OwnArea){
+  auto room=Placed(id,area,members,8,1);room.type=room::RoomType::Classic;room.waiting={{band,area}};room.classes={band};return room;
  };
  j.List({waiting("b",1,9),waiting("a",4,6)});
  h.Choose("pr-quick");
@@ -209,18 +209,25 @@ void QuickJoinClassJourney(){
  h.Press(MenuInput::Right);h.Wait(1);
  for(std::size_t i=h.actions.size();i-->0;)if(const auto* save=As<commands::SavePreferences>(h.actions[i])){h.view.preferences=save->preferences;break;}
  h.Frame(0,2);
- Check(h.view.preferences.roomFilter.opponents==netplay::publicrooms::RoomFilter::Opponents::Any&&!h.view.preferences.roomFilter.Active(),
-  "Any class was not saved, or counted as a filter");
+ Check(h.view.preferences.quickJoinAnyClass&&!h.view.preferences.roomFilter.Active(),"Any class was not saved, or counted as a filter");
  h.Press(MenuInput::Back);
  j.List({waiting("b",1,9),waiting("a",4,6)});
  h.Choose("pr-quick");h.Frame(0,2);
  Check(lastTicketIs(j,"brg_1","b")&&j.status!=loc::T("public.quick_wider"),"Any class did not take the room with the most seats quietly");
  // A player still placing is told Quick join goes by area and seats.
  standing.badge=SkillBadge::Placing();
- const auto rows=PublicRoomsPanel::FilterRows(h.view.preferences.roomFilter,PublicRoomsPanel::FilterContextOf(h.view));
+ const auto rows=PublicRoomsPanel::FilterRows(h.view.preferences.roomFilter,h.view.preferences.quickJoinAnyClass,PublicRoomsPanel::FilterContextOf(h.view));
  const auto quick=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& row){return row.id=="pr-filter-quick";});
  Check(quick!=rows.end()&&quick->detail==loc::T("public.filter_quick_no_class"),
   "The Quick join row does not say a player without a class gets rooms by area and seats");
+ // Ping comes before class: the near room with a far class is taken over a far-away room with a close one, and since a
+ // room near the player's class was listed, Quick join does not say it looked wider.
+ Journey k;k.OpenList();k.h.view.automaticArea=OwnArea;
+ k.h.view.rankings.standing.value=standing;k.h.view.rankings.standing.value.badge=SkillBadge::OfClass(5,true);
+ k.List({waiting("n",1,9),waiting("f",1,6,FarArea)});
+ k.h.Choose("pr-quick");k.h.Frame(0,2);
+ Check(tickets(k)==1&&lastTicketIs(k,"brg_1","n")&&k.status!=loc::T("public.quick_wider"),
+  "Quick join told the player it looked wider although a room near their class was listed");
 }
 
 // The filter's rows (Area, Room type, Open seats, Connection) step with Left and Right,
@@ -274,7 +281,7 @@ void FilterJourney(){
  Check(order==std::vector<std::string>({"pr-quick","pr-create","pr-paste","pr-filters","pr-room:d","pr-room:a","pr-room:b","pr-room:c"}),"The Filters row does not follow the toolbar");
  Check(j.row("pr-filters")->wide&&j.row("pr-filters")->height<=48&&j.row("pr-filters")->enabled&&j.row("pr-filters")->value==loc::T("public.filter_summary_all")&&Shown(j)=="dabc",
   "The Filters row does not start on every room");
- // Select opens the page: the four values, which Left and Right step, Quick join's opponents, and Clear filters, off while nothing is filtered.
+ // Select opens the page: the four values, which Left and Right step, Quick join's class, and Clear filters, off while nothing is filtered.
  h.Choose("pr-filters");
  {std::vector<std::string> page;for(const auto& r:j.rows)page.push_back(r.id);
   Check(h.shell.Navigation().Screen()==PublicRoomsPanel::FiltersScreen&&page==std::vector<std::string>({"pr-filter-area","pr-filter-type","pr-filter-seats","pr-filter-wired","pr-filter-quick","pr-filters-clear"}),
@@ -315,7 +322,7 @@ void FilterJourney(){
  Check(value("pr-filter-area")==loc::T("public.filter_area_all")&&value("pr-area:sas")==off&&summary()==loc::T("public.filter_summary_all")&&Shown(j)=="dabc","Show every area did not list every room again");
  // Near me while the player's area is not set says how to set it.
  h.view.preferences.roomFilter.scope=netplay::publicrooms::RoomFilter::Place::Near;
- Check(PublicRoomsPanel::FilterRows(h.view.preferences.roomFilter,{Area::None,true,false,true})[0].detail==loc::T("public.filter_near_unset"),"Near me without an area does not say to set one");
+ Check(PublicRoomsPanel::FilterRows(h.view.preferences.roomFilter,false,{Area::None,true,false,true})[0].detail==loc::T("public.filter_near_unset"),"Near me without an area does not say to set one");
  h.view.preferences.roomFilter=netplay::publicrooms::RoomFilter();
  h.view.automaticArea=Area::NaCentral;h.Frame(0,2);
  step("pr-filter-area");

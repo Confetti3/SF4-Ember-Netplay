@@ -1,9 +1,9 @@
 // Quick join's choice among the rooms it may join (netplay/QuickJoinFit.hxx): ping first,
 // then class, then a waiting player, then the list's own order. The candidates are given
 // as the rooms list orders them (PublicRoomsPanel's Before), each joinable and listed by the
-// filter, as PublicRoomsPanel::QuickJoin hands them over. The cases are those of
+// filter, as PublicRoomsPanel::QuickPick hands them over. The cases are those of
 // docs/design/QUICK_JOIN.md: the seeker plays from NA East at class 5 and wants similar
-// classes unless a case says otherwise.
+// classes unless a case says otherwise (a seeker of class 0 is one who asked for any class).
 #include "../netplay/PublicRoomFilterMatch.hxx"
 #include "../netplay/QuickJoinFit.hxx"
 
@@ -20,7 +20,7 @@ using Rank = QuickJoinFit::Rank;
 namespace {
 constexpr Seeker Seeking{Area::NaEast, 5};
 
-Room Make(const char* id, Area area, unsigned members, unsigned capacity, std::vector<WaitingPlayer> waiting = {},
+Room Make(const char* id, Area area, unsigned members, unsigned capacity, std::vector<room::WaitingPlayer> waiting = {},
 	std::vector<std::uint8_t> classes = {}, room::RoomType type = room::RoomType::Classic) {
 	Room room;
 	room.id = id; room.name = id; room.area = area;
@@ -39,7 +39,7 @@ std::vector<const Room*> Candidates(const std::vector<Room>& rooms, const RoomFi
 }
 
 std::string Picked(const std::vector<Room>& rooms, const Seeker& seeker = Seeking, const RoomFilter& filter = {}, const std::set<std::string>& refused = {}) {
-	const auto pick = PickQuickJoin(Candidates(rooms, filter, refused), seeker, filter.opponents);
+	const auto pick = PickQuickJoin(Candidates(rooms, filter, refused), seeker);
 	return pick ? pick->room : std::string("none");
 }
 
@@ -82,14 +82,14 @@ void DesignCases() {
 	EXPECT(Picked({Make("q", Area::NaEast, 2, 8, {}, {9, 10}), Make("p", Area::NaEast, 4, 8, {}, {0, 3, 5, 6})}) == "p");
 	// 8. At equal rank, a waiting player wins over more free seats.
 	EXPECT(Picked({Make("s", Area::NaEast, 1, 8, {}, {5, 5}), Make("r", Area::NaEast, 6, 8, {{5, Area::NaEast}})}) == "r");
-	// 9. A room that seats by cabinet meets whoever waited longest; a Classic room's newcomer picks the table.
-	EXPECT(Picked({Make("k", Area::NaEast, 2, 8, {{9, Area::NaEast}, {5, Area::NaEast}}, {}, room::RoomType::Arcade),
+	// 9. A room that seats by cabinet lists only the one who waited longest, whom the newcomer plays; a Classic room
+	// lists each table's, and its newcomer picks the table, so the best of them counts.
+	EXPECT(Picked({Make("k", Area::NaEast, 2, 8, {{9, Area::NaEast}}, {}, room::RoomType::Arcade),
 		Make("c", Area::NaEast, 4, 8, {{9, Area::NaEast}, {5, Area::NaEast}})}) == "c");
 	// 10. A seeker without a class: Unknown everywhere, so the room where someone waits.
 	EXPECT(Picked({Make("t", Area::NaEast, 1, 8), Make("s", Area::NaEast, 2, 8, {{9, Area::NaEast}})}, Seeker{Area::NaEast, 0}) == "s");
-	// 11. Any class: rank says nothing, so the list's order decides.
-	RoomFilter any; any.opponents = RoomFilter::Opponents::Any;
-	EXPECT(Picked({Make("b", Area::NaEast, 2, 8, {{10, Area::NaEast}}), Make("a", Area::NaEast, 4, 8, {{5, Area::NaEast}})}, Seeking, any) == "b");
+	// 11. Any class: the seeker has no band, so rank says nothing and the list's order decides.
+	EXPECT(Picked({Make("b", Area::NaEast, 2, 8, {{10, Area::NaEast}}), Make("a", Area::NaEast, 4, 8, {{5, Area::NaEast}})}, Seeker{Area::NaEast, 0}) == "b");
 	// 12. The filter still rules: only Arcade rooms, and a locked one is never asked for.
 	RoomFilter arcade; arcade.type = RoomFilter::Type::Arcade;
 	auto locked = Make("l", Area::NaEast, 2, 8, {{5, Area::NaEast}}, {}, room::RoomType::Arcade); locked.locked = true;
@@ -98,19 +98,28 @@ void DesignCases() {
 }
 
 void WidenedOnlyWhenClassesWereThere() {
-	const auto widened = [](const std::vector<Room>& rooms, const Seeker& seeker, RoomFilter::Opponents opponents) {
-		const auto pick = PickQuickJoin(Candidates(rooms), seeker, opponents);
+	const auto widened = [](const std::vector<Room>& rooms, const Seeker& seeker) {
+		const auto pick = PickQuickJoin(Candidates(rooms), seeker);
 		return pick && pick->widened;
 	};
 	const std::vector<Room> far{Make("f", Area::NaEast, 2, 8, {{9, Area::NaEast}})}, close{Make("c", Area::NaEast, 2, 8, {{6, Area::NaEast}})},
 		unlisted{Make("u", Area::NaEast, 2, 8)};
-	EXPECT(widened(far, Seeking, RoomFilter::Opponents::Similar));
-	EXPECT(!widened(close, Seeking, RoomFilter::Opponents::Similar));
+	EXPECT(widened(far, Seeking));
+	EXPECT(!widened(close, Seeking));
 	// No room listed classes (an older service): nothing to say about classes.
-	EXPECT(!widened(unlisted, Seeking, RoomFilter::Opponents::Similar));
+	EXPECT(!widened(unlisted, Seeking));
 	// The player asked for any class, or has none.
-	EXPECT(!widened(far, Seeking, RoomFilter::Opponents::Any) && !widened(far, Seeker{Area::NaEast, 0}, RoomFilter::Opponents::Similar));
-	EXPECT(!PickQuickJoin({}, Seeking, RoomFilter::Opponents::Similar));
+	EXPECT(!widened(far, Seeker{Area::NaEast, 0}));
+	EXPECT(!PickQuickJoin({}, Seeking));
+	// Ping ranks before class: the pick is the near room with a far class, yet a room near the player's
+	// class was listed (a Wide one counts as near), so Quick join did not look wider than it had to.
+	const std::vector<Room> pinged{Make("n", Area::NaEast, 2, 8, {{9, Area::NaEast}}), Make("o", Area::EuropeWest, 2, 8, {{6, Area::EuropeWest}})};
+	const auto pinging = PickQuickJoin(Candidates(pinged), Seeking);
+	EXPECT(pinging && pinging->room == "n" && !pinging->widened);
+	const std::vector<Room> wideAway{Make("n", Area::NaEast, 2, 8, {{9, Area::NaEast}}), Make("o", Area::EuropeWest, 2, 8, {{7, Area::EuropeWest}})};
+	EXPECT(!widened(wideAway, Seeking));
+	// No candidate near the class, wherever it plays from.
+	EXPECT(widened({Make("n", Area::NaEast, 2, 8, {{9, Area::NaEast}}), Make("o", Area::EuropeWest, 2, 8, {{8, Area::EuropeWest}})}, Seeking));
 }
 }
 

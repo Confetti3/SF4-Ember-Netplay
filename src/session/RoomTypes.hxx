@@ -49,6 +49,16 @@ constexpr std::size_t MaximumChatBytes = 256;
 // never evicted: the kick that would exceed the cap closes the room. The helper,
 // the supervisor and the bridge use the same number.
 constexpr std::size_t MaximumKickedAccounts = 512;
+// A member who waits alone to play, as a public room's listing names them for Quick join
+// (docs/design/QUICK_JOIN.md): their class band (0 for none) and the area they showed when
+// they joined (None when they hid it). The room host writes it and the client reads it.
+struct WaitingPlayer {
+	std::uint8_t band = 0;
+	Area area = Area::None;
+	bool operator==(const WaitingPlayer& other) const { return band == other.band && area == other.area; }
+};
+// The most waiting players a listing names (MAX_WAITING in server/ember/protocol/src/rooms/mod.rs).
+constexpr std::size_t MaximumWaiting = 8;
 // How long two ready fighters wait for a locked-in spectator who is still
 // leaving the previous game. The catalogs quote it as {0} seconds in
 // room.waiting_spectators, room.lock_spectating.detail and

@@ -20,6 +20,7 @@ namespace sf4e { namespace ui {
 namespace {
 using netplay::publicrooms::Room;
 using netplay::publicrooms::RoomFilter;
+using netplay::publicrooms::QuickJoinPick;
 using netplay::publicrooms::Seeker;
 using PublicList = netplay::publicrooms::Status;
 using netplay::tournament::Command;
@@ -240,12 +241,13 @@ void PublicRoomsPanel::Begin(netplay::tournament::Command command) {
     pending_ = std::move(pending);
 }
 
-bool PublicRoomsPanel::Join(const std::string& roomId) {
+bool PublicRoomsPanel::Join(const QuickJoinPick& pick) {
     if (Busy()) return false;
     Command command;
     command.op = Command::Op::RoomTicket;
-    command.bridgeId = bridge_; command.roomId = roomId;
+    command.bridgeId = bridge_; command.roomId = pick.room;
     Begin(std::move(command));
+    pending_->widened = pick.widened;
     said_.clear();
     return true;
 }
@@ -431,15 +433,12 @@ bool PublicRoomsPanel::Status(const ShellView& v, const std::string& screen, std
     return true;
 }
 
-std::optional<std::string> PublicRoomsPanel::QuickJoin(const ShellView& v, const Seeker& seeker, const RoomFilter& filter) {
+std::optional<QuickJoinPick> PublicRoomsPanel::QuickPick(const ShellView& v, const Seeker& seeker, const RoomFilter& filter) const {
     if (v.publicRooms.bridge != bridge_) return std::nullopt;
     std::vector<const Room*> candidates;
     for (const Room* room : Sorted(this, v.publicRooms, seeker.home))
         if (room->Joinable() && !refused_.count(room->id) && Matches(filter, *room, seeker.home)) candidates.push_back(room);
-    const auto pick = netplay::publicrooms::PickQuickJoin(candidates, seeker, filter.opponents);
-    if (!pick || !Join(pick->room)) return std::nullopt;
-    pending_->widened = pick->widened;
-    return pick->room;
+    return netplay::publicrooms::PickQuickJoin(candidates, seeker);
 }
 
 std::vector<MenuEntry> PublicRoomsPanel::Rows(const ShellView& v, const std::string& bridge, bool identityPending, const PublicSetupView& setup,
@@ -540,11 +539,11 @@ PublicRoomsPanel::FilterContext PublicRoomsPanel::FilterContextOf(const ShellVie
     return {HomeArea(v), AreasListed(v), netplay::publicrooms::SeekerBand(v.rankings.standing.value) != 0, v.canEditPreferences};
 }
 
-Seeker PublicRoomsPanel::SeekerOf(const ShellView& v) {
-    return {FilterHome(v), netplay::publicrooms::SeekerBand(v.rankings.standing.value)};
+Seeker PublicRoomsPanel::SeekerOf(const ShellView& v, bool anyClass) {
+    return {FilterHome(v), anyClass ? std::uint8_t(0) : netplay::publicrooms::SeekerBand(v.rankings.standing.value)};
 }
 
-std::vector<MenuEntry> PublicRoomsPanel::FilterRows(const RoomFilter& filter, const FilterContext& context) {
+std::vector<MenuEntry> PublicRoomsPanel::FilterRows(const RoomFilter& filter, bool anyClass, const FilterContext& context) {
     const Area home = context.home;
     const bool enabled = context.enabled;
     const bool nearUnknown = filter.scope == RoomFilter::Place::Near && home == Area::None;
@@ -558,8 +557,7 @@ std::vector<MenuEntry> PublicRoomsPanel::FilterRows(const RoomFilter& filter, co
         loc::T("public.filter_seats_detail"), enabled));
     rows.push_back(Value(FilterWiredRow, loc::T("public.filter_wired"), loc::T(filter.wiredOnly ? "public.filter_wired_only" : "public.filter_wired_all"),
         loc::T("public.filter_wired_detail"), enabled));
-    const bool similar = filter.opponents == RoomFilter::Opponents::Similar;
-    rows.push_back(Value(FilterQuickRow, loc::T("public.filter_quick"), loc::T(similar ? "public.filter_quick_similar" : "public.filter_quick_any"),
+    rows.push_back(Value(FilterQuickRow, loc::T("public.filter_quick"), loc::T(anyClass ? "public.filter_quick_any" : "public.filter_quick_similar"),
         loc::T(context.ownClass ? "public.filter_quick_detail" : "public.filter_quick_no_class"), enabled));
     rows.push_back(Row(ClearFiltersRow, loc::T("public.clear_filters"), loc::T("public.clear_filters_detail"), enabled && filter.Active()));
     return rows;
@@ -579,8 +577,8 @@ std::vector<MenuEntry> PublicRoomsPanel::AreaRows(const RoomFilter& filter, cons
     return rows;
 }
 
-bool PublicRoomsPanel::ChangeFilter(const MenuAction& a, Area home, RoomFilter& filter) {
-    if (a.kind == MenuAction::Activate && (a.id == ClearFiltersCard || a.id == ClearFiltersRow)) { filter = filter.Cleared(); return true; }
+bool PublicRoomsPanel::ChangeFilter(const MenuAction& a, Area home, RoomFilter& filter, bool& anyClass) {
+    if (a.kind == MenuAction::Activate && (a.id == ClearFiltersCard || a.id == ClearFiltersRow)) { filter = RoomFilter(); return true; }
     if (a.kind == MenuAction::Activate && a.id == AreaAllRow) { filter.SetNear(false); return true; }
     if (a.kind != MenuAction::Adjust) return false;
     if (a.id == FilterAreaRow) filter.StepNear(home);
@@ -589,7 +587,7 @@ bool PublicRoomsPanel::ChangeFilter(const MenuAction& a, Area home, RoomFilter& 
     else if (a.id == FilterTypeRow) filter.StepType(a.delta);
     else if (a.id == FilterSeatsRow) filter.openSeats = a.delta > 0;
     else if (a.id == FilterWiredRow) filter.wiredOnly = a.delta > 0;
-    else if (a.id == FilterQuickRow) filter.opponents = a.delta > 0 ? RoomFilter::Opponents::Any : RoomFilter::Opponents::Similar;
+    else if (a.id == FilterQuickRow) anyClass = a.delta > 0;
     else return false;
     return true;
 }
@@ -602,7 +600,7 @@ bool PublicRoomsPanel::Activate(const MenuAction& a, MenuNavigation& nav) {
     if (a.id == "pr-stop") { Abandon(); return true; }
     if (a.id == "pr-link") { if (link_ && !Busy()) link_->direct = true; return true; }
     if (a.id.compare(0, 8, "pr-room:") != 0) return false;
-    Join(a.id.substr(8));
+    Join({a.id.substr(8)});
     return true;
 }
 } }

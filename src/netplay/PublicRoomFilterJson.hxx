@@ -5,8 +5,7 @@
 namespace sf4e { namespace netplay {
 // The public rooms filter is one object in the netplay section:
 // {"region": "all" | "near" | "areas", "areas": [area codes], "type": "all" |
-// "classic" | "arcade" | "king", "seats": bool, "wired": bool, "opponents":
-// "similar" | "any"}. Anything but "any" for opponents is Similar. "areas" is read
+// "classic" | "arcade" | "king", "seats": bool, "wired": bool}. "areas" is read
 // only under "areas". Builds that saved one area wrote its code as the region
 // ("sam"), which still loads as that one area. A profile from before the
 // filter has none. A field that is missing or of another type, a region that is
@@ -40,7 +39,6 @@ inline publicrooms::RoomFilter ReadRoomFilter(const nlohmann::json& saved) {
 		type == "king" ? RoomFilter::Type::King : RoomFilter::Type::All;
 	value.openSeats = flag("seats");
 	value.wiredOnly = flag("wired");
-	value.opponents = text("opponents") == "any" ? RoomFilter::Opponents::Any : RoomFilter::Opponents::Similar;
 	return value;
 }
 inline void WriteRoomFilter(const PlayerPreferences& value, nlohmann::json& saved) {
@@ -50,7 +48,6 @@ inline void WriteRoomFilter(const PlayerPreferences& value, nlohmann::json& save
 	saved["roomFilter"] = {
 		{"region", filter.scope == RoomFilter::Place::All ? "all" : filter.scope == RoomFilter::Place::Near ? "near" : "areas"},
 		{"areas", filter.areas.Codes()},
-		{"type", types[static_cast<int>(filter.type)]}, {"seats", filter.openSeats}, {"wired", filter.wiredOnly},
-		{"opponents", filter.opponents == RoomFilter::Opponents::Any ? "any" : "similar"}};
+		{"type", types[static_cast<int>(filter.type)]}, {"seats", filter.openSeats}, {"wired", filter.wiredOnly}};
 }
 } }

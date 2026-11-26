@@ -22,6 +22,7 @@ constexpr std::size_t SupervisorLineBytes = 128 * 1024;
 constexpr std::size_t MaximumStatusLineBytes = 60000;
 static_assert(MaximumStatusLineBytes < SupervisorLineBytes, "the host must end the room before the supervisor kills it");
 static_assert(room::MaximumKickedAccounts == 512, "MAX_ROOM_BANS in ember-rooms, ember-protocol and the helper");
+static_assert(room::MaximumWaiting == 8, "MAX_WAITING in ember-protocol, which a test there reads");
 static_assert(MaximumWonGames == 32, "MAX_GAMES_BYTES in ember-rooms and the bridge allow for 32 games");
 // The supervisor passes on a details object of at most SupervisorDetailsBytes
 // and a games array of at most SupervisorGamesBytes, as written, and drops a
@@ -32,15 +33,6 @@ static_assert(MaximumWonGames == 32, "MAX_GAMES_BYTES in ember-rooms and the bri
 // limit of a supervisor from before 1.6.0, so the report fits what every
 // deployed supervisor accepts, whichever is upgraded first.
 constexpr std::size_t SupervisorDetailsBytes = 2048, SupervisorGamesBytes = 8192;
-
-// A member who waits alone to play, as a listing names them for Quick join
-// (docs/design/QUICK_JOIN.md): their class band (0 for none) and the area they
-// showed when they joined.
-struct WaitingPlayer {
-	int band = 0;
-	Area area = Area::None;
-	bool operator==(const WaitingPlayer& other) const { return band == other.band && area == other.area; }
-};
 
 // What the bridge lists beside a room (the status line's "details" object).
 // Everything is copied from the room model, so a change re-emits the line.
@@ -70,12 +62,14 @@ struct RoomDetails {
 	// The creator sets it just after the room opens, and the host can change it.
 	bool wiredOnly = false;
 	// One class band per member (1 to SkillBadge::Classes, 0 for a member placing,
-	// a developer or one with none), ascending, so it never pairs a class with
-	// hostName or fighters.
+	// a developer or one with none), ascending: not in member order, so a room of
+	// several members does not say whose class is whose. A room of one does (the
+	// class is that member's, whom hostName names when they moderate).
 	std::vector<int> classes;
-	// The members a newcomer would play at once (room::WaitingAlone), in that
-	// order, at most MaximumWaiting.
-	std::vector<WaitingPlayer> waiting;
+	// The members a newcomer would meet at once (room::WaitingAlone): one in a room
+	// that seats by cabinet, at most MaximumWaiting. Each carries the area they
+	// showed, so a room with one member pairs that member's class with their area.
+	std::vector<room::WaitingPlayer> waiting;
 	bool operator==(const RoomDetails& other) const {
 		return name == other.name && hostName == other.hostName && capacity == other.capacity &&
 			locked == other.locked && fighters == other.fighters && setFormat == other.setFormat &&
@@ -86,8 +80,6 @@ struct RoomDetails {
 constexpr int NoFighter = 255;
 constexpr std::size_t MaximumDetailFighters = 16;
 constexpr std::size_t MaximumHostNameBytes = 32;
-// The most waiting players a listing names (MAX_WAITING in ember-protocol).
-constexpr std::size_t MaximumWaiting = 8;
 
 // A member name as the bridge accepts a host name: valid UTF-8 with control
 // characters replaced by spaces, surrounding whitespace trimmed, and at most 32

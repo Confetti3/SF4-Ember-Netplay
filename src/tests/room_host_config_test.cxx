@@ -303,7 +303,7 @@ void TestTheLargestLineFitsTheSupervisorsLimits() {
 	details.wiredOnly = true;
 	// Quick join's facts at their largest: a two-digit class per member, and every waiting place with an area.
 	details.classes.assign(room::MaximumMembers, SkillBadge::Classes);
-	details.waiting.assign(roomhost::MaximumWaiting, roomhost::WaitingPlayer{SkillBadge::Classes, Area::SouthEastAsia});
+	details.waiting.assign(room::MaximumWaiting, room::WaitingPlayer{SkillBadge::Classes, Area::SouthEastAsia});
 	const std::string invitation = "sf4e3:" + std::string(4090, 'x');
 	const auto line = roomhost::StatusLine({room::MaximumMembers, room::TableCount, invitation, banned, details, games});
 	CHECK(line.size() > 40000 && line.size() < roomhost::MaximumStatusLineBytes);
@@ -319,10 +319,9 @@ void TestTheLargestLineFitsTheSupervisorsLimits() {
 }
 
 // What a listing says for Quick join (docs/design/QUICK_JOIN.md): every member's class,
-// lowest first and never in member order, and the members waiting alone to play in the
-// order a newcomer meets them: by table in a Classic room, longest waiting first at the
-// cabinets. A seated pair, a lone fighter with someone queued and a table out of play name
-// nobody.
+// lowest first and never in member order, and the members waiting alone to play: each
+// by table in a Classic room, only the one who has waited longest at the cabinets. A seated
+// pair, a lone fighter with someone queued and a table out of play name nobody.
 void TestDetailsNameWhoWaits() {
 	room::Snapshot snapshot;
 	const auto add = [&](room::MemberId id, SkillBadge badge, Area area) {
@@ -343,19 +342,21 @@ void TestDetailsNameWhoWaits() {
 	snapshot.tables[room::ClassicTableCount].p1 = 6;
 	auto details = roomhost::DetailsOf(snapshot);
 	CHECK(details.classes == std::vector<int>({0, 0, 0, 2, 7, 9}));
-	CHECK(details.waiting == std::vector<roomhost::WaitingPlayer>({{7, Area::NaEast}, {2, Area::EuropeWest}}));
+	CHECK(details.waiting == std::vector<room::WaitingPlayer>({{7, Area::NaEast}, {2, Area::EuropeWest}}));
 	auto line = json::parse(roomhost::StatusLine({6, 1, "sf4e3:x", {}, details})).at("details");
 	CHECK(line.at("classes") == json({0, 0, 0, 2, 7, 9}));
 	CHECK(line.at("waiting") == json::array({{{"class", 7}, {"area", "nae"}}, {{"class", 2}, {"area", "euw"}}}));
-	// At the cabinets whoever has waited longest comes first, and a hidden area is no key.
+	// At the cabinets only whoever has waited longest is listed, the one a newcomer plays, and a hidden area is no key.
 	snapshot.type = room::RoomType::Arcade;
 	snapshot.tables[3].queue.clear();
 	snapshot.tables[0].waitingSince = 9; snapshot.tables[2].waitingSince = 4; snapshot.tables[3].waitingSince = 6;
-	snapshot.members[4].area = Area::None;
 	details = roomhost::DetailsOf(snapshot);
-	CHECK(details.waiting == std::vector<roomhost::WaitingPlayer>({{2, Area::EuropeWest}, {0, Area::None}, {7, Area::NaEast}}));
+	CHECK(details.waiting == std::vector<room::WaitingPlayer>({{2, Area::EuropeWest}}));
+	snapshot.tables[2].waitingSince = 7; snapshot.members[4].area = Area::None;
+	details = roomhost::DetailsOf(snapshot);
+	CHECK(details.waiting == std::vector<room::WaitingPlayer>({{0, Area::None}}));
 	line = json::parse(roomhost::StatusLine({6, 1, "sf4e3:x", {}, details})).at("details");
-	CHECK(line.at("waiting").at(1) == json({{"class", 0}}));
+	CHECK(line.at("waiting") == json::array({{{"class", 0}}}));
 	// An empty room says neither.
 	line = json::parse(roomhost::StatusLine({0, 0, "sf4e3:x", {}, roomhost::DetailsOf(room::Snapshot())})).at("details");
 	CHECK(!line.contains("classes") && !line.contains("waiting"));

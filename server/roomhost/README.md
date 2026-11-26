@@ -139,6 +139,7 @@ when one drifts; the room host's own side is `static_assert`s in
 | --- | --- | --- |
 | Bans a room keeps for its lifetime | 512 | `room::MaximumKickedAccounts` (`src/session/RoomModel.hxx`), `MAX_ROOM_BANS` in `server/ember-rooms/src/protocol.rs` and in `server/ember/protocol/src/rooms.rs` (which the helper and the bridge use) |
 | Won games a status carries | 32 | `MaximumWonGames` (`src/common/SkillBadge.hxx`) |
+| Waiting players a listing names | 8 | `room::MaximumWaiting` (`src/session/RoomTypes.hxx`, asserted in `RoomHostStatus.hxx`), `MAX_WAITING` in `server/ember/protocol/src/rooms/mod.rs` (a test in `server/ember/protocol/tests/room_quick_join.rs` reads the assert) |
 | A status line, as the supervisor reads it | 128 KiB | `MAX_LINE_BYTES` (protocol.rs), `SupervisorLineBytes` (`RoomHostStatus.hxx`); a longer line is a protocol error and the child is killed |
 | A status line, as the room host writes it | 60 000 bytes | `MaximumStatusLineBytes` (`RoomHostStatus.hxx`); the host ends the room with `status_too_large` rather than write a longer one |
 | The `details` object | 2048 bytes as written | `MAX_DETAILS_BYTES` (protocol.rs), `SupervisorDetailsBytes` (`RoomHostStatus.hxx`), `MAX_DETAILS_REPORT` (`server/ember/bridge/src/routes/rooms/supervisor.rs`); a larger one is dropped and the room stays up |

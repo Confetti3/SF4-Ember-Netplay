@@ -64,9 +64,8 @@ pub struct QuickJoin {
     /// One band per member, ascending (`RoomSummary::classes`). `None` when
     /// not said or not valid.
     pub classes: Option<Vec<u8>>,
-    /// The players a newcomer meets at once, in that order
-    /// (`RoomSummary::waiting`). `None` when not said or when any entry has
-    /// no valid class.
+    /// The players a newcomer meets at once (`RoomSummary::waiting`). `None`
+    /// when not said or when any entry has no valid class.
     pub waiting: Option<Vec<WaitingPlayer>>,
 }
 

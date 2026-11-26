@@ -554,8 +554,10 @@ void ApplicationShell::AnswerDialog(const Submit& submit) {
 // offers to create one, which the next frame opens.
 void ApplicationShell::QuickJoin(const ShellView& v) {
  error_.clear();
- if(publicRooms_.Busy())return;
- if(const auto id=publicRooms_.QuickJoin(v,PublicRoomsPanel::SeekerOf(v),preferences_.roomFilter)){menu_.navigation.Prefer("pr-room:"+*id);return;}
+ if(const auto pick=publicRooms_.QuickPick(v,PublicRoomsPanel::SeekerOf(v,preferences_.quickJoinAnyClass),preferences_.roomFilter)){
+  if(publicRooms_.Join(*pick))menu_.navigation.Prefer("pr-room:"+pick->room);
+  return;
+ }
  menu_.ShowNotice(NoticeDialog{loc::T(preferences_.roomFilter.Active()?"public.quick_none_filtered":"public.quick_none"),loc::T("public.quick"),{{loc::T("common.ok")},{loc::T("public.create_room"),NoticeResult::CreatePublicRoom}}});
 }
 

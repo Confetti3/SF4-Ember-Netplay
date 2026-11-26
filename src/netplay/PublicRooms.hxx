@@ -2,6 +2,7 @@
 
 #include "../common/Area.hxx"
 #include "../common/RoomRules.hxx"
+#include "../session/RoomTypes.hxx"
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -21,16 +22,6 @@ constexpr std::size_t MaxRooms = 100;
 // The most faces a listed room shows, and the longest moderator name.
 constexpr std::size_t MaxRoomFighters = 16;
 constexpr std::size_t MaxHostNameBytes = 32;
-// The most waiting players a listed room names (MAX_WAITING in ember-protocol).
-constexpr std::size_t MaxWaiting = 8;
-
-// A member who waits alone to play, as the bridge lists them: their class band
-// (0 for none, or every one while the service hides classes) and the area they
-// showed, None when they hid it.
-struct WaitingPlayer {
-	std::uint8_t band = 0;
-	Area area = Area::None;
-};
 
 // One row of the bridge's RoomSummary the interface shows. The details after
 // `playing` come from a bridge new enough to send them (a list asked for with
@@ -72,9 +63,9 @@ struct Room {
 	// One class band per member (0 for none), ascending as the service lists them and
 	// never in member order; empty when the service lists no classes.
 	std::vector<std::uint8_t> classes;
-	// The members a newcomer would play at once, in the order they would meet them
-	// (room::WaitingAlone); at most MaxWaiting.
-	std::vector<WaitingPlayer> waiting;
+	// The members a newcomer would play at once (room::WaitingAlone); at most room::MaximumWaiting.
+	// Their class is 0 for every one while the service hides classes.
+	std::vector<room::WaitingPlayer> waiting;
 	// No free seat, and whether anyone could still take one.
 	bool Full() const { return members >= capacity; }
 	bool Joinable() const { return !locked && !Full(); }

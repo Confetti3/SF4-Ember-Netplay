@@ -12,13 +12,16 @@ Before joining, the client knows only what the bridge's detailed listing says. T
 were added for Quick join:
 
 - `classes`: one class band per member (1 to 10, 0 for a member placing, a developer or
-  one with none), ascending, so it never pairs a class with `host_name` or `fighters`.
-- `waiting`: at most 8 players a newcomer would play at once, in the order they would meet
-  them (`room::WaitingAlone`), each with their class and the area they showed when they
-  joined. In a Classic room that is each table in play where one fighter sits alone
-  between games with nobody queued, in table order: the newcomer picks the table. In a
-  room that seats by cabinet it is each lone cabinet, longest waiting first: the newcomer
-  plays that one.
+  one with none), ascending. It is not in member order, so in a room of several members it
+  does not say whose class is whose, or which `fighters` entry goes with it. In a room of
+  one the class is that member's, and `host_name` names them when they moderate.
+- `waiting`: at most 8 players a newcomer would meet at once (`room::WaitingAlone`), each
+  with their class and the area they showed when they joined; for a room of one that pairs
+  the member's class with their area. In a Classic room that is each table in play where
+  one fighter sits alone between games with nobody queued, in table order: the newcomer
+  picks the table. In a room that seats by cabinet the room host lists only the lone
+  cabinet that has waited longest, since that is the player a newcomer plays; the client
+  reads no seating rule of its own.
 
 Latency is not knowable before joining: a public room's member latency runs through
 relays, only after joining. Area is the ping signal: the waiting player's own area, else
@@ -29,9 +32,9 @@ the room's (its creator's).
 | Step | Change |
 | --- | --- |
 | Join | `SessionJoinRequest` carries `area` beside `country` (`ShownArea`: none while the player hides it). The room keeps it as `Member::area` and in its snapshot. |
-| Room host | `roomhost::DetailsOf` adds `classes` and `waiting` to the status line's `details`, each only when it has an entry. The largest details object stays under the supervisor's 2048 bytes (`room_host_config_test`). |
+| Room host | `roomhost::DetailsOf` adds `classes` and `waiting` to the status line's `details`, each only when it has an entry. The largest details object stays under the supervisor's 2048 bytes (`room_host_config_test`). `room::WaitingPlayer` and `room::MaximumWaiting` (`RoomTypes.hxx`) are the one C++ definition of a waiting entry and its limit; `MAX_WAITING` in ember-protocol is guarded against the room host's assert by a test there. |
 | Bridge | `QuickJoin::from_value` reads both leniently, each field alone. They are kept in memory only (`Shared::quick_joins`, no migration): each poll rebuilds the map from every room the supervisor reports and swaps it in after its write commits, so a restarted bridge lists none until its first poll (5 s). |
-| Listing | A player's `GET /v1/rooms?detail=1` carries both. While classes are not shown (`rooms.skill_badges` off) it leaves `classes` out and lists every waiting class as 0. The plain listing, a connection's listing and the web page's `/v1/rooms/public` never carry either: the page needs no account, and a one-member room would tie a class to its host's name. |
+| Listing | A player's `GET /v1/rooms?detail=1` carries both. While classes are not shown (`rooms.skill_badges` off) it leaves `classes` out and lists every waiting class as 0. The plain listing, a connection's listing and the web page's `/v1/rooms/public` never carry either: the page needs no account. A player's detailed listing does tie them in a room of one: its class sits beside `host_name` (when that member moderates), and its waiting entry adds the area. |
 | Client | `DecodeDetails` reads each list whole or not at all. |
 
 A class comes only from the room's signed ticket, which carries one only while classes
@@ -57,24 +60,29 @@ the best wins a tie:
    more). Unknown sits between Wide and Far so players still placing get games.
 3. Someone waits alone to play before nobody.
 
-The opponent is a waiting player: the first listed in a room that seats by cabinet, the
-best fitting in any other room. With nobody waiting it is the room as a whole: its area
-and the lower median of its members' non-zero classes.
+The opponent is the best fitting of the waiting players the room lists (one in a room that
+seats by cabinet, so no seating rule is read here). With nobody waiting it is the room as a
+whole: its area and the lower median of its members' non-zero classes.
 
 The player's own band is their class while they are Ranked and classes are shown
-(`SeekerBand`); without one every rank is Unknown. With nothing new listed every room
+(`SeekerBand`); without one every rank is Unknown. A player who asked for any class seeks
+with band 0, which is the same: no further case is needed. With nothing new listed every room
 ties on rank and waiting, and the pick is the list's own order with near rooms first, as
 before.
 
 ## What the player sees
 
 - The Filters page has a Quick join row: "Near my class first" (default) or "Any class".
-  Under Any every rank is Unknown. It hides no room, so it is not an active filter and
-  Clear filters keeps it (`RoomFilter::Cleared`). It is saved as `opponents` in the
-  filter's object.
-- When the player has a class, wants similar ones, some room listed classes and the pick
-  is not Close or Wide, the status line says once that nobody near their class had a free
-  seat (`public.quick_wider`).
+  Under Any the seeker has no band. It hides no room, so it is not part of the filter
+  (`RoomFilter`): it is the `quickJoinAnyClass` preference, saved beside the filter as a
+  plain bool, and Clear filters leaves it as it is. (A filter saved by a build that kept it
+  inside the filter's object, as `opponents`, still loads; the key is ignored.)
+- When the player has a class, wants similar ones, some room listed classes and no room
+  Quick join could pick ranked Close or Wide (not only the room it picked: ping comes
+  first, so a nearer room with a far class can win over a farther room with a close one),
+  the status line says that nobody near their class had a free seat while it waits
+  (`public.quick_wider`). The panel's `QuickPick` only chooses; `Join` asks for the
+  room and carries that flag into the pending request.
 - A room's card shows its lowest and highest class emblems, and its detail line names them
   (`public.room_detail_classes`, `public.room_detail_class`).
 

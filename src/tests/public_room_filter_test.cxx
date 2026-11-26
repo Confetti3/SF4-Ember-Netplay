@@ -1,6 +1,5 @@
 // The public rooms filter (netplay/PublicRoomFilter.hxx): which rooms it lists
-// by area, type, free seats and connection, how its settings step, and Quick
-// join's choice of opponents beside it.
+// by area, type, free seats and connection, and how its settings step.
 #include "../netplay/PublicRoomFilterMatch.hxx"
 
 #include <string>
@@ -148,23 +147,6 @@ void ARoomWithNoAreaIsListedUnderAllOnly() {
 	EXPECT(Matches(near, placeless, Area::None));
 }
 
-// Quick join's choice of opponents hides no room: it is not an active filter, and
-// Clear filters keeps it while clearing everything else.
-void QuickJoinsOpponentsAreNoFilter() {
-	RoomFilter filter;
-	EXPECT(filter.opponents == RoomFilter::Opponents::Similar);
-	filter.opponents = RoomFilter::Opponents::Any;
-	EXPECT(!filter.Active() && filter != RoomFilter() && filter.Cleared() == filter);
-	filter.SetArea(Area::EastAsia, true); filter.type = RoomFilter::Type::Classic; filter.openSeats = true; filter.wiredOnly = true;
-	EXPECT(filter.Active());
-	const RoomFilter cleared = filter.Cleared();
-	EXPECT(!cleared.Active() && cleared.opponents == RoomFilter::Opponents::Any && cleared.scope == RoomFilter::Place::All &&
-		cleared.type == RoomFilter::Type::All && !cleared.openSeats && !cleared.wiredOnly);
-	// It lists the same rooms either way.
-	const Room room = Make(Area::EastAsia);
-	RoomFilter similar = filter; similar.opponents = RoomFilter::Opponents::Similar;
-	EXPECT(Matches(filter, room, Area::NaEast) == Matches(similar, room, Area::NaEast));
-}
 }
 
 int main() {
@@ -178,7 +160,6 @@ int main() {
 	AreaSetsKeepTheirOrderAndIgnoreNone();
 	TypeSteps();
 	ARoomWithNoAreaIsListedUnderAllOnly();
-	QuickJoinsOpponentsAreNoFilter();
 	if (!TEST_FAILURES()) std::printf("Public room filter tests passed\n");
 	return TEST_EXIT_CODE();
 }

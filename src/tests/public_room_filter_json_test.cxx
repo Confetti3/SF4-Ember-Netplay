@@ -71,15 +71,12 @@ static void RoomFilterRoundTrips(const Path& root) {
     const auto odd=netplay::ReadRoomFilter({{"roomFilter",{{"region",3},{"type","brawl"},{"seats","yes"},{"wired",1}}}});
     CHECK(odd==RoomFilter());
     CHECK(netplay::ReadRoomFilter({{"roomFilter",{{"region","near"}}}}).scope==RoomFilter::Place::Near);
-    // Quick join's opponents: saved beside the filter, Any only when it says so; a profile from before it is Similar.
-    netplay::PlayerPreferences any; any.roomFilter.opponents=RoomFilter::Opponents::Any; any.roomFilter.wiredOnly=true;
-    Json withAny; netplay::WriteRoomFilter(any,withAny);
-    CHECK(withAny["roomFilter"]["opponents"]=="any"&&netplay::ReadRoomFilter(withAny)==any.roomFilter);
-    netplay::WriteRoomFilter(netplay::PlayerPreferences(),withAny);
-    CHECK(withAny["roomFilter"]["opponents"]=="similar");
-    for (const Json& other : {Json("similar"),Json("ANY"),Json(true),Json(nullptr)})
-        CHECK(netplay::ReadRoomFilter({{"roomFilter",{{"opponents",other}}}}).opponents==RoomFilter::Opponents::Similar);
-    CHECK(netplay::ReadRoomFilter({{"roomFilter",{{"opponents","any"}}}}).opponents==RoomFilter::Opponents::Any);
+    // A filter saved by a build that kept Quick join's choice inside it still loads, the other fields as saved;
+    // the choice is the quickJoinAnyClass preference now and the filter does not write it.
+    auto nearWired=picked({},RoomFilter::Type::All,false,true); nearWired.SetNear(true);
+    CHECK(netplay::ReadRoomFilter({{"roomFilter",{{"region","near"},{"wired",true},{"opponents","any"}}}})==nearWired);
+    netplay::PlayerPreferences quick; quick.quickJoinAnyClass=true; Json withQuick; netplay::WriteRoomFilter(quick,withQuick);
+    CHECK(!withQuick["roomFilter"].contains("opponents")&&netplay::ReadRoomFilter(withQuick)==RoomFilter());
     // Preferences carrying a filter that names no area to filter by are invalid.
     netplay::PlayerPreferences invalid; invalid.roomFilter.scope=RoomFilter::Place::Areas; CHECK(!invalid.Valid());
     invalid.roomFilter.SetArea(Area::NaEast,true); CHECK(invalid.Valid());

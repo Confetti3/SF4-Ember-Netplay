@@ -3,10 +3,8 @@
 // which one fits the player best, judged key by key. It orders and never rules a
 // room out, so Quick join still finds any open seat; with nothing new listed every
 // room ties and the pick is the list's own order (PublicRoomsPanel's Before).
-#include "PublicRoomFilter.hxx"
 #include "PublicRooms.hxx"
 #include "Rankings.hxx"
-#include "../session/RoomQueries.hxx"
 #include <algorithm>
 #include <cstdint>
 #include <optional>
@@ -17,7 +15,9 @@
 namespace sf4e { namespace netplay { namespace publicrooms {
 
 // The player Quick join looks for a room for: where they play from (the rooms
-// list's FilterHome) and their class band, 0 for none.
+// list's FilterHome) and their class band, 0 for none. A player who asked for any
+// class (PlayerPreferences::quickJoinAnyClass) seeks with band 0: every rank is
+// then Unknown and nothing is said about classes.
 struct Seeker {
 	Area home = Area::None;
 	std::uint8_t band = 0;
@@ -45,6 +45,8 @@ struct QuickJoinFit {
 	bool Better(const QuickJoinFit& other) const {
 		return std::make_tuple(ping, rank, waiting) > std::make_tuple(other.ping, other.rank, other.waiting);
 	}
+	// The class is near the player's own.
+	bool NearClass() const { return rank == Rank::Close || rank == Rank::Wide; }
 };
 
 inline QuickJoinFit::Rank RankBetween(std::uint8_t own, std::uint8_t other) {
@@ -54,17 +56,16 @@ inline QuickJoinFit::Rank RankBetween(std::uint8_t own, std::uint8_t other) {
 	return apart <= 1 ? Rank::Close : apart == 2 ? Rank::Wide : Rank::Far;
 }
 
-// How `room` fits `seeker`. The opponent is a waiting player: in a room that
-// seats by cabinet, whoever has waited longest (the first listed), since that is
-// who a newcomer plays; in any other room the best fitting one, since the
-// newcomer picks the table. A waiting player who hid their area counts from the
-// room's. With nobody waiting the opponent is the room as a whole: its area and
-// the lower median of its members' classes. Under Any every rank is Unknown.
-inline QuickJoinFit FitOf(const Room& room, const Seeker& seeker, RoomFilter::Opponents opponents) {
+// How `room` fits `seeker`. The opponent is the best fitting of the waiting players
+// the room lists, those a newcomer would meet at once (a room that seats by cabinet
+// lists only the one the newcomer would play). A waiting player who hid their area
+// counts from the room's. With nobody waiting the opponent is the room as a whole:
+// its area and the lower median of its members' classes.
+inline QuickJoinFit FitOf(const Room& room, const Seeker& seeker) {
 	const auto fit = [&](std::uint8_t band, Area area, bool waiting) {
 		QuickJoinFit result;
 		result.ping = AreaNear(seeker.home, area == Area::None ? room.area : area) ? QuickJoinFit::Ping::Near : QuickJoinFit::Ping::Other;
-		result.rank = opponents == RoomFilter::Opponents::Similar ? RankBetween(seeker.band, band) : QuickJoinFit::Rank::Unknown;
+		result.rank = RankBetween(seeker.band, band);
 		result.waiting = waiting;
 		return result;
 	};
@@ -74,10 +75,8 @@ inline QuickJoinFit FitOf(const Room& room, const Seeker& seeker, RoomFilter::Op
 		std::sort(ranked.begin(), ranked.end());
 		return fit(ranked.empty() ? 0 : ranked[(ranked.size() - 1) / 2], room.area, false);
 	}
-	const bool cabinets = room.type && room::RulesOf(*room.type).cabinets;
-	const std::size_t considered = cabinets ? 1 : room.waiting.size();
 	QuickJoinFit best = fit(room.waiting[0].band, room.waiting[0].area, true);
-	for (std::size_t index = 1; index < considered; ++index) {
+	for (std::size_t index = 1; index < room.waiting.size(); ++index) {
 		const auto candidate = fit(room.waiting[index].band, room.waiting[index].area, true);
 		if (candidate.Better(best)) best = candidate;
 	}
@@ -85,8 +84,8 @@ inline QuickJoinFit FitOf(const Room& room, const Seeker& seeker, RoomFilter::Op
 }
 
 // Quick join's room, and whether it had to look past the player's class: the
-// player has a class and wants similar ones, some room listed classes, and the
-// room it picked is not near their class.
+// player has a class, some room listed classes, and no room Quick join could pick
+// is near their class.
 struct QuickJoinPick {
 	std::string room;
 	bool widened = false;
@@ -94,19 +93,18 @@ struct QuickJoinPick {
 
 // The best fitting of `candidates`, each already joinable and listed by the
 // player's filter, in the list's own order: the first of the best wins a tie.
-inline std::optional<QuickJoinPick> PickQuickJoin(const std::vector<const Room*>& candidates, const Seeker& seeker,
-	RoomFilter::Opponents opponents) {
+inline std::optional<QuickJoinPick> PickQuickJoin(const std::vector<const Room*>& candidates, const Seeker& seeker) {
 	const Room* picked = nullptr;
 	QuickJoinFit pickedFit;
-	bool classesListed = false;
+	bool classesListed = false, nearClass = false;
 	for (const Room* room : candidates) {
 		classesListed = classesListed || !room->classes.empty() || !room->waiting.empty();
-		const auto fit = FitOf(*room, seeker, opponents);
+		const auto fit = FitOf(*room, seeker);
+		nearClass = nearClass || fit.NearClass();
 		if (!picked || fit.Better(pickedFit)) { picked = room; pickedFit = fit; }
 	}
 	if (!picked) return std::nullopt;
-	const bool nearClass = pickedFit.rank == QuickJoinFit::Rank::Close || pickedFit.rank == QuickJoinFit::Rank::Wide;
-	return QuickJoinPick{picked->id, opponents == RoomFilter::Opponents::Similar && seeker.band && classesListed && !nearClass};
+	return QuickJoinPick{picked->id, seeker.band && classesListed && !nearClass};
 }
 
 } } }

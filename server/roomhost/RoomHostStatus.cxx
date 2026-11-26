@@ -90,7 +90,7 @@ RoomDetails DetailsOf(const room::Snapshot& snapshot) {
 	for (const auto& member : snapshot.members) details.classes.push_back(member.badge.ClassBand());
 	std::sort(details.classes.begin(), details.classes.end());
 	for (const room::MemberId id : room::WaitingAlone(snapshot)) {
-		if (details.waiting.size() >= MaximumWaiting) break;
+		if (details.waiting.size() >= room::MaximumWaiting) break;
 		if (const auto* member = room::FindMember(snapshot, id)) details.waiting.push_back({member->badge.ClassBand(), member->area});
 	}
 	return details;

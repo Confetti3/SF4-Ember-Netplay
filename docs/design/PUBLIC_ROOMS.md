@@ -107,7 +107,7 @@ pub struct RoomSummary {
     pub own_delay: bool,        // each fighter plays at their own input delay; written only when true
     // detail=1 by a player only, each written only when said (QUICK_JOIN.md):
     pub classes: Option<Vec<u8>>,              // one class band per member, ascending; left out while classes are hidden
-    pub waiting: Option<Vec<WaitingPlayer>>,   // { class, area? }: who a newcomer plays at once, in that order
+    pub waiting: Option<Vec<WaitingPlayer>>,   // { class, area? }: who a newcomer meets at once (one at the cabinets)
 }
 ```
 

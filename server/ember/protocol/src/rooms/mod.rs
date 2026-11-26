@@ -201,13 +201,15 @@ pub struct RoomSummary {
     pub wired_only: bool,
     /// The members' classes, ascending: one band per member, 1 to
     /// `SKILL_BANDS`, or 0 for a member with none. Never in member order, so
-    /// it never pairs a class with `host_name` or `fighters`. Only in a
-    /// player's detailed listing, and only for a room host that says it.
+    /// a room of several members does not say whose class is whose; a room of
+    /// one does, and `host_name` names that member when they moderate. Only
+    /// in a player's detailed listing, and only for a room host that says it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub classes: Option<Vec<u8>>,
-    /// The players a newcomer would meet at once, in the order they would meet
-    /// them: at most `MAX_WAITING`. Only in a player's detailed listing, and
-    /// only for a room host that says it.
+    /// The players a newcomer would meet at once: at most `MAX_WAITING`, and
+    /// one in a room that seats by cabinet. Each carries the area they showed,
+    /// so a room of one pairs that member's class with their area. Only in a
+    /// player's detailed listing, and only for a room host that says it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub waiting: Option<Vec<WaitingPlayer>>,
 }
