@@ -34,11 +34,42 @@ constexpr int kFlowReady = 1, kFlowFight = 2, kFlowRoundStart = 14;
 // cadence drives (System::SystemSimulationFlags).
 constexpr unsigned kPauseOrHold = 0x1, kReplayFreeze = 0x8;
 
+// Where a replay takeover stands (ReplayTakeover.hxx has its rules).
+//   Off: watching the replay.
+//   Choosing: the takeover timeline is open over the paused replay.
+//   Countdown: the player's side is taken; the battle holds 3 s.
+//   Playing: the player plays the side.
+enum class Stage : std::uint8_t { Off, Choosing, Countdown, Playing };
+inline bool Taken(Stage stage) { return stage == Stage::Countdown || stage == Stage::Playing; }
+
 // What the player can ask for. The first five act on the transport and
-// only in the fight; Meter and Inputs show or hide a layer at any point
-// of the playback.
-enum class Command : std::uint8_t { TogglePause, Step, Slower, Faster, CycleSpeed, Meter, Inputs };
-inline bool MovesTransport(Command command) { return command != Command::Meter && command != Command::Inputs; }
+// only in the fight; Meter and Inputs show or hide a layer at any point of
+// the playback. The rest are the takeover's, in the fight: TakeOver opens
+// its timeline, whose jumps are StepBack and a second either way (a frame
+// ahead is Step), Side picks the other fighter, Start begins, Watch closes
+// it; Restart and Timeline go back to the takeover's frame.
+enum class Command : std::uint8_t {
+	TogglePause, Step, Slower, Faster, CycleSpeed, Meter, Inputs,
+	TakeOver, StepBack, SecondBack, SecondAhead, Side, Start, Watch, Restart, Timeline,
+};
+inline bool MovesTransport(Command command) { return command <= Command::CycleSpeed; }
+// Which commands a takeover stage takes; every other one is dropped. During
+// a takeover the replay neither pauses nor changes speed, and shows neither
+// layer; the timeline stays paused, a Step its frame ahead.
+inline bool Accepts(Stage stage, Command command) {
+	switch (stage) {
+	case Stage::Off: return command <= Command::TakeOver;
+	case Stage::Choosing: return command == Command::Step || (command >= Command::StepBack && command <= Command::Watch);
+	case Stage::Countdown: case Stage::Playing: return command == Command::Restart || command == Command::Timeline;
+	}
+	return false;
+}
+// A second of the fight, the timeline's longer jump.
+constexpr int kSecondFrames = 60;
+// The frames a timeline jump moves; 0 for any other command.
+inline int JumpFrames(Command command) {
+	return command == Command::StepBack ? -1 : command == Command::SecondBack ? -kSecondFrames : command == Command::SecondAhead ? kSecondFrames : 0;
+}
 // Where a command came from, for the glyphs the strip shows.
 enum class Device : std::uint8_t { Keyboard, Pad };
 
@@ -51,6 +82,7 @@ struct Context {
 	bool exporting = false;   // the playback is being made into a video
 	bool fight = false;       // IsFight (0x5D9F60)
 	bool pauseMenu = false;   // kPauseOrHold is set
+	bool taken = false;       // a takeover has the player's side (Taken)
 };
 
 // A replay is playing back: the game reports it and nothing else owns the
@@ -64,15 +96,17 @@ inline bool Playback(const Context& context) {
 //   FullSpeed: an export. The game's function with its half speed cleared
 //              first, so the video always plays at 1x.
 //   Transport: Ember's cadence; the controls act.
-// Ember's cadence only runs in the fight with the pause menu closed. The
+//   Takeover: the player plays a side. Ember's cadence at 1x, held only by
+//             the countdown: no pause, no half speed, no jump, no snapshot.
+// Ember's cadences only run in the fight with the pause menu closed. The
 // game's own drives the knockout, the round's end and the pause menu, after
 // Ember hands it back (Relinquish), so all of those play at 1x.
-enum class Route { Original, FullSpeed, Transport };
+enum class Route { Original, FullSpeed, Transport, Takeover };
 inline Route Decide(const Context& context) {
 	if (!Playback(context)) return Route::Original;
 	if (context.exporting) return Route::FullSpeed;
 	if (!context.fight || context.pauseMenu) return Route::Original;
-	return Route::Transport;
+	return context.taken ? Route::Takeover : Route::Transport;
 }
 
 // A new round is being set up: the transport starts it playing at 1x, so a
@@ -88,6 +122,12 @@ inline bool RoundBoundary(int flow) { return flow == kFlowRoundStart || flow == 
 inline bool JumpLanded(bool loadWaiting, int round, int at, int goalRound, int goalFrame) {
 	return !loadWaiting && (round > goalRound || (round == goalRound && at >= goalFrame));
 }
+// Whether a takeover may begin at the frame shown: no jump is asked
+// (`seekAsked`, not yet taken by the cadence), playing to its frame
+// (`seeking`) or waiting for its snapshot to load (`loadWaiting`). A jump
+// left in any of those would move the battle after the takeover's frame
+// was saved, and its snapshot would hand the side back to the replay.
+inline bool TakeoverMayBegin(bool seekAsked, bool seeking, bool loadWaiting) { return !seekAsked && !seeking && !loadWaiting; }
 
 // The most single frames that can wait to be stepped.
 constexpr unsigned kMostSteps = 30;
@@ -224,52 +264,108 @@ inline Observation ObserveUpdate(AdvanceGate& gate, int round, std::uint32_t cur
 	return seen;
 }
 
-// The pad's controls, from its physical XInput buttons sampled once a game
-// tick: RB pause or play, RT step (held, again after kRepeatDelay ticks and
-// every kRepeatEvery after), LB the next speed, LT the input lanes. Start and
-// Select stay the game's.
+// What the pad holds in a game tick: its physical XInput buttons, and
+// whether it holds left or right (the stick's too, as the game reads them).
+struct PadState { std::uint32_t buttons = 0; bool left = false, right = false; };
+
+// The pad's controls, sampled once a game tick, by the takeover's stage:
+//   Off: RB pause or play, RT step (held, again after kRepeatDelay ticks and
+//     every kRepeatEvery after), LB the next speed, LT the input lanes, Y the
+//     takeover timeline. Start and View stay the game's.
+//   Choosing: left and right a frame back or ahead (held, repeating as RT
+//     does), LB and RB a second back or ahead, Y the other fighter, A starts,
+//     B watches on from the frame.
+//   Countdown and Playing: every other button is the fighter's. View
+//     restarts on its release, or opens the timeline once held kViewHold ticks.
 constexpr unsigned kRepeatDelay = 18, kRepeatEvery = 6; // 300 ms, then 10 a second
+constexpr unsigned kViewHold = 30;                      // 500 ms
 class PadControls {
 public:
 	// Writes what this sample asks for to `out` (room for 4); the count.
 	// blocked: the game's pause menu is open, whose input the buttons are.
 	// They ask for nothing then, and what is held when it closes counts as
 	// already pressed, so neither a press made under the menu nor a held RT
-	// acts once it is gone: each needs a fresh press.
-	int Sample(std::uint32_t physical, Command* out, bool blocked = false) {
-		if (blocked) { Reset(physical); return 0; }
-		const std::uint32_t down = physical & ~previous_;
-		previous_ = physical;
+	// acts once it is gone: each needs a fresh press. A change of stage
+	// counts what is held as already pressed too.
+	int Sample(PadState pad, Stage stage, bool blocked, Command* out) {
+		if (blocked || stage != stage_) { Reset(pad); stage_ = stage; return 0; }
+		const std::uint32_t down = pad.buttons & ~previous_.buttons;
+		const bool leftDown = pad.left && !previous_.left, rightDown = pad.right && !previous_.right;
+		previous_ = pad;
 		int count = 0;
-		if (down & input::xinput::RB) out[count++] = Command::TogglePause;
-		if (physical & input::xinput::RT) {
-			if (down & input::xinput::RT) { held_ = 0; repeating_ = true; out[count++] = Command::Step; }
-			else if (repeating_ && ++held_ >= kRepeatDelay && (held_ - kRepeatDelay) % kRepeatEvery == 0) out[count++] = Command::Step;
+		switch (stage) {
+		case Stage::Off:
+			if (down & input::xinput::RB) out[count++] = Command::TogglePause;
+			if (Repeats(Held::RT, (pad.buttons & input::xinput::RT) != 0, (down & input::xinput::RT) != 0)) out[count++] = Command::Step;
+			if (down & input::xinput::LB) out[count++] = Command::CycleSpeed;
+			if (down & input::xinput::LT) out[count++] = Command::Inputs;
+			if (down & input::xinput::Y) out[count++] = Command::TakeOver;
+			break;
+		case Stage::Choosing:
+			if (Repeats(Held::Left, pad.left, leftDown)) out[count++] = Command::StepBack;
+			else if (Repeats(Held::Right, pad.right, rightDown)) out[count++] = Command::Step;
+			if (down & input::xinput::LB) out[count++] = Command::SecondBack;
+			if (down & input::xinput::RB) out[count++] = Command::SecondAhead;
+			if (down & input::xinput::Y) out[count++] = Command::Side;
+			if (down & input::xinput::A) out[count++] = Command::Start;
+			else if (down & input::xinput::B) out[count++] = Command::Watch;
+			break;
+		case Stage::Countdown: case Stage::Playing: {
+			const bool view = (pad.buttons & input::xinput::View) != 0;
+			if (down & input::xinput::View) { viewHeld_ = 0; viewDown_ = true; }
+			else if (viewDown_ && view && ++viewHeld_ == kViewHold) { viewDown_ = false; out[count++] = Command::Timeline; }
+			else if (viewDown_ && !view) { viewDown_ = false; out[count++] = Command::Restart; }
+			break;
 		}
-		if (down & input::xinput::LB) out[count++] = Command::CycleSpeed;
-		if (down & input::xinput::LT) out[count++] = Command::Inputs;
+		}
 		return count;
 	}
-	// The buttons held now count as already pressed, and a held RT does not
-	// repeat until it is pressed again.
-	void Reset(std::uint32_t held = 0) { previous_ = held; held_ = 0; repeating_ = false; }
+	// What is held now counts as already pressed, and nothing held repeats
+	// until it is pressed again.
+	void Reset(PadState held = {}) { previous_ = held; held_ = 0; repeating_ = Held::None; viewHeld_ = 0; viewDown_ = false; }
 private:
-	std::uint32_t previous_ = 0;
-	unsigned held_ = 0;
-	// RT went down since the last Reset, so holding it steps again.
-	bool repeating_ = false;
+	enum class Held : std::uint8_t { None, RT, Left, Right };
+	// A press, then again while it stays held, as RT steps.
+	bool Repeats(Held which, bool held, bool down) {
+		if (!held) { if (repeating_ == which) repeating_ = Held::None; return false; }
+		if (down) { held_ = 0; repeating_ = which; return true; }
+		return repeating_ == which && ++held_ >= kRepeatDelay && (held_ - kRepeatDelay) % kRepeatEvery == 0;
+	}
+	PadState previous_;
+	unsigned held_ = 0, viewHeld_ = 0;
+	// What went down since the last Reset, so holding it repeats.
+	Held repeating_ = Held::None;
+	// View went down during a takeover and has not acted yet.
+	bool viewDown_ = false;
+	Stage stage_ = Stage::Off;
 };
 
 // The keyboard's controls during playback: F1 pause or play, F2 step, F3
-// slower, F4 faster, F5 the frame meter, F9 the input lanes. Virtual key codes.
-constexpr unsigned kKeyF1 = 0x70, kKeyF2 = 0x71, kKeyF3 = 0x72, kKeyF4 = 0x73, kKeyF5 = 0x74, kKeyF9 = 0x78;
-inline bool PlaybackKey(unsigned key) { return (key >= kKeyF1 && key <= kKeyF5) || key == kKeyF9; }
+// slower, F4 faster, F5 the frame meter, F9 the input lanes, F6 the takeover
+// timeline (Restart during a takeover), F7 its Timeline. On the takeover
+// timeline also the arrows, comma and period, Tab, Enter and Escape
+// (ui/ReplayPlaybackHud.cxx: ReplayKeys). Virtual key codes.
+constexpr unsigned kKeyF1 = 0x70, kKeyF2 = 0x71, kKeyF3 = 0x72, kKeyF4 = 0x73, kKeyF5 = 0x74, kKeyF6 = 0x75, kKeyF7 = 0x76, kKeyF9 = 0x78;
+constexpr unsigned kKeyTab = 0x09, kKeyEnter = 0x0D, kKeyEscape = 0x1B, kKeyLeft = 0x25, kKeyRight = 0x27, kKeyComma = 0xBC, kKeyPeriod = 0xBE;
+inline bool PlaybackKey(unsigned key) { return (key >= kKeyF1 && key <= kKeyF7) || key == kKeyF9; }
+inline bool TimelineKey(unsigned key) {
+	return key == kKeyTab || key == kKeyEnter || key == kKeyEscape || key == kKeyLeft || key == kKeyRight || key == kKeyComma || key == kKeyPeriod;
+}
+// Who the playback keys are, for the window procedure: the game's outside a
+// replay Ember's controls play (`playback`), the timeline's while it is open.
+enum class Keys : std::uint8_t { Game, Playback, Timeline };
+inline Keys KeysFor(bool playback, Stage stage) {
+	return !playback ? Keys::Game : stage == Stage::Choosing ? Keys::Timeline : Keys::Playback;
+}
 // Whether the window procedure keeps a key message from the game: the
-// playback keys as plain key presses and releases while a replay plays.
-// With Alt they are system keys and reach the game, so Alt+F4 still closes it.
+// playback keys as plain key presses and releases while a replay plays, and
+// the timeline's while it is open, Escape among them, so it never reaches the
+// game's pause menu. With Alt they are system keys and reach the game, so
+// Alt+F4 still closes it.
 constexpr unsigned kKeyDown = 0x100, kKeyUp = 0x101; // WM_KEYDOWN, WM_KEYUP
-inline bool KeepsKey(bool playback, unsigned message, unsigned key) {
-	return playback && (message == kKeyDown || message == kKeyUp) && PlaybackKey(key);
+inline bool KeepsKey(Keys keys, unsigned message, unsigned key) {
+	if (keys == Keys::Game || (message != kKeyDown && message != kKeyUp)) return false;
+	return PlaybackKey(key) || (keys == Keys::Timeline && TimelineKey(key));
 }
 
 // What the game thread publishes for the overlay each tick.
@@ -296,6 +392,15 @@ struct View {
 	// refused outside the fight. The overlay times the strip and the
 	// "works during the fight" chip from their changes.
 	std::uint32_t taken = 0, refused = 0;
+	// The takeover (ReplayTakeover.hxx): its stage, the side, the countdown
+	// ticks left, the battle frame it last began at (-1: none this round; the
+	// timeline counts in these, CameraControl.hxx: Frame), and that the
+	// recording of the round ran out while the player plays.
+	Stage takeover = Stage::Off;
+	int takeoverSide = 0, countdown = 0, takeoverFrame = -1;
+	bool recordingEnded = false;
+	// A takeover could not start or go back: its save state failed.
+	std::uint32_t takeoverFailed = 0;
 };
 
 // The strip's opacity. Paused or slower it stays; at 1x it shows for

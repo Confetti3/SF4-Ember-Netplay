@@ -76,12 +76,7 @@ void Pause(const ReplayBar& bar) {
     last = now; bar.send(replaytransport::Command::TogglePause);
 }
 void Jump(const ReplayBar& bar, int frame) { Pause(bar); camera::Phone().AskSeek(frame); }
-void StepBack(const ReplayBar& bar, int frames) {
-    camera::Control& phone = camera::Phone();
-    int round = 0, goal = 0;
-    const int from = phone.Goal(round, goal) ? goal : (std::max)(phone.Frame(), 0);
-    Jump(bar, (std::max)(phone.Floor(), (std::min)(from - frames, (std::max)(phone.Total() - 1, 0))));
-}
+void StepBack(const ReplayBar& bar, int frames) { Pause(bar); camera::Phone().AskStep(-frames); }
 void Keys(const camera::Settings& now, const ReplayBar& bar) {
     const auto& io = ImGui::GetIO();
     if (io.WantTextInput) return;

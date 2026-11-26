@@ -80,6 +80,7 @@ sf4e_add_unit_test(NAME ReplayImportHandoff SOURCES "src/tests/replay_import_han
 sf4e_add_unit_test(NAME ReplayProvenance SOURCES "src/tests/replay_provenance_test.cxx" STD 17 LIBS Threads::Threads TIMEOUT 15 LABELS replay)
 sf4e_add_unit_test(NAME ReplayInputs SOURCES "src/tests/replay_inputs_test.cxx" STD 17 TIMEOUT 15 LABELS replay)
 sf4e_add_unit_test(NAME ReplayTransport SOURCES "src/tests/replay_transport_test.cxx" STD 14 TIMEOUT 15 LABELS replay)
+sf4e_add_unit_test(NAME ReplayTakeover SOURCES "src/tests/replay_takeover_test.cxx" STD 14 TIMEOUT 15 LABELS replay)
 sf4e_add_unit_test(NAME LoadWatch SOURCES "src/tests/load_watch_test.cxx" STD 17 TIMEOUT 15)
 sf4e_add_unit_test(NAME AddressSpaceReport SOURCES "src/tests/address_space_report_test.cxx" STD 17 TIMEOUT 15)
 sf4e_add_unit_test(NAME ReplaySnapshotRing SOURCES "src/tests/replay_snapshot_ring_test.cxx" STD 14 TIMEOUT 15 LABELS replay)

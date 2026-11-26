@@ -8,10 +8,12 @@
 #include "V2.hxx"
 #include "../common/Localization.hxx"
 #include "../common/ReplayTransport.hxx"
+#include "../training/CameraControl.hxx"
 #include <imgui.h>
 #include <algorithm>
 #include <cfloat>
 #include <cmath>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -24,14 +26,23 @@ void ReplayHudFeed::Fill(ReplayHudView& view, const ReplaysView& replays, bool k
         if (playback.taken != takenSeen_) takenAt_ = now;
         if (playback.refused != refusedSeen_) refusedAt_ = now;
     }
-    takenSeen_ = playback.taken; refusedSeen_ = playback.refused;
+    if (keys && playback.takeoverFailed != failedSeen_) failedAt_ = now;
+    takenSeen_ = playback.taken; refusedSeen_ = playback.refused; failedSeen_ = playback.takeoverFailed;
     view.shown = keys;
     view.meter = replays.meterShown;
     view.armed = playback.armed; view.paused = playback.paused; view.divisor = playback.divisor;
     view.round = playback.round; view.cursor = playback.cursor;
     view.pad = playback.device == replaytransport::Device::Pad;
     view.inputsKnown = replays.lanes != nullptr;
-    view.stripAlpha = CameraEditorShown() ? 0.f : replaytransport::StripAlpha(playback.paused, playback.divisor, takenAt_ < 0 ? -1 : now - takenAt_);
+    view.takeover = playback.takeover; view.takeoverSide = playback.takeoverSide;
+    view.countdownSeconds = replaytakeover::CountdownSeconds(playback.countdown);
+    const auto& phone = training::camera::Phone();
+    view.frame = phone.Frame(); view.floor = phone.Floor(); view.total = phone.Total(); view.takeoverFrame = playback.takeoverFrame;
+    view.recordingEnded = playback.recordingEnded;
+    view.takeoverFailed = failedAt_ >= 0 && now - failedAt_ < replaytransport::kChipSeconds;
+    // A takeover keeps its strip up; the editor's timeline is the replay's, not the takeover's.
+    const bool takeover = playback.takeover != replaytransport::Stage::Off;
+    view.stripAlpha = CameraEditorShown() && !takeover ? 0.f : takeover ? 1.f : replaytransport::StripAlpha(playback.paused, playback.divisor, takenAt_ < 0 ? -1 : now - takenAt_);
     view.unavailable = refusedAt_ >= 0 && now - refusedAt_ < replaytransport::kChipSeconds;
     view.lanes = keys && playback.lanes && replays.lanes;
     std::uint32_t played = 0;
@@ -73,20 +84,44 @@ std::string SpeedWord(int divisor) {
 void DrawStrip(const ReplayHudView& view, float alpha, const std::string& place, float top) {
     const auto* vp = ImGui::GetMainViewport();
     const auto& c = v2::Colors();
-    const auto padKey = [](const char* id) {
+    const auto named = [](const char* id) {
         const auto glyph = BrandGlyph(id, MenuPromptBrand(), MenuPromptNames());
-        return std::string(*glyph.name ? glyph.name : id) + " \xC2\xB7 ";
+        return std::string(*glyph.name ? glyph.name : id);
     };
+    const auto padKey = [&named](const char* id) { return named(id) + " \xC2\xB7 "; };
     const auto onOff = [](bool on) { return std::string(" ") + loc::T(on ? "common.on" : "common.off"); };
     struct Control { std::string keys, label; bool lit; ImU32 ink; };
-    std::vector<Control> controls{
-        {padKey("RB") + "F1", loc::T(view.paused ? "replays.controls.play" : "replays.controls.pause"), !view.paused, c.text},
-        {padKey("RT") + "F2", loc::T("replays.controls.step"), false, c.text},
-        // The chosen speed, dimmed where the game's own pace runs (the knockout, the round's end).
-        {padKey("LB") + "F3 F4", loc::T("replays.controls.speed") + std::string(" ") + SpeedWord(view.divisor), view.divisor != 1, view.armed ? c.text : c.muted}};
-    if (view.inputsKnown) controls.push_back({padKey("LT") + "F9", loc::T("replays.controls.inputs") + onOff(view.lanes), view.lanes, c.text});
-    // The pad has no meter button.
-    controls.push_back({"F5", loc::T("replays.controls.meter") + onOff(view.meter), view.meter, c.text});
+    std::vector<Control> controls;
+    using replaytransport::Stage;
+    switch (view.takeover) {
+    case Stage::Off:
+        controls = {
+            {padKey("RB") + "F1", loc::T(view.paused ? "replays.controls.play" : "replays.controls.pause"), !view.paused, c.text},
+            {padKey("RT") + "F2", loc::T("replays.controls.step"), false, c.text},
+            // The chosen speed, dimmed where the game's own pace runs (the knockout, the round's end).
+            {padKey("LB") + "F3 F4", loc::T("replays.controls.speed") + std::string(" ") + SpeedWord(view.divisor), view.divisor != 1, view.armed ? c.text : c.muted}};
+        if (view.inputsKnown) controls.push_back({padKey("LT") + "F9", loc::T("replays.controls.inputs") + onOff(view.lanes), view.lanes, c.text});
+        // The pad has no meter button.
+        controls.push_back({"F5", loc::T("replays.controls.meter") + onOff(view.meter), view.meter, c.text});
+        // Only from a pause; dimmed while the replay plays.
+        controls.push_back({padKey("Y") + "F6", loc::T("replays.takeover.take"), false, view.paused && view.armed ? c.accent : c.muted});
+        break;
+    case Stage::Choosing:
+        controls = {
+            // The font has no arrows: the directions by name, the keyboard's frame keys as comma and period.
+            {std::string(loc::T("replays.takeover.left_right")) + " \xC2\xB7 , .", loc::T("replays.takeover.frame"), false, c.text},
+            {named("LB") + " " + named("RB") + " \xC2\xB7 Shift , .", loc::T("replays.takeover.second"), false, c.text},
+            {padKey("Y") + "Tab", loc::Tf("replays.takeover.side", view.takeoverSide + 1), true, c.text},
+            {padKey("A") + "Enter", loc::T("replays.takeover.start"), false, c.accent},
+            {padKey("B") + "Esc", loc::T("replays.takeover.watch"), false, c.text}};
+        break;
+    case Stage::Countdown: case Stage::Playing:
+        controls = {
+            {padKey("View") + "F6", loc::T("replays.takeover.restart"), false, c.text},
+            {loc::Tf("replays.takeover.hold", named("View")) + " \xC2\xB7 F7", loc::T("replays.takeover.timeline"), false, c.text},
+            {"", loc::Tf("replays.takeover.playing", view.takeoverSide + 1), true, c.accent}};
+        break;
+    }
     // The place changes every frame; the strip is measured on it with every digit as the widest, or it would
     // breathe in width (and shift, being centred) as the clock ticks.
     std::string stable = place;
@@ -132,6 +167,47 @@ void DrawStrip(const ReplayHudView& view, float alpha, const std::string& place,
 }
 }
 
+// The takeover over the strip (the Replay takeover boards): the timeline's
+// bar from the earliest reachable record to the round's last, the countdown,
+// and the banner once the recording runs out.
+static void DrawTakeover(const ReplayHudView& view, float stripTop) {
+    using replaytransport::Stage;
+    const auto* vp = ImGui::GetMainViewport();
+    const auto& c = v2::Colors();
+    const float s = HudScale();
+    auto* d = ImGui::GetForegroundDrawList();
+    const auto centred = [&](float size, float y, ImU32 ink, const std::string& text, ImU32 back) {
+        const float w = TextWidth(size, text), x = vp->Pos.x + (vp->Size.x - w) * .5f;
+        if (back) d->AddRectFilled(ImVec2(x - 12 * s, y - 6 * s), ImVec2(x + w + 12 * s, y + size + 6 * s), back, 4 * s);
+        d->AddText(ImGui::GetFont(), size, ImVec2(x, y), ink, text.c_str());
+    };
+    if (view.takeoverFailed) centred(13 * s, stripTop + StripHeight * s + 6 * s, palette::Ivory, loc::T("replays.takeover.failed"), v2::color::Alpha(c.ink, .9f));
+    if (view.takeover == Stage::Choosing && view.total > 0) {
+        const float w = (std::min)(vp->Size.x - 64 * s, 720 * s), h = 10 * s;
+        const float x0 = vp->Pos.x + (vp->Size.x - w) * .5f, y0 = stripTop - 22 * s;
+        const auto at = [&](int frame) { return x0 + w * (std::min)(1.f, (std::max)(0.f, static_cast<float>(frame) / view.total)); };
+        centred(14 * s, y0 - 26 * s, c.text, loc::T("replays.takeover.choose"), v2::color::Alpha(c.ink, .85f));
+        d->AddRectFilled(ImVec2(x0, y0), ImVec2(x0 + w, y0 + h), v2::color::Alpha(c.ink, .85f), h * .5f);
+        // What the timeline can reach: snapshots from the floor on, played up to the frame shown.
+        d->AddRectFilled(ImVec2(at(view.floor), y0), ImVec2(at(view.frame), y0 + h), v2::color::Alpha(c.accent, .55f), h * .5f);
+        d->AddRect(ImVec2(x0, y0), ImVec2(x0 + w, y0 + h), c.border, h * .5f, 0, s);
+        // Where the last takeover began, to go back to it.
+        if (view.takeoverFrame >= 0) { const float tx = at(view.takeoverFrame); d->AddTriangleFilled(ImVec2(tx, y0 - 2 * s), ImVec2(tx - 5 * s, y0 - 9 * s), ImVec2(tx + 5 * s, y0 - 9 * s), c.text); }
+        const float mx = at(view.frame);
+        d->AddRectFilled(ImVec2(mx - 2 * s, y0 - 5 * s), ImVec2(mx + 2 * s, y0 + h + 5 * s), c.accent, s);
+    }
+    if (view.takeover == Stage::Countdown && view.countdownSeconds > 0) {
+        const std::string number = std::to_string(view.countdownSeconds);
+        const float size = 120 * s, cy = vp->Pos.y + vp->Size.y * .4f;
+        d->AddCircleFilled(ImVec2(vp->Pos.x + vp->Size.x * .5f, cy), size * .62f, v2::color::Alpha(c.ink, .8f));
+        d->AddCircle(ImVec2(vp->Pos.x + vp->Size.x * .5f, cy), size * .62f, c.accent, 0, 3 * s);
+        centred(size, cy - size * .5f, c.accent, number, 0);
+        centred(16 * s, cy + size * .7f, c.text, loc::Tf("replays.takeover.playing", view.takeoverSide + 1), v2::color::Alpha(c.ink, .85f));
+    }
+    if (view.takeover == Stage::Playing && view.recordingEnded)
+        centred(15 * s, stripTop - 40 * s, palette::Ivory, loc::T("replays.takeover.ended"), v2::color::Alpha(c.ink, .9f));
+}
+
 void DrawReplayStrip(const ReplayHudView& view) {
     const auto* vp = ImGui::GetMainViewport();
     const float s = HudScale(), height = StripHeight * s, bottom = vp->Pos.y + vp->Size.y;
@@ -160,10 +236,12 @@ void DrawReplayStrip(const ReplayHudView& view) {
     if (view.stripAlpha <= 0) return;
     const float alpha = (std::min)(1.f, view.stripAlpha);
     char clock[16]; replaytransport::FormatClock(view.cursor, clock);
-    // Paused, the frame takes the clock's place: a step moves it by one.
+    // Paused or choosing, the frame takes the clock's place: a step moves it by one.
+    const bool frame = view.paused || view.takeover == replaytransport::Stage::Choosing;
     const std::string place = loc::Tf("replays.controls.round", view.round + 1) + " \xC2\xB7 " +
-        (view.paused ? loc::Tf("replays.controls.frame", view.cursor) : std::string(clock));
+        (frame ? loc::Tf("replays.controls.frame", view.cursor) : std::string(clock));
     DrawStrip(view, alpha, place, stripTop);
+    DrawTakeover(view, stripTop);
 }
 
 void DrawReplayLanes(const ReplayHudView& view) {
@@ -208,6 +286,39 @@ void DrawReplayLanes(const ReplayHudView& view) {
         ImGui::End();
         ImGui::PopStyleColor();
         ImGui::PopStyleVar(3);
+    }
+}
+
+void ReplayKeys(const replaytransport::View& playback, const std::function<void(replaytransport::Command)>& send) {
+    using replaytransport::Command;
+    using replaytransport::Stage;
+    const auto pressed = [](ImGuiKey key) { return ImGui::IsKeyPressed(key, false); };
+    // Held, a key steps again after 300 ms, ten times a second.
+    const auto repeats = [](ImGuiKey key) { return ImGui::GetKeyPressedAmount(key, .3f, .1f); };
+    switch (playback.takeover) {
+    case Stage::Off:
+        if (pressed(ImGuiKey_F1)) send(Command::TogglePause);
+        for (int steps = repeats(ImGuiKey_F2); steps > 0; --steps) send(Command::Step);
+        if (pressed(ImGuiKey_F3)) send(Command::Slower);
+        if (pressed(ImGuiKey_F4)) send(Command::Faster);
+        if (pressed(ImGuiKey_F5)) send(Command::Meter);
+        if (pressed(ImGuiKey_F9)) send(Command::Inputs);
+        if (pressed(ImGuiKey_F6)) send(Command::TakeOver);
+        break;
+    case Stage::Choosing: {
+        const bool shift = ImGui::GetIO().KeyShift;
+        const int back = repeats(ImGuiKey_LeftArrow) + repeats(ImGuiKey_Comma), ahead = repeats(ImGuiKey_RightArrow) + repeats(ImGuiKey_Period);
+        for (int i = 0; i < back; ++i) send(shift ? Command::SecondBack : Command::StepBack);
+        for (int i = 0; i < ahead; ++i) send(shift ? Command::SecondAhead : Command::Step);
+        if (pressed(ImGuiKey_Tab)) send(Command::Side);
+        if (pressed(ImGuiKey_Enter) || pressed(ImGuiKey_KeypadEnter)) send(Command::Start);
+        else if (pressed(ImGuiKey_Escape)) send(Command::Watch);
+        break;
+    }
+    case Stage::Countdown: case Stage::Playing:
+        if (pressed(ImGuiKey_F6)) send(Command::Restart);
+        if (pressed(ImGuiKey_F7)) send(Command::Timeline);
+        break;
     }
 }
 } }

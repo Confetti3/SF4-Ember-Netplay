@@ -6525,6 +6525,48 @@ msgstr "Klatka {0}"
 msgid "replays.controls.unavailable"
 msgstr "Sterowanie działa w trakcie walki"
 
+msgid "replays.takeover.take"
+msgstr "Przejmij"
+
+msgid "replays.takeover.choose"
+msgstr "Wybierz klatkę, od której przejmiesz"
+
+msgid "replays.takeover.frame"
+msgstr "Klatka"
+
+msgid "replays.takeover.second"
+msgstr "Sekunda"
+
+msgid "replays.takeover.left_right"
+msgstr "Lewo/Prawo"
+
+msgid "replays.takeover.side"
+msgstr "Gracz {0}"
+
+msgid "replays.takeover.start"
+msgstr "Start"
+
+msgid "replays.takeover.watch"
+msgstr "Oglądaj"
+
+msgid "replays.takeover.restart"
+msgstr "Od nowa"
+
+msgid "replays.takeover.timeline"
+msgstr "Oś czasu"
+
+msgid "replays.takeover.hold"
+msgstr "Przytrzymaj {0}"
+
+msgid "replays.takeover.playing"
+msgstr "Przejęcie: Gracz {0}"
+
+msgid "replays.takeover.ended"
+msgstr "Nagranie kończy się tutaj; drugi wojownik stoi"
+
+msgid "replays.takeover.failed"
+msgstr "Tej klatki nie można przejąć"
+
 msgid "room.training"
 msgstr "Czekaj w treningu"
 

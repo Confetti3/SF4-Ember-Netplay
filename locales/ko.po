@@ -6525,6 +6525,48 @@ msgstr "{0}프레임"
 msgid "replays.controls.unavailable"
 msgstr "조작은 대전 중에만 가능"
 
+msgid "replays.takeover.take"
+msgstr "조작 넘겨받기"
+
+msgid "replays.takeover.choose"
+msgstr "넘겨받을 프레임을 고르세요"
+
+msgid "replays.takeover.frame"
+msgstr "프레임"
+
+msgid "replays.takeover.second"
+msgstr "초"
+
+msgid "replays.takeover.left_right"
+msgstr "왼쪽/오른쪽"
+
+msgid "replays.takeover.side"
+msgstr "플레이어 {0}"
+
+msgid "replays.takeover.start"
+msgstr "시작"
+
+msgid "replays.takeover.watch"
+msgstr "관전"
+
+msgid "replays.takeover.restart"
+msgstr "다시 시작"
+
+msgid "replays.takeover.timeline"
+msgstr "타임라인"
+
+msgid "replays.takeover.hold"
+msgstr "{0} 길게 누르기"
+
+msgid "replays.takeover.playing"
+msgstr "넘겨받음: 플레이어 {0}"
+
+msgid "replays.takeover.ended"
+msgstr "기록이 여기서 끝납니다. 상대는 서 있습니다"
+
+msgid "replays.takeover.failed"
+msgstr "이 프레임은 넘겨받을 수 없습니다"
+
 msgid "room.training"
 msgstr "트레이닝에서 대기"
 

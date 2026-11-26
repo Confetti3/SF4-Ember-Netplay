@@ -44,9 +44,13 @@ When a Watch request plays, `replaystore::PlayingFile()` names the archived file
 
 ## Input
 
-- **Keyboard:** F1 to F5 and F9, read with `ImGui::IsKeyPressed` as the training keys are. F2 repeats with `GetKeyPressedAmount` (300 ms, then 10 a second). The window procedure keeps those keys from the game during playback, plain presses only, so Alt+F4 still reaches it. Training's own keys and their swallowing are off during playback. Text input and Alt suppress the keys.
-- **Pad:** the game thread reads the player's XInput pad's physical buttons once a tick (`Dimps::Pad::ReadController`) and turns RB, RT, LB and LT edges into commands (`replaytransport::PadControls`). Start and View stay the game's. DirectInput pads are not read.
+- **Keyboard:** F1 to F7 and F9 (F6 and F7 are the takeover's), read with `ImGui::IsKeyPressed` as the training keys are (`ui::ReplayKeys`); the takeover timeline adds the arrows, comma, period, Tab, Enter and Escape, kept from the game only while it is open (`replaytransport::KeysFor`). F2 repeats with `GetKeyPressedAmount` (300 ms, then 10 a second). The window procedure keeps those keys from the game during playback, plain presses only, so Alt+F4 still reaches it. Training's own keys and their swallowing are off during playback. Text input and Alt suppress the keys.
+- **Pad:** the game thread reads the player's XInput pad's physical buttons once a tick (`Dimps::Pad::ReadController`) and turns button edges into commands by the takeover's stage (`replaytransport::PadControls`): RB, RT, LB, LT and Y while watching, the directions and face buttons on the takeover timeline, only View during a takeover. Start stays the game's, and View too outside a takeover. DirectInput pads are not read.
 - Commands go through one bounded queue and act at the next cadence call. Transport commands outside the fight are refused and counted, which shows the "Controls work during the fight" chip. Under the pause menu and during exports, every command is dropped.
+
+## Replay takeover
+
+From a pause, the player takes one fighter and plays it from a chosen frame while the other keeps the recording. `replaytakeover::Takeover` (`common/ReplayTakeover.hxx`) holds the stage (`Off`, `Choosing`, `Countdown`, `Playing`) and which commands each takes (`replaytransport::Accepts`). The recorder plays a side only while its bit is set in `Recorder::playingSides` (`+0x70C`); CMD POST (`0x59AA20`) leaves a clear side on its pad slot's input, and Player 2 reads the player's pad 0 (`GetPlayerPadSlot`, `+0x20`). Start saves a state (`Stake::Optional`) at the frame before clearing the bit; Restart and Timeline load it, which puts the replay back on its course. Saves and loads wait for `BeforeUpdate`, as the snapshot ring's do, and the stage moves only once they succeeded: a failed save leaves the paused timeline, a failed load leaves the battle. While a side is taken the cadence is `Route::Takeover`: the countdown holds with the freeze bit, then 1x, with no jumps, ring snapshots, meter or lanes. A round boundary, an export or the battle's close ends it; while the game's pause menu is open both bits are set, since its Restart reseeds only when Player 1 plays back (`0x5DB540`).
 
 ## Drawing
 
@@ -56,7 +60,8 @@ When a Watch request plays, `replaystore::PlayingFile()` names the archived file
 
 - `common/ReplayTransport.hxx`: transport, route, round boundary, meter gate, pad and key mapping, strip fade, clock.
 - `common/ReplayInputLane.hxx`: lanes from a parsed replay.
-- `common/ReplayRecorder.hxx`: named `mode`, `round` and `cursor` fields.
+- `common/ReplayRecorder.hxx`: named `mode`, `round`, `cursor` and `playingSides` fields.
+- `common/ReplayTakeover.hxx`, `sf4e__ReplayTakeover.cxx`: the takeover's rules, and its save state and sides.
 - `Dimps__Game__Battle__System`: `ReplayCadence` (`0x5D7750`) and `GetSlowMotion` (`+0x1464`).
 - `sf4e__ReplayPlayback.cxx`: the detour, the queue, the pad, the published view.
 - `ui/ReplayPlaybackHud.cxx`: the strip and the lanes.

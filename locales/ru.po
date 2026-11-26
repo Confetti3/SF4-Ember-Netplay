@@ -6525,6 +6525,48 @@ msgstr "Кадр {0}"
 msgid "replays.controls.unavailable"
 msgstr "Управление работает во время боя"
 
+msgid "replays.takeover.take"
+msgstr "Взять управление"
+
+msgid "replays.takeover.choose"
+msgstr "Выберите кадр, с которого взять управление"
+
+msgid "replays.takeover.frame"
+msgstr "Кадр"
+
+msgid "replays.takeover.second"
+msgstr "Секунда"
+
+msgid "replays.takeover.left_right"
+msgstr "Влево/вправо"
+
+msgid "replays.takeover.side"
+msgstr "Игрок {0}"
+
+msgid "replays.takeover.start"
+msgstr "Начать"
+
+msgid "replays.takeover.watch"
+msgstr "Смотреть"
+
+msgid "replays.takeover.restart"
+msgstr "Заново"
+
+msgid "replays.takeover.timeline"
+msgstr "Шкала времени"
+
+msgid "replays.takeover.hold"
+msgstr "Удерживать {0}"
+
+msgid "replays.takeover.playing"
+msgstr "Управление: игрок {0}"
+
+msgid "replays.takeover.ended"
+msgstr "Запись здесь кончается; второй боец стоит"
+
+msgid "replays.takeover.failed"
+msgstr "С этого кадра нельзя взять управление"
+
 msgid "room.training"
 msgstr "Ждать в тренировке"
 

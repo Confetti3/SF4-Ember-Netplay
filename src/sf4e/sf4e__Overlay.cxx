@@ -89,8 +89,8 @@ static bool trainingHud = true;
 // position events, under one controller for both threads (TrainingPad.hxx).
 static sf4e::input::TrainingControls s_trainingControls;
 static std::atomic<bool> trainingAvailable{false};
-// A replay plays with Ember's controls: the window procedure keeps their keys.
-static std::atomic<bool> replayPlayback{false};
+// A replay plays with Ember's controls: the window procedure keeps their keys, and the takeover timeline's while it is open.
+static std::atomic<sf4e::replaytransport::Keys> replayPlayback{sf4e::replaytransport::Keys::Game};
 // This PC watches a room's match: the window procedure keeps Alt+Enter.
 static std::atomic<bool> watchingStream{false};
 // Go now's Enter on the Training call, taken where the key arrives (Win32Input.hxx).
@@ -721,19 +721,10 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     // the training keys are, and training's own keys stay off.
     const auto& playback = snapshot.replays.playback;
     const bool replayKeys = playback.playback && !playback.exporting;
-    replayPlayback = replayKeys;
+    replayPlayback = sf4e::replaytransport::KeysFor(replayKeys, playback.takeover);
     watchingStream = snapshot.watchedGame.Active();
-    if (focused && replayKeys && !presentation.Visible() && !nativePaused && !ImGui::GetIO().WantTextInput && !ImGui::GetIO().KeyAlt) {
-        using sf4e::replaytransport::Command;
-        const auto send = [&playback](Command command) { sf4e::replayplayback::Submit(command, sf4e::replaytransport::Device::Keyboard, playback.session); };
-        if (ImGui::IsKeyPressed(ImGuiKey_F1, false)) send(Command::TogglePause);
-        // Held, F2 steps again after 300 ms, ten times a second.
-        for (int steps = ImGui::GetKeyPressedAmount(ImGuiKey_F2, .3f, .1f); steps > 0; --steps) send(Command::Step);
-        if (ImGui::IsKeyPressed(ImGuiKey_F3, false)) send(Command::Slower);
-        if (ImGui::IsKeyPressed(ImGuiKey_F4, false)) send(Command::Faster);
-        if (ImGui::IsKeyPressed(ImGuiKey_F5, false)) send(Command::Meter);
-        if (ImGui::IsKeyPressed(ImGuiKey_F9, false)) send(Command::Inputs);
-    }
+    if (focused && replayKeys && !presentation.Visible() && !nativePaused && !ImGui::GetIO().WantTextInput && !ImGui::GetIO().KeyAlt)
+        sf4e::ui::ReplayKeys(playback, [&playback](sf4e::replaytransport::Command command) { sf4e::replayplayback::Submit(command, sf4e::replaytransport::Device::Keyboard, playback.session); });
     if (!training.available || !focused) s_trainingControls.Close();
     // Taken every frame, in the order the pad asked, so a press from before
     // the lab was shown never acts later.
@@ -936,7 +927,7 @@ void Overlay::FreeOverlay() {
     sf4e::ui::OverlayLifecycle::Change change(s_lifecycle);
     capture = false; pointerCapture = false;
     s_menuPads.Reset();
-    trainingAvailable = false; replayPlayback = false; watchingStream = false;
+    trainingAvailable = false; replayPlayback = sf4e::replaytransport::Keys::Game; watchingStream = false;
     fMainMenu::bOverrideItemObserverState = -1;
     if (!ImGui::GetCurrentContext()) return;
     controllerNavigation.Reset();
@@ -1001,7 +992,7 @@ LRESULT WINAPI Overlay::OverlayWindowFunc(HWND window, UINT message, WPARAM w, L
     const bool plainKey = message == WM_KEYDOWN || message == WM_KEYUP, systemKey = message == WM_SYSKEYDOWN || message == WM_SYSKEYUP;
     if (sf4e::replaytransport::KeepsKey(replayPlayback, message, static_cast<unsigned>(w))) return 1;
     if (sf4e::ui::KeepsAltEnter(message, w, l, watchingStream)) return 1;
-    if (trainingAvailable && !replayPlayback && ((w >= VK_F5 && w <= VK_F8 && (plainKey || systemKey)) ||
+    if (trainingAvailable && replayPlayback == sf4e::replaytransport::Keys::Game && ((w >= VK_F5 && w <= VK_F8 && (plainKey || systemKey)) ||
         (plainKey && w >= VK_F1 && w <= VK_F12 && sf4e::ui::TrainingHotkeyBound(static_cast<int>(w - VK_F1))))) return 1;
     return handled;
 }

@@ -6525,6 +6525,48 @@ msgstr "Frame {0}"
 msgid "replays.controls.unavailable"
 msgstr "Los controles funcionan durante la pelea"
 
+msgid "replays.takeover.take"
+msgstr "Tomar el control"
+
+msgid "replays.takeover.choose"
+msgstr "Elige el frame desde el que tomar el control"
+
+msgid "replays.takeover.frame"
+msgstr "Frame"
+
+msgid "replays.takeover.second"
+msgstr "Segundo"
+
+msgid "replays.takeover.left_right"
+msgstr "Izquierda/Derecha"
+
+msgid "replays.takeover.side"
+msgstr "Jugador {0}"
+
+msgid "replays.takeover.start"
+msgstr "Empezar"
+
+msgid "replays.takeover.watch"
+msgstr "Ver"
+
+msgid "replays.takeover.restart"
+msgstr "Reiniciar"
+
+msgid "replays.takeover.timeline"
+msgstr "Línea de tiempo"
+
+msgid "replays.takeover.hold"
+msgstr "Mantén {0}"
+
+msgid "replays.takeover.playing"
+msgstr "Control: Jugador {0}"
+
+msgid "replays.takeover.ended"
+msgstr "La grabación termina aquí; el otro luchador se queda quieto"
+
+msgid "replays.takeover.failed"
+msgstr "No se puede tomar el control desde este frame"
+
 msgid "room.training"
 msgstr "Esperar en entrenamiento"
 

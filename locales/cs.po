@@ -6525,6 +6525,48 @@ msgstr "Snímek {0}"
 msgid "replays.controls.unavailable"
 msgstr "Ovládání funguje během boje"
 
+msgid "replays.takeover.take"
+msgstr "Převzít"
+
+msgid "replays.takeover.choose"
+msgstr "Vyber snímek, od kterého převezmeš hru"
+
+msgid "replays.takeover.frame"
+msgstr "Snímek"
+
+msgid "replays.takeover.second"
+msgstr "Sekunda"
+
+msgid "replays.takeover.left_right"
+msgstr "Vlevo/vpravo"
+
+msgid "replays.takeover.side"
+msgstr "Hráč {0}"
+
+msgid "replays.takeover.start"
+msgstr "Začít"
+
+msgid "replays.takeover.watch"
+msgstr "Sledovat"
+
+msgid "replays.takeover.restart"
+msgstr "Znovu"
+
+msgid "replays.takeover.timeline"
+msgstr "Časová osa"
+
+msgid "replays.takeover.hold"
+msgstr "Podržet {0}"
+
+msgid "replays.takeover.playing"
+msgstr "Převzetí: hráč {0}"
+
+msgid "replays.takeover.ended"
+msgstr "Záznam zde končí; druhý bojovník stojí"
+
+msgid "replays.takeover.failed"
+msgstr "Tento snímek nelze převzít"
+
 msgid "room.training"
 msgstr "Čekat v tréninku"
 

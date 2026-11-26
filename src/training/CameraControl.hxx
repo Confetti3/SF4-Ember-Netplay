@@ -107,6 +107,15 @@ public:
     // then holds the goal (round, frame) until the replay has played to it. The goal outlives the restart a jump back needs.
     // `play`: the replay goes on playing there (a loop); otherwise it waits at the frame.
     void AskSeek(int frame, bool play = false) { seekFrame_ = (std::max)(frame, 0); seekPlay_ = play; seekAsked_ = true; }
+    // A jump by frames from where the replay is, or from where a jump is already going so quick steps add up,
+    // kept between the earliest snapshot and the round's last frame.
+    void AskStep(int frames) {
+        int round = 0, goal = 0;
+        const int from = Goal(round, goal) ? goal : (std::max)(Frame(), 0);
+        AskSeek((std::max)(Floor(), (std::min)(from + frames, (std::max)(Total() - 1, 0))));
+    }
+    // A jump asked and not yet taken by the playback.
+    bool SeekAsked() const { return seekAsked_; }
     bool TakeSeek(int& frame, bool& play) { if (!seekAsked_.exchange(false)) return false; frame = seekFrame_; play = seekPlay_; return true; }
     bool TakeSeek(int& frame) { bool play; return TakeSeek(frame, play); }
     void SetGoal(int round, int frame, bool play = false) { std::lock_guard<std::mutex> hold(goalLock_); goalRound_ = round; goalFrame_ = frame; goalPlay_ = play; goal_ = true; }

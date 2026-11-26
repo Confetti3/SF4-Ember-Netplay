@@ -6525,6 +6525,48 @@ msgstr "{0}フレーム"
 msgid "replays.controls.unavailable"
 msgstr "操作はファイト中のみ有効"
 
+msgid "replays.takeover.take"
+msgstr "操作を引き継ぐ"
+
+msgid "replays.takeover.choose"
+msgstr "引き継ぐフレームを選ぶ"
+
+msgid "replays.takeover.frame"
+msgstr "フレーム"
+
+msgid "replays.takeover.second"
+msgstr "秒"
+
+msgid "replays.takeover.left_right"
+msgstr "左/右"
+
+msgid "replays.takeover.side"
+msgstr "プレイヤー{0}"
+
+msgid "replays.takeover.start"
+msgstr "開始"
+
+msgid "replays.takeover.watch"
+msgstr "観戦"
+
+msgid "replays.takeover.restart"
+msgstr "リスタート"
+
+msgid "replays.takeover.timeline"
+msgstr "タイムライン"
+
+msgid "replays.takeover.hold"
+msgstr "{0}長押し"
+
+msgid "replays.takeover.playing"
+msgstr "引き継ぎ中: プレイヤー{0}"
+
+msgid "replays.takeover.ended"
+msgstr "記録はここで終わり、相手は立ったままです"
+
+msgid "replays.takeover.failed"
+msgstr "このフレームは引き継げません"
+
 msgid "room.training"
 msgstr "トレーニングで待つ"
 

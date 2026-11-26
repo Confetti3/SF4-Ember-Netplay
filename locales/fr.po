@@ -6525,6 +6525,48 @@ msgstr "Frame {0}"
 msgid "replays.controls.unavailable"
 msgstr "Les commandes marchent pendant le combat"
 
+msgid "replays.takeover.take"
+msgstr "Prendre la main"
+
+msgid "replays.takeover.choose"
+msgstr "Choisis l'image d'où prendre la main"
+
+msgid "replays.takeover.frame"
+msgstr "Image"
+
+msgid "replays.takeover.second"
+msgstr "Seconde"
+
+msgid "replays.takeover.left_right"
+msgstr "Gauche/Droite"
+
+msgid "replays.takeover.side"
+msgstr "Joueur {0}"
+
+msgid "replays.takeover.start"
+msgstr "Commencer"
+
+msgid "replays.takeover.watch"
+msgstr "Regarder"
+
+msgid "replays.takeover.restart"
+msgstr "Recommencer"
+
+msgid "replays.takeover.timeline"
+msgstr "Chronologie"
+
+msgid "replays.takeover.hold"
+msgstr "Maintenir {0}"
+
+msgid "replays.takeover.playing"
+msgstr "Reprise : Joueur {0}"
+
+msgid "replays.takeover.ended"
+msgstr "L'enregistrement s'arrête ici ; l'autre combattant reste immobile"
+
+msgid "replays.takeover.failed"
+msgstr "Impossible de prendre la main sur cette image"
+
 msgid "room.training"
 msgstr "Attendre en entraînement"
 

@@ -6525,6 +6525,48 @@ msgstr "第 {0} 帧"
 msgid "replays.controls.unavailable"
 msgstr "仅在对战中可用"
 
+msgid "replays.takeover.take"
+msgstr "接管"
+
+msgid "replays.takeover.choose"
+msgstr "选择接管的帧"
+
+msgid "replays.takeover.frame"
+msgstr "帧"
+
+msgid "replays.takeover.second"
+msgstr "秒"
+
+msgid "replays.takeover.left_right"
+msgstr "左/右"
+
+msgid "replays.takeover.side"
+msgstr "玩家{0}"
+
+msgid "replays.takeover.start"
+msgstr "开始"
+
+msgid "replays.takeover.watch"
+msgstr "观看"
+
+msgid "replays.takeover.restart"
+msgstr "重来"
+
+msgid "replays.takeover.timeline"
+msgstr "时间轴"
+
+msgid "replays.takeover.hold"
+msgstr "按住{0}"
+
+msgid "replays.takeover.playing"
+msgstr "接管中：玩家{0}"
+
+msgid "replays.takeover.ended"
+msgstr "录像到此结束，另一名角色保持站立"
+
+msgid "replays.takeover.failed"
+msgstr "无法从这一帧接管"
+
 msgid "room.training"
 msgstr "在训练中等待"
 

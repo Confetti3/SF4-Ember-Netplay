@@ -12,6 +12,7 @@
 
 using namespace sf4e::replaytransport;
 namespace xinput = sf4e::input::xinput;
+using Stage = sf4e::replaytransport::Stage;
 
 namespace {
 
@@ -160,6 +161,16 @@ void TestGuard() {
 	// An export flag never touches netplay.
 	c.netplay = true;
 	CHECK(Decide(c) == Route::Original);
+	// A takeover has the side: its own cadence in the fight; the knockout, the
+	// pause menu and an export stay as they were.
+	c = Replay(); c.taken = true;
+	CHECK(Decide(c) == Route::Takeover);
+	c.fight = false;
+	CHECK(Decide(c) == Route::Original);
+	c = Replay(); c.taken = true; c.pauseMenu = true;
+	CHECK(Decide(c) == Route::Original);
+	c = Replay(); c.taken = true; c.exporting = true;
+	CHECK(Decide(c) == Route::FullSpeed);
 }
 
 // A jump lands at its frame or past it, in its round or a later one; a jump
@@ -169,6 +180,12 @@ void TestJumpLanded() {
 	CHECK(!JumpLanded(false, 0, 1079, 0, 1080));
 	// Asked at 1140 for 1080: the snapshot at 1067 has not loaded yet.
 	CHECK(!JumpLanded(true, 0, 1140, 0, 1080));
+}
+
+// A takeover begins only with no jump asked, under way or waiting for its snapshot.
+void TestTakeoverMayBegin() {
+	CHECK(TakeoverMayBegin(false, false, false));
+	CHECK(!TakeoverMayBegin(true, false, false) && !TakeoverMayBegin(false, true, false) && !TakeoverMayBegin(false, false, true));
 }
 
 void TestAdvanceGate() {
@@ -314,69 +331,152 @@ void TestSessionQueue() {
 	{
 		PadControls paused;
 		Command made[4];
-		paused.Reset(0);
-		CHECK(paused.Sample(xinput::RT, made, true) == 0 && paused.Sample(xinput::RT | xinput::RB, made, true) == 0);
-		for (unsigned i = 0; i < kRepeatDelay * 2; i++) CHECK(paused.Sample(xinput::RT | xinput::RB, made, true) == 0);
+		paused.Reset();
+		CHECK(paused.Sample({xinput::RT}, Stage::Off, true, made) == 0 && paused.Sample({xinput::RT | xinput::RB}, Stage::Off, true, made) == 0);
+		for (unsigned i = 0; i < kRepeatDelay * 2; i++) CHECK(paused.Sample({xinput::RT | xinput::RB}, Stage::Off, true, made) == 0);
 		// The menu closes with RT and RB still down: nothing.
-		for (unsigned i = 0; i < kRepeatDelay * 2; i++) CHECK(paused.Sample(xinput::RT | xinput::RB, made) == 0);
+		for (unsigned i = 0; i < kRepeatDelay * 2; i++) CHECK(paused.Sample({xinput::RT | xinput::RB}, Stage::Off, false, made) == 0);
 		// Let go and pressed again: the press acts.
-		CHECK(paused.Sample(0, made) == 0 && paused.Sample(xinput::RT, made) == 1 && made[0] == Command::Step);
+		CHECK(paused.Sample({}, Stage::Off, false, made) == 0 && paused.Sample({xinput::RT}, Stage::Off, false, made) == 1 && made[0] == Command::Step);
 	}
 	// A held RT does not repeat into the next session: the pad starts over.
 	PadControls pad;
 	Command out[4];
-	pad.Reset(0);
-	pad.Sample(xinput::RT, out);
-	for (unsigned i = 0; i < kRepeatDelay - 1; i++) pad.Sample(xinput::RT, out);
-	pad.Reset(xinput::RT);
-	for (unsigned i = 0; i < kRepeatDelay * 2; i++) CHECK(pad.Sample(xinput::RT, out) == 0);
+	pad.Reset();
+	pad.Sample({xinput::RT}, Stage::Off, false, out);
+	for (unsigned i = 0; i < kRepeatDelay - 1; i++) pad.Sample({xinput::RT}, Stage::Off, false, out);
+	pad.Reset({xinput::RT});
+	for (unsigned i = 0; i < kRepeatDelay * 2; i++) CHECK(pad.Sample({xinput::RT}, Stage::Off, false, out) == 0);
 }
 
 void TestPad() {
 	PadControls pad;
 	Command out[4];
-	// Start, View (the game's Select), A, B, X and Y ask for nothing.
-	CHECK(pad.Sample(xinput::Start | xinput::View | xinput::A | xinput::B | xinput::X | xinput::Y, out) == 0);
-	CHECK(pad.Sample(0, out) == 0);
+	// Start, View (the game's Select), A, B and X ask for nothing; Y opens the takeover timeline.
+	CHECK(pad.Sample({xinput::Start | xinput::View | xinput::A | xinput::B | xinput::X}, Stage::Off, false, out) == 0);
+	CHECK(pad.Sample({}, Stage::Off, false, out) == 0);
+	CHECK(pad.Sample({xinput::Y}, Stage::Off, false, out) == 1 && out[0] == Command::TakeOver);
+	CHECK(pad.Sample({}, Stage::Off, false, out) == 0);
 	// Presses, not holds.
-	CHECK(pad.Sample(xinput::RB, out) == 1 && out[0] == Command::TogglePause);
-	CHECK(pad.Sample(xinput::RB, out) == 0);
-	CHECK(pad.Sample(0, out) == 0);
-	CHECK(pad.Sample(xinput::LB, out) == 1 && out[0] == Command::CycleSpeed);
-	CHECK(pad.Sample(xinput::LB | xinput::LT, out) == 1 && out[0] == Command::Inputs);
-	CHECK(pad.Sample(0, out) == 0);
+	CHECK(pad.Sample({xinput::RB}, Stage::Off, false, out) == 1 && out[0] == Command::TogglePause);
+	CHECK(pad.Sample({xinput::RB}, Stage::Off, false, out) == 0);
+	CHECK(pad.Sample({}, Stage::Off, false, out) == 0);
+	CHECK(pad.Sample({xinput::LB}, Stage::Off, false, out) == 1 && out[0] == Command::CycleSpeed);
+	CHECK(pad.Sample({xinput::LB | xinput::LT}, Stage::Off, false, out) == 1 && out[0] == Command::Inputs);
+	CHECK(pad.Sample({}, Stage::Off, false, out) == 0);
 	// RT steps on the press, then again after 300 ms, ten times a second.
-	CHECK(pad.Sample(xinput::RT, out) == 1 && out[0] == Command::Step);
+	CHECK(pad.Sample({xinput::RT}, Stage::Off, false, out) == 1 && out[0] == Command::Step);
 	int steps = 0, firstRepeat = -1;
 	for (int tick = 1; tick <= 60; tick++) {
-		const int n = pad.Sample(xinput::RT, out);
+		const int n = pad.Sample({xinput::RT}, Stage::Off, false, out);
 		if (n) { CHECK(n == 1 && out[0] == Command::Step); steps++; if (firstRepeat < 0) firstRepeat = tick; }
 	}
 	CHECK(firstRepeat == static_cast<int>(kRepeatDelay));
 	CHECK(steps == 1 + (60 - static_cast<int>(kRepeatDelay)) / static_cast<int>(kRepeatEvery));
 	// Released and pressed again: one step, the delay starts over.
-	CHECK(pad.Sample(0, out) == 0 && pad.Sample(xinput::RT, out) == 1);
-	CHECK(pad.Sample(xinput::RT, out) == 0);
+	CHECK(pad.Sample({}, Stage::Off, false, out) == 0 && pad.Sample({xinput::RT}, Stage::Off, false, out) == 1);
+	CHECK(pad.Sample({xinput::RT}, Stage::Off, false, out) == 0);
 	// Several at once.
 	pad.Reset();
-	CHECK(pad.Sample(xinput::RB | xinput::RT | xinput::LB | xinput::LT, out) == 4);
+	CHECK(pad.Sample({xinput::RB | xinput::RT | xinput::LB | xinput::LT}, Stage::Off, false, out) == 4);
 	CHECK(out[0] == Command::TogglePause && out[1] == Command::Step && out[2] == Command::CycleSpeed && out[3] == Command::Inputs);
 	// Buttons held when the playback starts are not presses.
-	pad.Reset(xinput::RB | xinput::LT);
-	CHECK(pad.Sample(xinput::RB | xinput::LT, out) == 0);
-	CHECK(pad.Sample(0, out) == 0 && pad.Sample(xinput::RB, out) == 1);
+	pad.Reset({xinput::RB | xinput::LT});
+	CHECK(pad.Sample({xinput::RB | xinput::LT}, Stage::Off, false, out) == 0);
+	CHECK(pad.Sample({}, Stage::Off, false, out) == 0 && pad.Sample({xinput::RB}, Stage::Off, false, out) == 1);
 }
 
 void TestKeys() {
-	for (unsigned key : {kKeyF1, kKeyF2, kKeyF3, kKeyF4, kKeyF5, kKeyF9}) {
-		CHECK(KeepsKey(true, kKeyDown, key) && KeepsKey(true, kKeyUp, key));
+	for (unsigned key : {kKeyF1, kKeyF2, kKeyF3, kKeyF4, kKeyF5, kKeyF6, kKeyF7, kKeyF9}) {
+		for (Keys keys : {Keys::Playback, Keys::Timeline}) CHECK(KeepsKey(keys, kKeyDown, key) && KeepsKey(keys, kKeyUp, key));
 		// Only while a replay plays.
-		CHECK(!KeepsKey(false, kKeyDown, key));
+		CHECK(!KeepsKey(Keys::Game, kKeyDown, key));
 		// With Alt they are system keys and reach the game: Alt+F4 closes it.
-		CHECK(!KeepsKey(true, 0x104, key) && !KeepsKey(true, 0x105, key));
+		CHECK(!KeepsKey(Keys::Playback, 0x104, key) && !KeepsKey(Keys::Playback, 0x105, key));
 	}
-	// F6 to F8 are Training's, F10 the shell's, F11 and F12 nobody's here.
-	for (unsigned key : {0x75u, 0x76u, 0x77u, 0x79u, 0x7Au, 0x7Bu, 0x41u, 0x0Du}) CHECK(!KeepsKey(true, kKeyDown, key));
+	// The takeover timeline's keys only while it is open; Escape then never reaches the game's pause menu.
+	for (unsigned key : {kKeyTab, kKeyEnter, kKeyEscape, kKeyLeft, kKeyRight, kKeyComma, kKeyPeriod}) {
+		CHECK(KeepsKey(Keys::Timeline, kKeyDown, key) && KeepsKey(Keys::Timeline, kKeyUp, key));
+		CHECK(!KeepsKey(Keys::Playback, kKeyDown, key) && !KeepsKey(Keys::Game, kKeyDown, key));
+	}
+	// F8 is Training's, F10 the shell's, F11 and F12 nobody's here.
+	for (unsigned key : {0x77u, 0x79u, 0x7Au, 0x7Bu, 0x41u}) CHECK(!KeepsKey(Keys::Timeline, kKeyDown, key));
+}
+
+// The pad on the takeover timeline and during a takeover.
+void TestTakeoverPad() {
+		PadControls pad;
+	Command out[4];
+	// A change of stage counts what is held as pressed: the Y that opened the timeline is not its Y.
+	CHECK(pad.Sample({xinput::Y}, Stage::Choosing, false, out) == 0);
+	CHECK(pad.Sample({xinput::Y}, Stage::Choosing, false, out) == 0);
+	CHECK(pad.Sample({}, Stage::Choosing, false, out) == 0);
+	CHECK(pad.Sample({xinput::Y}, Stage::Choosing, false, out) == 1 && out[0] == Command::Side);
+	CHECK(pad.Sample({xinput::LB}, Stage::Choosing, false, out) == 1 && out[0] == Command::SecondBack);
+	CHECK(pad.Sample({xinput::RB}, Stage::Choosing, false, out) == 1 && out[0] == Command::SecondAhead);
+	CHECK(pad.Sample({xinput::B}, Stage::Choosing, false, out) == 1 && out[0] == Command::Watch);
+	CHECK(pad.Sample({}, Stage::Choosing, false, out) == 0);
+	// A and B at once: A starts.
+	CHECK(pad.Sample({xinput::A | xinput::B}, Stage::Choosing, false, out) == 1 && out[0] == Command::Start);
+	// The transport's buttons are not the timeline's.
+	pad.Reset();
+	CHECK(pad.Sample({xinput::RT | xinput::LT}, Stage::Choosing, false, out) == 0);
+	// Left steps back a frame, held it repeats as RT does; the stick or pad's direction comes as the game's bits.
+	pad.Reset();
+	CHECK(pad.Sample({0, true, false}, Stage::Choosing, false, out) == 1 && out[0] == Command::StepBack);
+	int backs = 0;
+	for (unsigned tick = 1; tick <= 60; tick++) backs += pad.Sample({0, true, false}, Stage::Choosing, false, out);
+	CHECK(backs == 1 + static_cast<int>((60 - kRepeatDelay) / kRepeatEvery));
+	// Turning to the right steps ahead at once, and left's repeat is over.
+	CHECK(pad.Sample({0, false, true}, Stage::Choosing, false, out) == 1 && out[0] == Command::Step);
+	CHECK(pad.Sample({0, false, true}, Stage::Choosing, false, out) == 0);
+	// Playing: the face buttons and the transport's are the fighter's.
+	pad.Reset();
+	CHECK(pad.Sample({}, Stage::Playing, false, out) == 0);
+	for (std::uint32_t b : {xinput::A, xinput::B, xinput::X, xinput::Y, xinput::RB, xinput::RT, xinput::LB, xinput::LT}) {
+		CHECK(pad.Sample({b}, Stage::Playing, false, out) == 0 && pad.Sample({}, Stage::Playing, false, out) == 0);
+	}
+	// View tapped: Restart on its release.
+	CHECK(pad.Sample({xinput::View}, Stage::Playing, false, out) == 0);
+	CHECK(pad.Sample({}, Stage::Playing, false, out) == 1 && out[0] == Command::Restart);
+	// View held: the timeline once, at kViewHold, and nothing on its release.
+	CHECK(pad.Sample({}, Stage::Countdown, false, out) == 0);
+	CHECK(pad.Sample({xinput::View}, Stage::Countdown, false, out) == 0);
+	int timeline = 0;
+	for (unsigned tick = 1; tick <= kViewHold * 2; tick++) {
+		const int n = pad.Sample({xinput::View}, Stage::Countdown, false, out);
+		if (n) { CHECK(out[0] == Command::Timeline && tick == kViewHold); timeline++; }
+	}
+	CHECK(timeline == 1 && pad.Sample({}, Stage::Countdown, false, out) == 0);
+	// A Restart moves the stage from Playing to Countdown: a View still held from it is not a new press.
+	CHECK(pad.Sample({xinput::View}, Stage::Playing, false, out) == 0);
+	CHECK(pad.Sample({}, Stage::Playing, false, out) == 0);
+	// Under the game's pause menu nothing, and View held through it is no tap.
+	CHECK(pad.Sample({xinput::View}, Stage::Playing, true, out) == 0);
+	CHECK(pad.Sample({}, Stage::Playing, false, out) == 0);
+}
+
+// The command kinds, and which commands each takeover stage takes.
+void TestCommandKinds() {
+	for (Command c : {Command::TogglePause, Command::Step, Command::Slower, Command::Faster, Command::CycleSpeed}) CHECK(MovesTransport(c) && JumpFrames(c) == 0);
+	for (Command c : {Command::Meter, Command::Inputs, Command::TakeOver, Command::StepBack, Command::SecondBack, Command::SecondAhead, Command::Side, Command::Start, Command::Watch, Command::Restart, Command::Timeline})
+		CHECK(!MovesTransport(c));
+	CHECK(JumpFrames(Command::StepBack) == -1 && JumpFrames(Command::SecondBack) == -kSecondFrames && JumpFrames(Command::SecondAhead) == kSecondFrames);
+	const Command all[] = {Command::TogglePause, Command::Step, Command::Slower, Command::Faster, Command::CycleSpeed, Command::Meter, Command::Inputs,
+		Command::TakeOver, Command::StepBack, Command::SecondBack, Command::SecondAhead, Command::Side, Command::Start, Command::Watch, Command::Restart, Command::Timeline};
+	for (Command c : all) {
+		const bool watching = c == Command::TogglePause || c == Command::Step || c == Command::Slower || c == Command::Faster ||
+			c == Command::CycleSpeed || c == Command::Meter || c == Command::Inputs || c == Command::TakeOver;
+		const bool choosing = c == Command::Step || c == Command::StepBack || c == Command::SecondBack || c == Command::SecondAhead ||
+			c == Command::Side || c == Command::Start || c == Command::Watch;
+		const bool taken = c == Command::Restart || c == Command::Timeline;
+		CHECK(Accepts(Stage::Off, c) == watching);
+		CHECK(Accepts(Stage::Choosing, c) == choosing);
+		CHECK(Accepts(Stage::Countdown, c) == taken && Accepts(Stage::Playing, c) == taken);
+	}
+	CHECK(!Taken(Stage::Off) && !Taken(Stage::Choosing) && Taken(Stage::Countdown) && Taken(Stage::Playing));
+	CHECK(KeysFor(false, Stage::Choosing) == Keys::Game && KeysFor(true, Stage::Off) == Keys::Playback &&
+		KeysFor(true, Stage::Choosing) == Keys::Timeline && KeysFor(true, Stage::Playing) == Keys::Playback);
 }
 
 void TestStrip() {
@@ -404,12 +504,15 @@ int main() {
 	TestGuard();
 	TestAdvanceGate();
 	TestJumpLanded();
+	TestTakeoverMayBegin();
 	TestMeterFedOnlyOnAdvance();
 	TestObservedAfterUpdate();
 	TestPauseMenuReleasesFreeze();
 	TestSessionQueue();
 	TestPad();
 	TestKeys();
+	TestTakeoverPad();
+	TestCommandKinds();
 	TestStrip();
 	return 0;
 }

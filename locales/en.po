@@ -6134,6 +6134,48 @@ msgstr "Frame {0}"
 msgid "replays.controls.unavailable"
 msgstr "Controls work during the fight"
 
+msgid "replays.takeover.take"
+msgstr "Take over"
+
+msgid "replays.takeover.choose"
+msgstr "Pick the frame to take over from"
+
+msgid "replays.takeover.frame"
+msgstr "Frame"
+
+msgid "replays.takeover.second"
+msgstr "Second"
+
+msgid "replays.takeover.left_right"
+msgstr "Left/Right"
+
+msgid "replays.takeover.side"
+msgstr "Player {0}"
+
+msgid "replays.takeover.start"
+msgstr "Start"
+
+msgid "replays.takeover.watch"
+msgstr "Watch"
+
+msgid "replays.takeover.restart"
+msgstr "Restart"
+
+msgid "replays.takeover.timeline"
+msgstr "Timeline"
+
+msgid "replays.takeover.hold"
+msgstr "Hold {0}"
+
+msgid "replays.takeover.playing"
+msgstr "Takeover: Player {0}"
+
+msgid "replays.takeover.ended"
+msgstr "The recording ends here; the other fighter stands"
+
+msgid "replays.takeover.failed"
+msgstr "This frame cannot be taken over"
+
 msgid "room.training"
 msgstr "Wait in Training"
 

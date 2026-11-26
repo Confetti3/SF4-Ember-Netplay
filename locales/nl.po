@@ -6525,6 +6525,48 @@ msgstr "Frame {0}"
 msgid "replays.controls.unavailable"
 msgstr "Bediening werkt tijdens het gevecht"
 
+msgid "replays.takeover.take"
+msgstr "Overnemen"
+
+msgid "replays.takeover.choose"
+msgstr "Kies het frame om over te nemen"
+
+msgid "replays.takeover.frame"
+msgstr "Frame"
+
+msgid "replays.takeover.second"
+msgstr "Seconde"
+
+msgid "replays.takeover.left_right"
+msgstr "Links/Rechts"
+
+msgid "replays.takeover.side"
+msgstr "Speler {0}"
+
+msgid "replays.takeover.start"
+msgstr "Starten"
+
+msgid "replays.takeover.watch"
+msgstr "Kijken"
+
+msgid "replays.takeover.restart"
+msgstr "Opnieuw"
+
+msgid "replays.takeover.timeline"
+msgstr "Tijdlijn"
+
+msgid "replays.takeover.hold"
+msgstr "{0} vasthouden"
+
+msgid "replays.takeover.playing"
+msgstr "Overname: Speler {0}"
+
+msgid "replays.takeover.ended"
+msgstr "De opname stopt hier; de andere vechter blijft staan"
+
+msgid "replays.takeover.failed"
+msgstr "Dit frame kan niet overgenomen worden"
+
 msgid "room.training"
 msgstr "Wachten in Training"
 

@@ -20,6 +20,7 @@
 #include "sf4e__MementoGuards.hxx"
 #include "sf4e__ReplayCapture.hxx"
 #include "sf4e__ReplayStore.hxx"
+#include "sf4e__ReplayTakeover.hxx"
 #include "../training/CameraControl.hxx"
 
 namespace {
@@ -27,6 +28,7 @@ namespace {
 using rSystem = Dimps::Game::Battle::System;
 using Dimps::Game::Battle::ReplaySystem;
 namespace transport = sf4e::replaytransport;
+namespace replaytakeover = sf4e::replaytakeover;
 using transport::Command;
 using transport::Device;
 
@@ -84,6 +86,11 @@ struct Snap : sf4e::replaysnaps::Entry {
 };
 sf4e::replaysnaps::Ring<Snap> s_snaps;
 bool s_snapsBroken = false;
+// The replay takeover (common/ReplayTakeover.hxx), and that its side was handed back while the game's replay menu is open.
+sf4e::replaytakeover::Takeover s_takeover;
+bool s_takeoverMenu = false;
+bool Taken() { return transport::Taken(s_takeover.GetStage()); }
+
 // A jump back waiting for the battle update that loads its snapshot.
 bool s_loadWaiting = false;
 int s_loadRound = 0, s_loadFrame = 0;
@@ -98,6 +105,7 @@ void FreeSnaps(bool engineAlive) {
 }
 void Leave() {
 	s_view.playback = s_view.armed = s_view.exporting = false;
+	s_view.takeover = sf4e::replaytransport::Stage::Off; s_view.countdown = 0;
 }
 
 // A playback starts or ends: a new session, and nothing the last one left
@@ -106,6 +114,7 @@ void Leave() {
 void BeginSession() {
 	// A "Play again" starts a battle without a close; its old states point into the battle that went.
 	FreeSnaps(false); s_snapsBroken = false;
+	sf4e::replaytakeover::Drop(false); s_takeover = {}; s_takeoverMenu = false; s_view.takeoverFrame = -1;
 	s_queue.Clear();
 	++s_view.session;
 	s_transport.Reset();
@@ -135,6 +144,21 @@ struct Cadence : rSystem {
 	void Run();
 };
 
+// The takeover is over: the side and the save state go back.
+void CarryEnd(rSystem* system) {
+	s_takeoverMenu = false;
+	spdlog::info("Replay takeover: ended");
+	replaytakeover::Carry(system, replaytakeover::Act::End, s_takeover.Side());
+}
+// The playback left the fight the takeover was made in.
+void EndTakeover(rSystem* system) { if (s_takeover.End() == replaytakeover::Act::End) CarryEnd(system); }
+// A takeover command the stage takes. Its save or load waits for the battle update (BeforeUpdate), as the ring's do.
+void AskTakeover(rSystem* system, Command command) {
+	const camera::Control& phone = camera::Phone();
+	const bool settled = transport::TakeoverMayBegin(phone.SeekAsked(), phone.GetSeek() != camera::Seek::None, s_loadWaiting);
+	if (s_takeover.Apply(command, s_transport.Paused(), settled) == replaytakeover::Act::End) CarryEnd(system);
+}
+
 void Cadence::Run() {
 	rSystem* system = this;
 	transport::Context context;
@@ -145,6 +169,7 @@ void Cadence::Run() {
 		context.training = (system->*rSystem::publicMethods.GetGameMode)() == Dimps::Game::Battle::GAMEMODE_TRAINING;
 	if (!transport::Playback(context)) {
 		// Netplay, Versus, Training: the game's function and nothing else.
+		EndTakeover(system);
 		if (s_view.playback) Leave();
 		camera::Phone().SetTotal(0);
 		if (camera::Phone().GetSeek() == camera::Seek::Forward) camera::Phone().ClearGoal();
@@ -157,6 +182,7 @@ void Cadence::Run() {
 	context.exporting = sf4e::replaystore::ExportPlaying() || sf4e::replaycapture::GetState() == sf4e::replaycapture::State::Recording;
 	context.fight = (system->*rSystem::publicMethods.IsFight)();
 	context.pauseMenu = (*flags & transport::kPauseOrHold) != 0;
+	context.taken = Taken();
 	const transport::Route route = transport::Decide(context);
 	NoteRoute(static_cast<int>(route), RouteName(route));
 
@@ -164,28 +190,39 @@ void Cadence::Run() {
 	// so its legend reads normal speed when the round is introduced.
 	if (transport::RoundBoundary(static_cast<int>(*rSystem::staticVars.CurrentBattleFlow)) || recorder->round != s_round) {
 		if (recorder->round != s_round) s_snaps.DropOtherRounds(recorder->round, FreeSnap);
+		// The round's playback starts again with both sides the replay's, and the last start was in another round.
+		EndTakeover(system); s_view.takeoverFrame = -1;
 		s_round = recorder->round;
 		s_transport.Reset();
 		*slow = 0; s_transport.Wrote(false);
 	}
 
+	if (context.exporting) EndTakeover(system);
+	// The game's replay menu sees a replay while it is open, and the player's side is taken again as it closes.
+	if (Taken() && context.pauseMenu != s_takeoverMenu) {
+		s_takeoverMenu = context.pauseMenu;
+		sf4e::replaytakeover::Hand(system, s_takeover.Side(), !s_takeoverMenu);
+	}
 	// Only the commands of this session; one made under another is not its.
 	const auto pending = s_queue.Take(s_view.session);
 	if (route == transport::Route::Transport) s_transport.FoldNative(*slow != 0);
+	camera::Control& phone = camera::Phone();
 	for (const auto& queued : pending) {
 		// An export plays untouched, and under the pause menu the keys are its.
 		if (context.exporting || context.pauseMenu) continue;
-		if (transport::MovesTransport(queued.command)) {
-			if (route != transport::Route::Transport) { ++s_view.refused; continue; }
-			s_transport.Apply(queued.command);
-		}
+		// The takeover's stage takes only its own commands; outside the fight none but the layers act.
+		if (!s_takeover.Accepts(queued.command)) continue;
+		const bool layer = queued.command == Command::Meter || queued.command == Command::Inputs;
+		if (!layer && route != transport::Route::Transport && route != transport::Route::Takeover) { ++s_view.refused; continue; }
+		if (const int jump = transport::JumpFrames(queued.command)) phone.AskStep(jump);
+		else if (transport::MovesTransport(queued.command)) s_transport.Apply(queued.command);
 		else if (queued.command == Command::Meter) s_meterFlipped = !s_meterFlipped;
-		else s_lanesOn = !s_lanesOn;
+		else if (queued.command == Command::Inputs) s_lanesOn = !s_lanesOn;
+		else AskTakeover(system, queued.command);
 		++s_view.taken; s_view.device = queued.device;
 	}
 	// The timeline's jump (training/CameraControl.hxx: Seek): a frame ahead is played to at speed; a frame behind
 	// is a restart of the replay, then played to. SeekMore (below) does the playing.
-	camera::Control& phone = camera::Phone();
 	phone.SetTotal(recorder ? static_cast<int>(recorder->streams[recorder->round].frames) : 0);
 	// A loop plays the span from the picked key to the next over and over: at its end the playback jumps to its start.
 	if (route == transport::Route::Transport && !context.exporting && recorder && phone.GetSeek() == camera::Seek::None && !s_transport.Paused()) {
@@ -198,7 +235,11 @@ void Cadence::Run() {
 	}
 	{ const Snap* first = recorder ? s_snaps.Earliest(recorder->round) : nullptr; phone.SetFloor(first ? first->frame : 0); }
 	int want = 0; bool play = false;
-	if (route == transport::Route::Transport && !context.exporting && recorder && phone.TakeSeek(want, play)) {
+	// A jump asked is taken in the fight, once a cadence; it acts only under Ember's controls with no takeover
+	// step waiting. During a takeover, or while its save or load waits, there is no place on the replay to jump
+	// to, and the jump is dropped.
+	const bool asked = (route == transport::Route::Transport || route == transport::Route::Takeover) && phone.TakeSeek(want, play);
+	if (asked && route == transport::Route::Transport && !context.exporting && recorder && s_takeover.Pending() == replaytakeover::Act::None) {
 		want = (std::max)(0, (std::min)(want, phone.Total() - 1));
 		// Before the first snapshot there is nowhere to go back to: the nearest place is the first one.
 		if (want < phone.Frame() && phone.Floor() > want) want = phone.Floor();
@@ -231,6 +272,12 @@ void Cadence::Run() {
 		else *flags &= ~static_cast<DWORD>(transport::kReplayFreeze);
 		*slow = s_transport.SlowFlag() && phone.GetSeek() != camera::Seek::Forward ? 1 : 0;
 		break;
+	case transport::Route::Takeover:
+		// The countdown holds the battle as a pause does, the player's side already taken; then it plays at 1x.
+		if (s_takeover.Hold()) *flags |= transport::kReplayFreeze;
+		else *flags &= ~static_cast<DWORD>(transport::kReplayFreeze);
+		*slow = 0; s_transport.Wrote(false);
+		break;
 	}
 
 	s_view.playback = true;
@@ -238,8 +285,11 @@ void Cadence::Run() {
 	s_view.exporting = context.exporting;
 	s_view.paused = s_transport.Paused();
 	s_view.divisor = s_transport.Divisor();
-	s_view.meter = sf4e::replaystore::MeterWanted() != s_meterFlipped;
-	s_view.lanes = s_lanesOn;
+	// The layers are the recording's: a takeover plays something else.
+	s_view.meter = sf4e::replaystore::MeterWanted() != s_meterFlipped && !context.taken;
+	s_view.lanes = s_lanesOn && !context.taken;
+	s_view.takeover = s_takeover.GetStage(); s_view.takeoverSide = s_takeover.Side(); s_view.countdown = s_takeover.Countdown();
+	s_view.recordingEnded = s_takeover.GetStage() == transport::Stage::Playing && recorder->cursor >= recorder->streams[recorder->round].frames;
 }
 
 }
@@ -266,7 +316,7 @@ void sf4e::replayplayback::StartBattle(Dimps::Game::Battle::System* system) {
 }
 
 void sf4e::replayplayback::CloseBattle() {
-	FreeSnaps(true);
+	FreeSnaps(true); replaytakeover::Drop(true);
 	if (s_view.playback || s_reachedFight) spdlog::info("Replay controls: the battle closed ({} commands taken, {} refused outside the fight)", s_view.taken, s_view.refused);
 	BeginSession();
 	// The game zeroes its half speed flag as it closes (0x5DA5F0).
@@ -310,7 +360,29 @@ void sf4e::replayplayback::BeforeUpdate(Dimps::Game::Battle::System* system) {
 		}
 		return;
 	}
+	// A takeover's save or load, before the update plays the frame; never before a jump back's load waiting above.
+	const replaytakeover::Act act = s_takeover.Pending();
+	if (act != replaytakeover::Act::None) {
+		// A jump the camera editor or the phone asked from its thread since Start would move the battle off the
+		// frame shown: the takeover does not begin, and the timeline stays open over the paused replay.
+		const camera::Control& phone = camera::Phone();
+		if (act == replaytakeover::Act::Begin && !transport::TakeoverMayBegin(phone.SeekAsked(), phone.GetSeek() != camera::Seek::None, s_loadWaiting)) {
+			s_takeover.Carried(false);
+			return;
+		}
+		const int frame = rSystem::GetNumFramesSimulated_FixedPoint(system)->integral;
+		const bool ok = replaytakeover::Carry(system, act, s_takeover.Side());
+		s_takeover.Carried(ok);
+		// A Begin that failed has freed the last takeover's state: there is no frame to mark.
+		if (!ok) { ++s_view.takeoverFailed; if (act == replaytakeover::Act::Begin) s_view.takeoverFrame = -1; return; }
+		if (act == replaytakeover::Act::Begin) s_view.takeoverFrame = frame;
+		// Back on the timeline it waits paused; taken, it plays at 1x once the countdown is over.
+		if (act != replaytakeover::Act::Return) s_transport.Reset();
+		else if (!s_transport.Paused()) s_transport.Apply(Command::TogglePause);
+		return;
+	}
 	// Only under Ember's controls, where the player is scrubbing; an export plays untouched.
+	// Not during a takeover (Route::Takeover): what it plays is never a place on the replay to jump to.
 	if (!s_view.armed || s_snapsBroken || camera::Phone().GetSeek() == camera::Seek::Forward) return;
 	const int frame = rSystem::GetNumFramesSimulated_FixedPoint(system)->integral;
 	if (frame < 0) return;
@@ -370,16 +442,17 @@ void sf4e::replayplayback::Tick(int deviceType, int deviceIndex, bool connected)
 	unsigned held = 0, physical = 0;
 	const bool pad = listening && connected && deviceType == input::PadXInput &&
 		Dimps::Pad::ReadController(deviceType, deviceIndex, held, &physical);
+	const transport::PadState state{physical, (held & replayinputs::Left) != 0, (held & replayinputs::Right) != 0};
 	if (!pad) s_padActive = false;
 	else if (!s_padActive) {
 		// Buttons already down when the playback starts are not presses.
-		s_padActive = true; s_pad.Reset(physical);
+		s_padActive = true; s_pad.Reset(state);
 	}
 	else {
 		Command commands[4];
 		// Under the game's pause menu the pad asks for nothing, so no press
 		// made there waits to act once the menu closes.
-		const int count = s_pad.Sample(physical, commands, battlePause.Paused());
+		const int count = s_pad.Sample(state, s_view.takeover, battlePause.Paused(), commands);
 		for (int i = 0; i < count; i++) Submit(commands[i], Device::Pad, s_view.session);
 	}
 

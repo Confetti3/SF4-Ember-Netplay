@@ -6525,6 +6525,48 @@ msgstr "Frame {0}"
 msgid "replays.controls.unavailable"
 msgstr "Steuerung wirkt nur im Kampf"
 
+msgid "replays.takeover.take"
+msgstr "Übernehmen"
+
+msgid "replays.takeover.choose"
+msgstr "Wähle das Frame für die Übernahme"
+
+msgid "replays.takeover.frame"
+msgstr "Frame"
+
+msgid "replays.takeover.second"
+msgstr "Sekunde"
+
+msgid "replays.takeover.left_right"
+msgstr "Links/Rechts"
+
+msgid "replays.takeover.side"
+msgstr "Spieler {0}"
+
+msgid "replays.takeover.start"
+msgstr "Starten"
+
+msgid "replays.takeover.watch"
+msgstr "Zuschauen"
+
+msgid "replays.takeover.restart"
+msgstr "Neu starten"
+
+msgid "replays.takeover.timeline"
+msgstr "Zeitleiste"
+
+msgid "replays.takeover.hold"
+msgstr "{0} halten"
+
+msgid "replays.takeover.playing"
+msgstr "Übernahme: Spieler {0}"
+
+msgid "replays.takeover.ended"
+msgstr "Die Aufnahme endet hier; der andere Kämpfer steht"
+
+msgid "replays.takeover.failed"
+msgstr "Dieses Frame kann nicht übernommen werden"
+
 msgid "room.training"
 msgstr "Im Training warten"
 
