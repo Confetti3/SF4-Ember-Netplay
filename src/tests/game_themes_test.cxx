@@ -132,10 +132,13 @@ int main() {
     CHECK(game_themes::Use(f.root.wstring(), game_themes::MainMenu, "Many", why, tiny) == Outcome::Used && why.empty() && f.Menus("sub/c.emz"));
     // The limits of a real part are far above these.
     CHECK(game_themes::Limits().files >= 1000 && game_themes::Limits().bytes >= (std::uintmax_t(256) << 20));
-    // Names with a drive or stream in them are no plain file names.
-    CHECK(!game_themes::WriteActive(f.root.wstring(), game_themes::BattleHud, "CMN/x:y", "x", error));
-    CHECK(!game_themes::WriteActive(f.root.wstring(), game_themes::BattleHud, "C:\\x.emz", "x", error));
-    CHECK(!game_themes::WriteActive(f.root.wstring(), game_themes::BattleHud, "\\x.emz", "x", error));
+    // A file's place in a part is plain pieces only: a drive, a stream, a root ("\x.emz" names the root of the
+    // drive) or a dot piece is not, and WriteActive says so before it writes anything.
+    CHECK(game_themes::PlainPath("CMN/cockpit.tex.emz") && game_themes::PlainPath("ENG/RYU/chara.tex.emz") && game_themes::PlainPath("title.emz"));
+    for (const char* bad : {"", "CMN/x:y", "C:\\x.emz", "C:x.emz", "\\x.emz", "/x.emz", "CMN/", "./x.emz", "CMN/../x.emz", "\\\\server\\x.emz", "CMN/\xff.emz"})
+        CHECK(!game_themes::PlainPath(bad));
+    CHECK(!game_themes::WriteActive(f.root.wstring(), game_themes::BattleHud, "\\x.emz", "x", error) && error == "not a plain file name");
+    CHECK(!game_themes::WriteActive(f.root.wstring(), game_themes::BattleHud, "C:\\x.emz", "x", error) && error == "not a plain file name");
     // The battle HUD's own check is asked for the battle HUD only, and its verdict decides: a refused HUD
     // leaves the game's own, with the kind of refusal for the player.
     int asked = 0;
