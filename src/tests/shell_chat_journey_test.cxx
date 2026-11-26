@@ -4,6 +4,7 @@
 // count, and the Chat screen's message box.
 #include "../ui/ChatTranscript.hxx"
 #include "../ui/ChatFilter.hxx"
+#include "../ui/FightChatFeed.hxx"
 #include <cmath>
 
 namespace {
@@ -215,12 +216,65 @@ void FilterLogic(){
  s.chat.push_back({1,2,"oh shit"});
  sf4e::ui::ChatTranscript t;t.Update(s,{});
  Check(t.Lines().back().text=="oh shit"&&t.Lines().back().filtered=="oh ****","A chat line did not keep its text and its filtered text");
+ // A quick line shows in the reader's language and skips the filter; a muted member's is not unread.
+ s.chat.push_back({2,2,"Nice!",sf4e::QuickLine::Nice});
+ t.Update(s,{});
+ const auto& quick=t.Lines().back();
+ Check(quick.quick==sf4e::QuickLine::Nice&&sf4e::ui::ChatLineText(quick,true)==sf4e::loc::T("chat.quick.nice")&&sf4e::ui::ChatLineText(quick,false)==sf4e::loc::T("chat.quick.nice"),"A quick line was not shown as its catalog line, or the filter changed it");
+ Check(sf4e::ui::ChatLineText(t.Lines().front(),true)=="oh ****"&&sf4e::ui::ChatLineText(t.Lines().front(),false)=="oh shit","A typed line did not follow the chat filter setting");
+ Check(t.Unread({})==1&&t.Unread({2})==0,"A muted member's quick line counted as unread");
 }
+}
+// Room chat over a fight (FightChatFeed.hxx): only what was said since the fight began, the newest
+// three in arrival order with a repeated line folded, each for six seconds and then a second's fade;
+// never a muted member's; and with My table, only the members with a place at this player's table.
+void FightChatFeedLogic(){
+ using namespace sf4e;
+ using Scope=netplay::FightChatPreferences::Scope;
+ room::Snapshot s;s.roomEpoch=9;s.localMember=1;
+ for(room::MemberId id:{1,2,3,4}){room::Member m;m.id=id;m.name="Player "+std::to_string(id);s.members.push_back(m);}
+ s.tables[0].p1=1;s.tables[0].p2=2;s.tables[0].spectators={3};
+ std::uint64_t sequence=0;
+ ui::ChatTranscript t;ui::FightChatFeed feed;
+ const auto say=[&](room::MemberId who,const char* text,QuickLine quick=QuickLine::None){s.chat.push_back({++sequence,who,text,quick});t.Update(s,{});};
+ const auto shown=[&](double now,const std::set<room::MemberId>& muted,Scope scope){
+  feed.Update(t,true,now);return feed.View(t,muted,ui::AudienceOf(s,scope),true,now);
+ };
+ say(2,"before the fight");
+ feed.Update(t,false,0);
+ Check(feed.View(t,{},ui::AudienceOf(s,Scope::Everyone),true,0).entries.empty(),"The feed showed chat outside a fight");
+ feed.Update(t,true,1);
+ Check(shown(1,{},Scope::Everyone).entries.empty(),"The feed showed a line said before the fight began");
+ say(2,"GG",QuickLine::GoodGame);say(2,"GG",QuickLine::GoodGame);say(4,"watch this");say(1,"thanks");
+ auto view=shown(2,{},Scope::Everyone);
+ Check(view.entries.size()==3&&view.entries[0].text==loc::T("chat.quick.gg")&&view.entries[0].repeats==2&&
+  view.entries[2].text=="thanks"&&view.entries[2].own,"The feed did not fold a repeat, keep the order or mark this player's own line");
+ // My table hears the table's fighters and watchers, not the room's others.
+ view=shown(2,{},Scope::MyTable);
+ Check(view.entries.size()==2&&view.entries[1].name=="Player 1","My table showed a member with no place at this player's table");
+ Check(shown(2,{2},Scope::Everyone).entries.size()==2,"The feed showed a muted member's line");
+ // Shown for six seconds, then gone over a second.
+ view=shown(8.5,{},Scope::Everyone);
+ Check(!view.entries.empty()&&view.entries[0].alpha>.4f&&view.entries[0].alpha<.6f,"A feed line did not fade after six seconds");
+ Check(shown(9.5,{},Scope::Everyone).entries.empty(),"A feed line stayed past its fade");
+ // A new fight starts clean.
+ feed.Update(t,false,10);feed.Update(t,true,11);
+ Check(feed.View(t,{},ui::AudienceOf(s,Scope::Everyone),true,11).entries.empty(),"A new fight showed the last fight's chat");
+ // Settings: the scope steps round, quick lines switch, and each slot steps through every line.
+ netplay::FightChatPreferences chat;
+ Check(ui::AdjustFightChat("fight-chat",1,chat)&&chat.scope==Scope::Everyone&&ui::AdjustFightChat("fight-chat",1,chat)&&chat.scope==Scope::Off&&
+  ui::AdjustFightChat("fight-chat",1,chat)&&chat.scope==Scope::MyTable&&ui::AdjustFightChat("fight-chat",-1,chat)&&chat.scope==Scope::Off,"Chat in matches did not step round");
+ Check(ui::AdjustFightChat("quick-lines",-1,chat)&&!chat.quickLines,"Quick lines did not switch off");
+ for(int i=0;i<quickchat::Count;++i)Check(ui::AdjustFightChat("quick-slot-2",1,chat),"A quick slot row was not taken");
+ Check(chat.slots[2]==QuickLine::Sorry&&ui::AdjustFightChat("quick-slot-0",-1,chat)&&chat.slots[0]==QuickLine::CloseOne,"A quick slot did not step through every line");
+ Check(!ui::AdjustFightChat("quick-slot-4",1,chat)&&!ui::AdjustFightChat("chat-filter",1,chat),"Another row was taken as fight chat's");
+ Check(ui::FightChatRows(chat,true)[2].enabled==chat.quickLines,"The quick slots are offered while quick lines are off");
 }
 void ChatJourneys(){
  using namespace sf4e;
  TranscriptLogic();
  FilterLogic();
+ FightChatFeedLogic();
  Harness h;h.Frame();
  auto& io=ImGui::GetIO();
  const auto key=[&](ImGuiKey k){h.Frame();io.AddKeyEvent(k,true);h.Frame();io.AddKeyEvent(k,false);h.Frame();};

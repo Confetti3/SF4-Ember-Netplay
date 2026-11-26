@@ -11,6 +11,7 @@
 #include "../netplay/ButtonPromptPreference.hxx"
 #include "../netplay/CountryPreferenceJson.hxx"
 #include "../netplay/SpeechPreferenceJson.hxx"
+#include "../netplay/FightChatPreferenceJson.hxx"
 #include "../netplay/CardPreferenceJson.hxx"
 #define NOMINMAX
 #include <windows.h>
@@ -378,6 +379,29 @@ static void SpeechRoundTrips(const Path& root) {
     const auto odd=netplay::ReadSpeechPreferences({{"speech",{{"enabled",1},{"rate",11},{"volume",55},{"details",false}}}});
     CHECK(!odd.enabled&&odd.rate==0&&odd.volume==100&&!odd.details&&!odd.hints&&!odd.position&&odd.chime&&odd.chimeVolume==60&&!odd.introHeard&&odd.tick&&odd.describeUsed==0&&odd.Reminds());
     netplay::PlayerPreferences invalid; invalid.speech.volume=0; CHECK(!invalid.Valid());
+}
+
+// Fight chat is one object in the netplay section; a profile from before it loads the defaults, and a field
+// that is missing or unknown loads as its default alone, a slot included.
+static void FightChatRoundTrips(const Path& root) {
+    using namespace sf4e;
+    using Scope=netplay::FightChatPreferences::Scope;
+    const auto folder=root/L"fight-chat";
+    CHECK(std::filesystem::create_directory(folder));
+    SettingsStore store(folder.wstring()); std::string error;
+    netplay::PlayerPreferences prefs; prefs.fightChat.scope=Scope::Everyone; prefs.fightChat.quickLines=false;
+    prefs.fightChat.slots[1]=QuickLine::CloseOne; prefs.fightChat.slots[3]=QuickLine::Thanks; CHECK(prefs.Valid());
+    Json saved; netplay::WriteFightChatPreferences(prefs,saved);
+    CHECK(store.SaveLauncher(saved,error));
+    CHECK(Json::parse(Read(folder/L"settings.json"))["netplay"]["fightChat"]["slots"][1]=="close_one");
+    Json loaded; CHECK(store.LoadLauncher(loaded,error));
+    CHECK(netplay::ReadFightChatPreferences(loaded)==prefs.fightChat);
+    CHECK(netplay::ReadFightChatPreferences(Json::object())==netplay::FightChatPreferences());
+    const auto odd=netplay::ReadFightChatPreferences({{"fightChat",{{"scope","loud"},{"quickLines",1},{"slots",{"gg","shout",7,"nice"}}}}});
+    netplay::FightChatPreferences expected; expected.slots[3]=QuickLine::Nice;
+    CHECK(odd==expected);
+    CHECK(netplay::ReadFightChatPreferences({{"fightChat",{{"slots",{"nice"}}}}})==netplay::FightChatPreferences());
+    netplay::PlayerPreferences invalid; invalid.fightChat.slots[0]=QuickLine::None; CHECK(!invalid.Valid());
 }
 
 // What Edit card keeps (the device, whether the connection and region show, what the player is looking for and the
@@ -940,6 +964,7 @@ int main() {
     CountryRoundTrips(root);
     AreaRoundTrips(root);
     SpeechRoundTrips(root);
+    FightChatRoundTrips(root);
     CardPreferencesRoundTrip(root);
     InterfaceScaleRange(root);
     ControllerLayerRoundTrip(root);

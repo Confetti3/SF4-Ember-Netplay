@@ -8,6 +8,7 @@
 #include "MatchHudPreference.hxx"
 #include "PublicRoomFilterJson.hxx"
 #include "SpeechPreferenceJson.hxx"
+#include "FightChatPreferenceJson.hxx"
 #include "../common/ButtonLayoutJson.hxx"
 #include <cstdint>
 #include <nlohmann/json.hpp>
@@ -61,6 +62,7 @@ inline bool LoadPlayerPreferences(const nlohmann::json& saved, PlayerPreferences
         preferences.shareReplaysSince = since != saved.end() && since->is_number_unsigned() ? since->get<std::uint64_t>() : 0;
     });
     setting([&] { preferences.speech = ReadSpeechPreferences(saved); });
+    setting([&] { preferences.fightChat = ReadFightChatPreferences(saved); });
     setting([&] { ReadCardPreferences(saved, preferences); });
     setting([&] { preferences.roomFilter = ReadRoomFilter(saved); });
     setting([&] {

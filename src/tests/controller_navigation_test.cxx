@@ -266,24 +266,27 @@ void NativeCapture() {
   // a fight's GGPO input, and which netplay log count it adds to.
   using sf4e::input::GatePad;using sf4e::input::MenuGate;using sf4e::input::WithheldReason;
   const MenuGate idle{},capturing{true,0},kept{false,0x12};
-  const auto none=GatePad(idle,false,false,true);
+  const auto none=GatePad(idle,0,false,true);
   Check(!none.withheld&&!none.blocked&&none.counted==WithheldReason::None,"A free pad update withheld input");
   // The menu's capture takes every button, the Training gesture's Start among them.
-  const auto taken=GatePad(capturing,true,false,true);
+  const auto taken=GatePad(capturing,sf4e::input::NativeStart,false,true);
   Check(taken.withheld==~0u&&taken.blocked&&taken.counted==WithheldReason::Menu,"A capture did not take every button");
   // Kept buttons are withheld one by one; new presses are not blocked.
-  const auto rest=GatePad(kept,false,false,true);
+  const auto rest=GatePad(kept,0,false,true);
   Check(rest.withheld==0x12&&!rest.blocked&&rest.counted==WithheldReason::Kept,"Buttons kept after a capture were not withheld alone");
-  // A gesture that owns Start withholds only the game's Start, and counts nothing.
-  const auto gesture=GatePad(idle,true,false,true);
-  Check(gesture.withheld==sf4e::input::NativeStart&&!gesture.blocked&&gesture.counted==WithheldReason::None,"The gesture's Start reached the game");
-  const auto both=GatePad(kept,true,false,true);
-  Check(both.withheld==(0x12u|sf4e::input::NativeStart),"The gesture's Start and the kept buttons were not withheld together");
+  // A gesture withholds only the buttons it owns, and counts as Gesture in a fight.
+  const auto gesture=GatePad(idle,sf4e::input::NativeStart,false,true);
+  Check(gesture.withheld==sf4e::input::NativeStart&&!gesture.blocked&&gesture.counted==WithheldReason::Gesture,"The gesture's Start reached the game, or was not counted");
+  const auto chord=GatePad(idle,0xF|0x2000,false,true);
+  Check(chord.withheld==(0xF|0x2000)&&!chord.blocked&&chord.counted==WithheldReason::Gesture,"The chat chord's buttons reached the game, or were not counted");
+  Check(GatePad(idle,sf4e::input::NativeStart,false,false).counted==WithheldReason::None,"A gesture outside a fight was counted");
+  const auto both=GatePad(kept,sf4e::input::NativeStart,false,true);
+  Check(both.withheld==(0x12u|sf4e::input::NativeStart)&&both.counted==WithheldReason::Kept,"The gesture's Start and the kept buttons were not withheld together, or counted past the kept ones");
   // An update emptied behind another window counts once, as focus, even while the menu captures.
-  Check(GatePad(capturing,false,true,true).counted==WithheldReason::Focus&&GatePad(kept,false,true,true).counted==WithheldReason::Focus,
+  Check(GatePad(capturing,0,true,true).counted==WithheldReason::Focus&&GatePad(kept,0,true,true).counted==WithheldReason::Focus,
    "An update behind another window counted twice, or not as focus");
   // Only a fight this PC plays counts: a spectator's own menu sends nothing.
-  const auto watching=GatePad(capturing,false,true,false);
+  const auto watching=GatePad(capturing,0,true,false);
   Check(watching.counted==WithheldReason::None&&watching.withheld==~0u&&watching.blocked,"A spectator's update was counted, or its capture let go");
  }
  ControllerNavigation adapter;ControllerSample device{3,2,true,16};

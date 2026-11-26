@@ -3887,6 +3887,22 @@ msgstr "{1} hat noch {0} s, um sich bereit zu melden"
 
 msgid "chat.event.ready_timeout"
 msgstr "{0} hat Tisch {1} verlassen: nicht rechtzeitig bereit"
+msgid "chat.quick.gg"
+msgstr "GG"
+msgid "chat.quick.one_more"
+msgstr "Noch eins?"
+msgid "chat.quick.lag"
+msgstr "Lag?"
+msgid "chat.quick.sorry"
+msgstr "Sorry!"
+msgid "chat.quick.nice"
+msgstr "Nice!"
+msgid "chat.quick.thanks"
+msgstr "Danke!"
+msgid "chat.quick.good_luck"
+msgstr "Viel Glück!"
+msgid "chat.quick.close_one"
+msgstr "Knapp!"
 
 msgid "room.hold.status"
 msgstr "Warten auf Zuschauer: {0} s"
@@ -8880,6 +8896,39 @@ msgstr "Chatfilter"
 
 msgid "settings.chat_filter_detail"
 msgstr "Verdeckt Schimpfwörter und Beleidigungen im Raumchat mit Sternchen, nur auf Ihrem Bildschirm. Nachrichten werden weiter so gesendet, wie sie geschrieben wurden."
+
+msgid "settings.fight_chat"
+msgstr "Chat in Matches"
+
+msgid "settings.fight_chat_table"
+msgstr "Mein Tisch"
+
+msgid "settings.fight_chat_everyone"
+msgstr "Alle"
+
+msgid "settings.fight_chat_detail"
+msgstr "Der Raumchat erscheint einige Sekunden über einem Match, in dem du spielst oder zuschaust: von den Spielern an deinem Tisch, vom ganzen Raum oder gar nicht."
+
+msgid "settings.quick_lines"
+msgstr "Schnellnachrichten"
+
+msgid "settings.quick_lines_detail"
+msgstr "Halte im Match Back gedrückt und drücke eine Richtung, oder drücke F1 bis F4, um eine Schnellnachricht an den Raum zu senden. Dein Kämpfer bleibt stehen, solange Back gehalten wird."
+
+msgid "settings.quick_slot_up"
+msgstr "Back + Oben (F1)"
+
+msgid "settings.quick_slot_right"
+msgstr "Back + Rechts (F2)"
+
+msgid "settings.quick_slot_down"
+msgstr "Back + Unten (F3)"
+
+msgid "settings.quick_slot_left"
+msgstr "Back + Links (F4)"
+
+msgid "settings.quick_slot_detail"
+msgstr "Die Nachricht, die dies sendet. Links und Rechts wählen eine andere."
 
 msgid "room.v2.unread"
 msgstr "{0} ungelesen"

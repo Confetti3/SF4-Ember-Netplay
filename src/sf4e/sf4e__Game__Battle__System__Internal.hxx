@@ -173,17 +173,18 @@ struct NetplayWindow {
         const sf4e::pacing::PacingController& p = fSystem::pacer;
         if (startMs != 0 && now > startMs) {
             // Pad updates whose local input Ember kept from GGPO: window behind /
-            // Ember's menu capturing / buttons held from it after it let go;
+            // Ember's menu capturing / buttons held from it after it let go /
+            // the chat chord holding buttons back;
             // then GGPO frames refused by the match input read.
             const auto withheld = sf4e::Pad::TakeWithheldUpdates();
             spdlog::info(
                 "Netplay [{:.0f}s]: ping={}..{} riftFrames={:.2f} maxAbsRift={:.2f} behind={}/{} rollbacks={} "
                 "resimFrames={} maxDepth={} stallTicks={} slowedMs={:.1f} spedUpMs={:.1f} timesyncEvents={} "
-                "withheld={}/{}/{}/{} stallPresses={}",
+                "withheld={}/{}/{}/{}/{} stallPresses={}",
                 (now - startMs) / 1000.0, pingMin, pingMax, p.riftFramesEma, maxAbsRift, localBehind, remoteBehind,
                 rollbacks, resimFrames, maxDepth, stallTicks, p.msSlowedTotal - slowedAtStart,
                 p.msSpedUpTotal - spedUpAtStart, p.recommendationsReceived - recsAtStart,
-                withheld.focus, withheld.menu, withheld.kept, inputFaults, stallPresses);
+                withheld.focus, withheld.menu, withheld.kept, withheld.gesture, inputFaults, stallPresses);
             if (fSystem::ggpo && !fSystem::LocalFighter()) {
                 spdlog::info("Spectator [{:.0f}s]: maxBacklog={} catchUpFrames={}",
                     (now - startMs) / 1000.0, spectator.maxBacklog, spectator.catchUpFrames);

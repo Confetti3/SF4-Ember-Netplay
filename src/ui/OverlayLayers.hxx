@@ -1,5 +1,6 @@
 #pragma once
 #include "Theme.hxx"
+#include "FightChatFeed.hxx"
 #include "TrainingPanel.hxx"
 #include "ReplayPlaybackHud.hxx"
 
@@ -13,6 +14,8 @@ struct OverlayLayersView {
     bool trainingControlsOpen = false, nativePaused = false;
     bool focused = true, trainingHud = true, matchActive = false;
     bool matchWaitsForMenu = false, showMatchHud = true;
+    // Room chat over the fight (FightChatFeed.hxx), drawn with the match's layers.
+    FightChatFeedView feed;
     std::string controllerWarning;
     std::string padHint;
     // A replay is being exported. Its video's layers, the caption and the

@@ -48,6 +48,7 @@ TrainingHudInput DrawOverlayLayers(const OverlayLayersView& view, const training
         DrawControllerWarning(view.controllerWarning);
         if (passive && training.watching) DrawMatchMeter(training);
         const auto& match = view.match;
+        if (passive) DrawFightChatFeed(view.feed);
         if (passive && view.showMatchHud) DrawMatchStrip(match);
         else if (passive || (match.noticeSeverity >= 2 && !match.notice.empty()) ||
             match.predictionStalled || (match.connectionWarning && match.disconnectCountdownMs >= 0)) {

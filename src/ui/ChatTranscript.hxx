@@ -26,6 +26,8 @@ struct ChatLine {
     std::string text;
     // The text as the chat filter shows it (FilterChat), worked out once.
     std::string filtered;
+    // The quick line this message is, shown in the reader's language; None for typed text.
+    QuickLine quick = QuickLine::None;
     bool own = false;
     // Results and Ready timeouts: the table (from 0). Results: the score with
     // the winner's first.
@@ -38,6 +40,10 @@ struct ChatLine {
 };
 // The line of a room event (any kind but Message), in the player's language now.
 std::string ChatEventText(const ChatLine& line);
+// What a chat line shows: a quick line in the reader's language (it skips the
+// chat filter, being Ember's own words), other messages as written or
+// filtered, and a room event as ChatEventText.
+std::string ChatLineText(const ChatLine& line, bool filtered);
 // A room event for the chat (Event::Kind::ReadyTimeout), numbered by the
 // runtime from 1 in the order it arrived.
 struct RoomNotice {

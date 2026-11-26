@@ -10,6 +10,7 @@
 #include "../netplay/ButtonPromptPreference.hxx"
 #include "../netplay/CountryPreferenceJson.hxx"
 #include "../netplay/SpeechPreferenceJson.hxx"
+#include "../netplay/FightChatPreferenceJson.hxx"
 #include "../netplay/CardPreferenceJson.hxx"
 #include "../netplay/PublicRoomFilterJson.hxx"
 
@@ -379,6 +380,7 @@ namespace OverlayPrefs {
         netplay::WriteCountryPreference(preferences, values);
         netplay::WriteAreaPreference(preferences, values);
         netplay::WriteSpeechPreferences(preferences, values);
+        netplay::WriteFightChatPreferences(preferences, values);
         netplay::WriteCardPreferences(preferences, values);
         netplay::WriteRoomFilter(preferences, values);
         for (int part = 0; part < netplay::GameThemePartCount; ++part) values[netplay::GameThemeKeys[part]] = preferences.gameThemes[part];

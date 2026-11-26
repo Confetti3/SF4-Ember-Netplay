@@ -117,7 +117,7 @@ add_library(sf4e_ui STATIC
     src/ui/ApplicationShell.cxx src/ui/PlayerCard.cxx src/ui/CardModel.cxx src/ui/CardParts.cxx src/ui/CardSets.cxx src/ui/FightersTab.cxx src/ui/AwardsWall.cxx src/ui/PlayerPage.cxx src/ui/PlayerPage__Panel.cxx src/ui/PlayerPage__Draw.cxx src/ui/PlayerOpening.cxx src/ui/FindPlayer.cxx src/ui/PostMatchFriend.cxx src/ui/PostMatchRows.cxx src/ui/ProfilePanel.cxx src/ui/ControllersScreen.cxx src/ui/ReplaysPanel.cxx src/ui/ArchiveTab.cxx src/ui/RoomPanel.cxx src/ui/RoomPanelArcade.cxx src/ui/RoomPanelTables.cxx src/ui/RoomTableCards.cxx src/ui/RoomPanelColumn.cxx src/ui/RoomActions.cxx src/ui/RoomControls.cxx
     src/ui/Theme.cxx src/ui/MatchHud.cxx src/ui/SelectionArt.cxx src/ui/FighterSelector.cxx src/ui/AppearanceGallery.cxx
     src/ui/Win32Input.cxx src/ui/Win32InputBridge.cxx
-    src/ui/GameMenu.cxx src/ui/MenuDialogs.cxx src/ui/ChatTranscript.cxx src/ui/ChatFilter.cxx src/ui/ChatPanel.cxx
+    src/ui/GameMenu.cxx src/ui/MenuDialogs.cxx src/ui/ChatTranscript.cxx src/ui/ChatFilter.cxx src/ui/ChatPanel.cxx src/ui/FightChatFeed.cxx src/ui/ApplicationShell__FightChat.cxx
     src/ui/ControllerNavigation.cxx src/ui/backends/imgui_impl_win32.cpp
     src/ui/TrainingPanel.cxx src/ui/TrainingRemote.cxx src/third_party/qrcodegen/qrcodegen.cpp src/ui/TrainingMeter.cxx src/ui/TrainingData.cxx src/ui/TrainingShortcuts.cxx src/ui/IdentityPanel.cxx src/ui/IdentityPanel__Watch.cxx src/ui/IdentityConnect.cxx src/ui/IdentitySignIn.cxx src/ui/IdentityMatches.cxx src/ui/IdentityDesk.cxx src/ui/PublicRoomsPanel.cxx src/ui/PublicRoomsCards.cxx src/ui/PublicRoomsSetup.cxx src/ui/RankingsPanel.cxx src/ui/RankingsCards.cxx src/ui/MatchAnnouncements.cxx
     src/ui/OverlayLayers.cxx src/ui/CameraPanel.cxx src/ui/ReplayPlaybackHud.cxx src/ui/TrainingInRoom.cxx src/ui/ApplicationShell__Screens.cxx
@@ -252,6 +252,9 @@ add_library(sf4e STATIC
     "src/training/RemoteHud.cxx"
     "src/training/TrainingCapture.cxx"
     "src/sf4e/sf4e__OverlayPrefs.hxx"
+    "src/sf4e/sf4e__OverlayMatchStrip.cxx"
+    "src/sf4e/sf4e__QuickLines.cxx"
+    "src/sf4e/sf4e__OverlayKeys.cxx"
     "src/sf4e/sf4e__OverlayPrefs.cxx"
     "src/sf4e/sf4e__OverlayRandomFighter.hxx"
     "src/sf4e/sf4e__OverlayRandomFighter.cxx"

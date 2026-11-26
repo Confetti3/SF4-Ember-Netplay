@@ -3887,6 +3887,22 @@ msgstr "Il reste {0} s à {1} pour se préparer"
 
 msgid "chat.event.ready_timeout"
 msgstr "{0} a quitté la table {1} : pas prêt à temps"
+msgid "chat.quick.gg"
+msgstr "GG"
+msgid "chat.quick.one_more"
+msgstr "Une autre ?"
+msgid "chat.quick.lag"
+msgstr "Lag ?"
+msgid "chat.quick.sorry"
+msgstr "Désolé !"
+msgid "chat.quick.nice"
+msgstr "Joli !"
+msgid "chat.quick.thanks"
+msgstr "Merci !"
+msgid "chat.quick.good_luck"
+msgstr "Bonne chance !"
+msgid "chat.quick.close_one"
+msgstr "C'était serré !"
 
 msgid "room.hold.status"
 msgstr "Attente des spectateurs : {0} s"
@@ -8880,6 +8896,39 @@ msgstr "Filtre du chat"
 
 msgid "settings.chat_filter_detail"
 msgstr "Masque les grossièretés et les insultes du chat du salon par des astérisques, sur votre écran uniquement. Les messages sont toujours envoyés tels qu'ils ont été écrits."
+
+msgid "settings.fight_chat"
+msgstr "Chat en match"
+
+msgid "settings.fight_chat_table"
+msgstr "Ma table"
+
+msgid "settings.fight_chat_everyone"
+msgstr "Tout le monde"
+
+msgid "settings.fight_chat_detail"
+msgstr "Le chat du salon s'affiche quelques secondes par-dessus un match que vous jouez ou regardez : celui des joueurs de votre table, celui de tout le salon, ou aucun."
+
+msgid "settings.quick_lines"
+msgstr "Phrases rapides"
+
+msgid "settings.quick_lines_detail"
+msgstr "Pendant un match, maintenez Retour et appuyez sur une direction, ou appuyez sur F1 à F4, pour envoyer une phrase rapide au salon. Votre combattant reste immobile tant que Retour est maintenu."
+
+msgid "settings.quick_slot_up"
+msgstr "Retour + Haut (F1)"
+
+msgid "settings.quick_slot_right"
+msgstr "Retour + Droite (F2)"
+
+msgid "settings.quick_slot_down"
+msgstr "Retour + Bas (F3)"
+
+msgid "settings.quick_slot_left"
+msgstr "Retour + Gauche (F4)"
+
+msgid "settings.quick_slot_detail"
+msgstr "La phrase envoyée par ce raccourci. Gauche et Droite en choisissent une autre."
 
 msgid "room.v2.unread"
 msgstr "{0} non lu(s)"

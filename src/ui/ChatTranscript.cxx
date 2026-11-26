@@ -61,6 +61,7 @@ bool ChatTranscript::Update(const room::Snapshot& snapshot, const std::vector<Ro
         if (name != names_.end()) line.name = name->second;
         line.text = message.text;
         line.filtered = FilterChat(line.text);
+        line.quick = message.quick;
         line.own = snapshot.localMember && message.sender == snapshot.localMember;
         Append(std::move(line));
         lastSequence_ = message.sequence;
@@ -126,6 +127,11 @@ unsigned ChatTranscript::Unread(const std::set<room::MemberId>& muted) const {
     unreadRevision_ = linesRevision_; unreadThrough_ = readThrough_;
     if (unreadMuted_ != muted) unreadMuted_ = muted;
     return count;
+}
+std::string ChatLineText(const ChatLine& line, bool filtered) {
+    if (line.kind != ChatLine::Kind::Message) return ChatEventText(line);
+    if (const auto* row = quickchat::RowOf(line.quick)) return loc::T(row->key);
+    return filtered ? line.filtered : line.text;
 }
 // A line of what happened in the room, in the player's language now.
 std::string ChatEventText(const ChatLine& line) {

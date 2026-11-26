@@ -169,7 +169,7 @@ void ApplicationShell::DrawChatLog(const ShellView&, bool compact) {
                 ImGui::Dummy(ImVec2(tagWidth, lineHeight));
             }
         }
-        const std::string& text = preferences_.chatFilter ? line.filtered : line.text;
+        const std::string text = ChatLineText(line, preferences_.chatFilter);
         ImGui::TextWrapped("%s", text.c_str());
         if (ImGui::IsItemVisible()) NoteUserText(text, UserTextRole::Chat);
         if (line.own) {

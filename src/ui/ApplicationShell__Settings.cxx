@@ -11,6 +11,7 @@
 #include "ApplicationShell.hxx"
 #include "AreaNames.hxx"
 #include "CardEditRows.hxx"
+#include "FightChatFeed.hxx"
 #include "ControllersScreen.hxx"
 #include "LineIcons.hxx"
 #include "LinkRows.hxx"
@@ -344,22 +345,25 @@ public:
     }
     // The room board's layout, which its grips also drag (RoomGrips). Its parts:
     // hiding one gives its place to the other, or both to the tables. With the
-    // chat panel, its filter. A room leaves all of it open
-    // (ShellView::CanEditRoomSettings).
+    // chat panel, its filter and its fight chat (FightChatRows). A room leaves
+    // all of it open (ShellView::CanEditRoomSettings).
     static Entries RoomLayout(Shell& s, const ShellView& v) {
         const auto& p = s.preferences_;
         const int column = p.roomColumn, split = p.roomSplit;
         const bool open = v.CanEditRoomSettings();
-        return {Value("arrange-column", loc::T("settings.room_column"), std::to_string(column) + "%", loc::T("settings.room_column_detail"), open),
+        Entries rows{Value("arrange-column", loc::T("settings.room_column"), std::to_string(column) + "%", loc::T("settings.room_column_detail"), open),
             Value("arrange-split", loc::T("settings.room_split"), std::to_string(split) + " / " + std::to_string(100 - split), loc::T("settings.room_split_detail"), open),
             Value("arrange-preset", loc::T("settings.room_preset"), loc::T(RoomPresetKeys[RoomPreset(column)]), loc::T("settings.room_preset_detail"), open),
             Value("arrange-members", loc::T("room.members"), loc::T(p.roomShowMembers ? "common.on" : "common.off"), loc::T("settings.room_show_members_detail"), open),
             Value("arrange-chat", loc::T("room.chat"), loc::T(p.roomShowChat ? "common.on" : "common.off"), loc::T("settings.room_show_chat_detail"), open),
             Value("arrange-tables", loc::T("settings.room_tables"), loc::T(p.roomTableGrid ? "settings.room_tables_grid" : "settings.room_tables_list"), loc::T("settings.room_tables_detail"), open),
             Value("arrange-pictures", loc::T("settings.room_pictures"), loc::T(p.roomCharacterPictures ? "settings.room_pictures_characters" : "settings.room_pictures_portraits"), loc::T("settings.room_pictures_detail"), open),
-            OnOffValue(p, "chat-filter", loc::T("settings.chat_filter"), loc::T("settings.chat_filter_detail"), open),
-            PictureMode(s, v, "arrange-picture"),
-            Row("arrange-reset", loc::T("settings.room_layout_reset"), loc::T("settings.room_layout_reset_detail"), open)};
+            OnOffValue(p, "chat-filter", loc::T("settings.chat_filter"), loc::T("settings.chat_filter_detail"), open)};
+        const auto fight = FightChatRows(p.fightChat, open);
+        rows.insert(rows.end(), fight.begin(), fight.end());
+        rows.push_back(PictureMode(s, v, "arrange-picture"));
+        rows.push_back(Row("arrange-reset", loc::T("settings.room_layout_reset"), loc::T("settings.room_layout_reset_detail"), open));
+        return rows;
     }
     static Entries Speech(Shell& s, const ShellView& v) { return s.AccessibilityRows(v); }
     // Appear offline, the friend code and Turn off friends (FriendsPanel), which the panel itself answers.
@@ -703,6 +707,7 @@ bool ApplicationShell::AdjustSetting(netplay::PlayerPreferences& p, const MenuAc
     else if (id == "arrange-members") p.roomShowMembers = a.delta > 0;
     else if (id == "arrange-chat") p.roomShowChat = a.delta > 0;
     else if (id == "arrange-tables") p.roomTableGrid = a.delta > 0;
+    else if (AdjustFightChat(id, a.delta, p.fightChat)) {}
     else if (id == "arrange-pictures") p.roomCharacterPictures = a.delta > 0;
     else if (id == "tv") p.tvMode = a.delta > 0;
     else if (id == "area") p.area = p.area.Stepped(a.delta);

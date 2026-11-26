@@ -3887,6 +3887,22 @@ msgstr "A {1} restano {0} s per prepararsi"
 
 msgid "chat.event.ready_timeout"
 msgstr "{0} ha lasciato il tavolo {1}: non era pronto in tempo"
+msgid "chat.quick.gg"
+msgstr "GG"
+msgid "chat.quick.one_more"
+msgstr "Un'altra?"
+msgid "chat.quick.lag"
+msgstr "Lag?"
+msgid "chat.quick.sorry"
+msgstr "Scusa!"
+msgid "chat.quick.nice"
+msgstr "Bella!"
+msgid "chat.quick.thanks"
+msgstr "Grazie!"
+msgid "chat.quick.good_luck"
+msgstr "In bocca al lupo!"
+msgid "chat.quick.close_one"
+msgstr "Per un soffio!"
 
 msgid "room.hold.status"
 msgstr "In attesa degli spettatori: {0} s"
@@ -8880,6 +8896,39 @@ msgstr "Filtro chat"
 
 msgid "settings.chat_filter_detail"
 msgstr "Nasconde parolacce e insulti nella chat della sala con asterischi, solo sul tuo schermo. I messaggi vengono comunque inviati così come sono stati scritti."
+
+msgid "settings.fight_chat"
+msgstr "Chat nei match"
+
+msgid "settings.fight_chat_table"
+msgstr "Il mio tavolo"
+
+msgid "settings.fight_chat_everyone"
+msgstr "Tutti"
+
+msgid "settings.fight_chat_detail"
+msgstr "La chat della sala compare per qualche secondo sopra un match che giochi o guardi: dai giocatori del tuo tavolo, da tutta la sala, oppure mai."
+
+msgid "settings.quick_lines"
+msgstr "Frasi rapide"
+
+msgid "settings.quick_lines_detail"
+msgstr "In un match, tieni premuto Back e premi una direzione, oppure premi da F1 a F4, per inviare una frase rapida alla sala. Il tuo combattente resta fermo mentre tieni premuto Back."
+
+msgid "settings.quick_slot_up"
+msgstr "Back + Su (F1)"
+
+msgid "settings.quick_slot_right"
+msgstr "Back + Destra (F2)"
+
+msgid "settings.quick_slot_down"
+msgstr "Back + Giù (F3)"
+
+msgid "settings.quick_slot_left"
+msgstr "Back + Sinistra (F4)"
+
+msgid "settings.quick_slot_detail"
+msgstr "La frase inviata da questo comando. Sinistra e Destra ne scelgono un'altra."
 
 msgid "room.v2.unread"
 msgstr "{0} da leggere"

@@ -3887,6 +3887,22 @@ msgstr "{1}の準備完了まで残り{0}秒"
 
 msgid "chat.event.ready_timeout"
 msgstr "{0}が対戦席{1}を離れました：時間内に準備完了しませんでした"
+msgid "chat.quick.gg"
+msgstr "GG"
+msgid "chat.quick.one_more"
+msgstr "もう一戦？"
+msgid "chat.quick.lag"
+msgstr "ラグい？"
+msgid "chat.quick.sorry"
+msgstr "ごめん！"
+msgid "chat.quick.nice"
+msgstr "ナイス！"
+msgid "chat.quick.thanks"
+msgstr "ありがとう！"
+msgid "chat.quick.good_luck"
+msgstr "がんばって！"
+msgid "chat.quick.close_one"
+msgstr "惜しい！"
 
 msgid "room.hold.status"
 msgstr "観戦者を待機中：{0}秒"
@@ -8880,6 +8896,39 @@ msgstr "チャットフィルター"
 
 msgid "settings.chat_filter_detail"
 msgstr "ルームチャットの暴言や差別的な言葉を、自分の画面でだけ * で隠します。メッセージは書かれたとおりに送信されます。"
+
+msgid "settings.fight_chat"
+msgstr "対戦中のチャット"
+
+msgid "settings.fight_chat_table"
+msgstr "自分の対戦席"
+
+msgid "settings.fight_chat_everyone"
+msgstr "全員"
+
+msgid "settings.fight_chat_detail"
+msgstr "ルームチャットを、自分が対戦中または観戦中の試合の上に数秒間表示します。自分の対戦席のプレイヤーのみ、ルーム全体、または表示なしから選べます。"
+
+msgid "settings.quick_lines"
+msgstr "クイックチャット"
+
+msgid "settings.quick_lines_detail"
+msgstr "対戦中に戻るを押しながら方向キーを押すか、F1〜F4を押すと、ルームにクイックチャットを送信します。戻るを押している間、キャラクターは動きません。"
+
+msgid "settings.quick_slot_up"
+msgstr "戻る + 上 (F1)"
+
+msgid "settings.quick_slot_right"
+msgstr "戻る + 右 (F2)"
+
+msgid "settings.quick_slot_down"
+msgstr "戻る + 下 (F3)"
+
+msgid "settings.quick_slot_left"
+msgstr "戻る + 左 (F4)"
+
+msgid "settings.quick_slot_detail"
+msgstr "送信される内容です。左右で別のものを選べます。"
 
 msgid "room.v2.unread"
 msgstr "未読 {0} 件"

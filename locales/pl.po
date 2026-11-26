@@ -3887,6 +3887,22 @@ msgstr "Czas na gotowość dla {1}: {0} s"
 
 msgid "chat.event.ready_timeout"
 msgstr "{0} opuszcza stół {1}: brak gotowości na czas"
+msgid "chat.quick.gg"
+msgstr "GG"
+msgid "chat.quick.one_more"
+msgstr "Jeszcze jedna?"
+msgid "chat.quick.lag"
+msgstr "Lag?"
+msgid "chat.quick.sorry"
+msgstr "Sorry!"
+msgid "chat.quick.nice"
+msgstr "Ładnie!"
+msgid "chat.quick.thanks"
+msgstr "Dzięki!"
+msgid "chat.quick.good_luck"
+msgstr "Powodzenia!"
+msgid "chat.quick.close_one"
+msgstr "Było blisko!"
 
 msgid "room.hold.status"
 msgstr "Czekamy na widzów: {0} s"
@@ -8880,6 +8896,39 @@ msgstr "Filtr czatu"
 
 msgid "settings.chat_filter_detail"
 msgstr "Ukrywa przekleństwa i obelgi na czacie pokoju pod gwiazdkami, tylko na Twoim ekranie. Wiadomości nadal są wysyłane tak, jak zostały napisane."
+
+msgid "settings.fight_chat"
+msgstr "Czat w meczach"
+
+msgid "settings.fight_chat_table"
+msgstr "Mój stół"
+
+msgid "settings.fight_chat_everyone"
+msgstr "Wszyscy"
+
+msgid "settings.fight_chat_detail"
+msgstr "Czat pokoju pojawia się na kilka sekund nad meczem, który grasz lub oglądasz: od graczy przy Twoim stole, od całego pokoju albo wcale."
+
+msgid "settings.quick_lines"
+msgstr "Szybkie wiadomości"
+
+msgid "settings.quick_lines_detail"
+msgstr "W meczu przytrzymaj Powrót i naciśnij kierunek albo naciśnij F1–F4, aby wysłać do pokoju szybką wiadomość. Twój wojownik stoi w miejscu, dopóki trzymasz Powrót."
+
+msgid "settings.quick_slot_up"
+msgstr "Powrót + Góra (F1)"
+
+msgid "settings.quick_slot_right"
+msgstr "Powrót + Prawo (F2)"
+
+msgid "settings.quick_slot_down"
+msgstr "Powrót + Dół (F3)"
+
+msgid "settings.quick_slot_left"
+msgstr "Powrót + Lewo (F4)"
+
+msgid "settings.quick_slot_detail"
+msgstr "Wiadomość wysyłana tym skrótem. Lewo i Prawo wybierają inną."
 
 msgid "room.v2.unread"
 msgstr "Nieprzeczytane: {0}"

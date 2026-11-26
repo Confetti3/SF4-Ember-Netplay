@@ -3887,6 +3887,22 @@ msgstr "{1} tem mais {0} s para ficar pronto"
 
 msgid "chat.event.ready_timeout"
 msgstr "{0} saiu da mesa {1}: não ficou pronto a tempo"
+msgid "chat.quick.gg"
+msgstr "GG"
+msgid "chat.quick.one_more"
+msgstr "Mais uma?"
+msgid "chat.quick.lag"
+msgstr "Lag?"
+msgid "chat.quick.sorry"
+msgstr "Foi mal!"
+msgid "chat.quick.nice"
+msgstr "Boa!"
+msgid "chat.quick.thanks"
+msgstr "Valeu!"
+msgid "chat.quick.good_luck"
+msgstr "Boa sorte!"
+msgid "chat.quick.close_one"
+msgstr "Foi por pouco!"
 
 msgid "room.hold.status"
 msgstr "Aguardando espectadores: {0} s"
@@ -8880,6 +8896,39 @@ msgstr "Filtro do bate-papo"
 
 msgid "settings.chat_filter_detail"
 msgstr "Esconde palavrões e ofensas no bate-papo da sala com asteriscos, só na sua tela. As mensagens continuam sendo enviadas como foram escritas."
+
+msgid "settings.fight_chat"
+msgstr "Bate-papo nas partidas"
+
+msgid "settings.fight_chat_table"
+msgstr "Minha mesa"
+
+msgid "settings.fight_chat_everyone"
+msgstr "Todos"
+
+msgid "settings.fight_chat_detail"
+msgstr "O bate-papo da sala aparece por alguns segundos sobre uma partida que você joga ou assiste: dos jogadores da sua mesa, da sala toda ou de ninguém."
+
+msgid "settings.quick_lines"
+msgstr "Frases rápidas"
+
+msgid "settings.quick_lines_detail"
+msgstr "Em uma partida, segure Voltar e aperte uma direção, ou aperte F1 a F4, para enviar uma frase rápida à sala. Seu lutador fica parado enquanto Voltar estiver pressionado."
+
+msgid "settings.quick_slot_up"
+msgstr "Voltar + Cima (F1)"
+
+msgid "settings.quick_slot_right"
+msgstr "Voltar + Direita (F2)"
+
+msgid "settings.quick_slot_down"
+msgstr "Voltar + Baixo (F3)"
+
+msgid "settings.quick_slot_left"
+msgstr "Voltar + Esquerda (F4)"
+
+msgid "settings.quick_slot_detail"
+msgstr "A frase que este atalho envia. Esquerda e Direita escolhem outra."
 
 msgid "room.v2.unread"
 msgstr "{0} não lidas"

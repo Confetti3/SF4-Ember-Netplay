@@ -3887,6 +3887,22 @@ msgstr "{1}还有{0}秒准备"
 
 msgid "chat.event.ready_timeout"
 msgstr "{0}离开了对战位{1}：未及时准备"
+msgid "chat.quick.gg"
+msgstr "GG"
+msgid "chat.quick.one_more"
+msgstr "再来一局？"
+msgid "chat.quick.lag"
+msgstr "卡吗？"
+msgid "chat.quick.sorry"
+msgstr "抱歉！"
+msgid "chat.quick.nice"
+msgstr "漂亮！"
+msgid "chat.quick.thanks"
+msgstr "谢谢！"
+msgid "chat.quick.good_luck"
+msgstr "祝你好运！"
+msgid "chat.quick.close_one"
+msgstr "好险！"
 
 msgid "room.hold.status"
 msgstr "正在等待观众：{0}秒"
@@ -8880,6 +8896,39 @@ msgstr "聊天过滤"
 
 msgid "settings.chat_filter_detail"
 msgstr "在房间聊天中用星号遮住脏话和侮辱性词语，只在你的屏幕上生效。消息仍按原样发送。"
+
+msgid "settings.fight_chat"
+msgstr "对战中的聊天"
+
+msgid "settings.fight_chat_table"
+msgstr "我的对战席"
+
+msgid "settings.fight_chat_everyone"
+msgstr "所有人"
+
+msgid "settings.fight_chat_detail"
+msgstr "房间聊天会在你参与或观看的对战画面上显示几秒：来自你对战席上的玩家、整个房间，或不显示。"
+
+msgid "settings.quick_lines"
+msgstr "快捷语"
+
+msgid "settings.quick_lines_detail"
+msgstr "对战中按住返回并按一个方向，或按 F1 到 F4，即可向房间发送快捷语。按住返回时你的角色会站着不动。"
+
+msgid "settings.quick_slot_up"
+msgstr "返回 + 上 (F1)"
+
+msgid "settings.quick_slot_right"
+msgstr "返回 + 右 (F2)"
+
+msgid "settings.quick_slot_down"
+msgstr "返回 + 下 (F3)"
+
+msgid "settings.quick_slot_left"
+msgstr "返回 + 左 (F4)"
+
+msgid "settings.quick_slot_detail"
+msgstr "此按键发送的内容。按左或右可更换。"
 
 msgid "room.v2.unread"
 msgstr "{0} 条未读"

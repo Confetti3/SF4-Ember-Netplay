@@ -3718,6 +3718,22 @@ msgid "room.ready_timeout.other"
 msgstr "{0} s left for {1} to ready"
 msgid "chat.event.ready_timeout"
 msgstr "{0} left table {1}: not ready in time"
+msgid "chat.quick.gg"
+msgstr "GG"
+msgid "chat.quick.one_more"
+msgstr "One more?"
+msgid "chat.quick.lag"
+msgstr "Lag?"
+msgid "chat.quick.sorry"
+msgstr "Sorry!"
+msgid "chat.quick.nice"
+msgstr "Nice!"
+msgid "chat.quick.thanks"
+msgstr "Thanks!"
+msgid "chat.quick.good_luck"
+msgstr "Good luck!"
+msgid "chat.quick.close_one"
+msgstr "Close one!"
 msgid "room.hold.status"
 msgstr "Waiting for spectators: {0} s"
 msgid "room.hold.cancel_detail"
@@ -8493,6 +8509,39 @@ msgstr "Chat filter"
 
 msgid "settings.chat_filter_detail"
 msgstr "Hides swearing and slurs in room chat behind stars, on your screen only. Messages are still sent as written."
+
+msgid "settings.fight_chat"
+msgstr "Chat in matches"
+
+msgid "settings.fight_chat_table"
+msgstr "My table"
+
+msgid "settings.fight_chat_everyone"
+msgstr "Everyone"
+
+msgid "settings.fight_chat_detail"
+msgstr "Room chat shows for a few seconds over a match you play or watch: from the players at your table, from the whole room, or not at all."
+
+msgid "settings.quick_lines"
+msgstr "Quick lines"
+
+msgid "settings.quick_lines_detail"
+msgstr "In a match, hold Back and press a direction, or press F1 to F4, to send a quick line to the room. Your fighter stands still while Back is held."
+
+msgid "settings.quick_slot_up"
+msgstr "Back + Up (F1)"
+
+msgid "settings.quick_slot_right"
+msgstr "Back + Right (F2)"
+
+msgid "settings.quick_slot_down"
+msgstr "Back + Down (F3)"
+
+msgid "settings.quick_slot_left"
+msgstr "Back + Left (F4)"
+
+msgid "settings.quick_slot_detail"
+msgstr "The line this sends. Left and Right choose another."
 
 msgid "room.v2.unread"
 msgstr "{0} unread"

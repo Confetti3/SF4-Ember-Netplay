@@ -3887,6 +3887,22 @@ msgstr "Бойцу {1} осталось {0} с для подтверждения
 
 msgid "chat.event.ready_timeout"
 msgstr "{0} покидает ячейку {1}: готовность не подтверждена вовремя"
+msgid "chat.quick.gg"
+msgstr "GG"
+msgid "chat.quick.one_more"
+msgstr "Ещё раз?"
+msgid "chat.quick.lag"
+msgstr "Лаг?"
+msgid "chat.quick.sorry"
+msgstr "Сорри!"
+msgid "chat.quick.nice"
+msgstr "Красиво!"
+msgid "chat.quick.thanks"
+msgstr "Спасибо!"
+msgid "chat.quick.good_luck"
+msgstr "Удачи!"
+msgid "chat.quick.close_one"
+msgstr "Было близко!"
 
 msgid "room.hold.status"
 msgstr "Ждём зрителей: {0} с"
@@ -8880,6 +8896,39 @@ msgstr "Фильтр чата"
 
 msgid "settings.chat_filter_detail"
 msgstr "Скрывает мат и оскорбления в чате лобби звёздочками, только на вашем экране. Сообщения по-прежнему отправляются в том виде, в каком написаны."
+
+msgid "settings.fight_chat"
+msgstr "Чат в матчах"
+
+msgid "settings.fight_chat_table"
+msgstr "Мой стол"
+
+msgid "settings.fight_chat_everyone"
+msgstr "Все"
+
+msgid "settings.fight_chat_detail"
+msgstr "Чат лобби на несколько секунд появляется поверх матча, который вы играете или смотрите: от игроков за вашим столом, от всего лобби или никакой."
+
+msgid "settings.quick_lines"
+msgstr "Быстрые фразы"
+
+msgid "settings.quick_lines_detail"
+msgstr "В матче удерживайте «Назад» и нажмите направление или нажмите F1–F4, чтобы отправить в лобби быструю фразу. Пока «Назад» удерживается, ваш боец стоит на месте."
+
+msgid "settings.quick_slot_up"
+msgstr "Назад + Вверх (F1)"
+
+msgid "settings.quick_slot_right"
+msgstr "Назад + Вправо (F2)"
+
+msgid "settings.quick_slot_down"
+msgstr "Назад + Вниз (F3)"
+
+msgid "settings.quick_slot_left"
+msgstr "Назад + Влево (F4)"
+
+msgid "settings.quick_slot_detail"
+msgstr "Фраза, которую отправляет эта комбинация. Влево и Вправо выбирают другую."
 
 msgid "room.v2.unread"
 msgstr "Непрочитано: {0}"

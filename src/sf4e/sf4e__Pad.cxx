@@ -8,12 +8,14 @@
 #include "sf4e__InputLag.hxx"
 #include "sf4e__Game__Battle__System.hxx"
 #include "sf4e__Overlay.hxx"
+#include "sf4e__QuickLines.hxx"
 #include "sf4e__ReplayStore.hxx"
 #include "sf4e__SelfTest.hxx"
 #include "sf4e__UserApp.hxx"
 #include "../training/TrainingRuntime.hxx"
 #include "sf4e__NetplayFacade.hxx"
 #include "../common/TrainingPad.hxx"
+#include "../common/QuickChatPad.hxx"
 #include "../common/TrainingCallInput.hxx"
 #include "../common/BattlePause.hxx"
 #include "../common/MenuInputCapture.hxx"
@@ -212,6 +214,13 @@ void fSystem::UpdateInputs() {
         if(pressed.play) post(Kind::Play,owner,place.x);
     }
     ownerType=device.type;ownerIndex=device.index;
+    // A fight this PC fights in: the chat chord (Back and a direction) sends a
+    // quick line, and while Back is held the chord's buttons are its own.
+    const bool fighting=sf4e::Game::Battle::System::ggpo&&sf4e::Game::Battle::System::LocalFighter();
+    static sf4e::input::QuickChatChord chatChord;
+    sf4e::overlay::SetQuickLinesLive(fighting&&snapshot.preferences.fightChat.quickLines);
+    const auto chat=chatChord.Update(sf4e::overlay::QuickLinesLive()&&!sf4e::Overlay::CapturesMenuInput(),physical);
+    for(int slot=0;slot<sf4e::quickchat::Slots;++slot)if(chat.slots&(1u<<slot))sf4e::overlay::PostQuickLine(slot);
     const unsigned held=sf4e::input::NativeMenuHeld(this);
     static sf4e::input::MenuInputCapture capture;
     // Native Start is untouched while Ember is closed; an open overlay,
@@ -221,8 +230,7 @@ void fSystem::UpdateInputs() {
     // goes to the game, to a fight's GGPO input and to the dummy in Training
     // at once (MenuInputCapture, GatePad).
     const auto gate=sf4e::input::GatePad(capture.Update(sf4e::Overlay::CapturesMenuInput()||hidden,held),
-        (ownedByGesture&sf4e::input::PhysicalStart)!=0,clearedBehind,
-        sf4e::Game::Battle::System::ggpo&&sf4e::Game::Battle::System::LocalFighter());
+        ((ownedByGesture&sf4e::input::PhysicalStart)?sf4e::input::NativeStart:0u)|chat.native,clearedBehind,fighting);
     inputBlocked=gate.blocked;
     sf4e::input::WithholdNativeInputs(this,gate.withheld);
     // Counted for the netplay log window (Netplay [...] withheld=): these
@@ -231,6 +239,7 @@ void fSystem::UpdateInputs() {
     if(gate.counted==Reason::Focus) ++withheld.focus;
     else if(gate.counted==Reason::Menu) ++withheld.menu;
     else if(gate.counted==Reason::Kept) ++withheld.kept;
+    else if(gate.counted==Reason::Gesture) ++withheld.gesture;
 }
 
 unsigned int fSystem::ReadButtons(int pindex, bool raw) {

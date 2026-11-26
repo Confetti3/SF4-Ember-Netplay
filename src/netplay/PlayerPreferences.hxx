@@ -9,6 +9,7 @@
 #include "../common/Country.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/InputDelay.hxx"
+#include "../common/QuickChat.hxx"
 #include "../common/RoomRules.hxx"
 #include "ProfileRecord.hxx"
 #include "Profiles.hxx"
@@ -68,8 +69,9 @@ constexpr int MaxMatchHudNameOffset = 60;
 constexpr float MinInterfaceScale = .7f, MaxInterfaceScale = 1.5f, InterfaceScaleStep = .05f;
 // `scale` as saved, or 1.00x when it is outside the range (an older or hand-edited file).
 inline float InterfaceScaleOrDefault(float scale) { return scale >= MinInterfaceScale && scale <= MaxInterfaceScale ? scale : 1.f; }
-// The match HUD positions run from 0 (bottom center) to this one (top center).
-constexpr int MaxMatchHudAnchor = 5;
+// The match HUD positions run from 0 (bottom center) to this one (top center);
+// the top left is 3.
+constexpr int MaxMatchHudAnchor = 5, MatchHudTopLeft = 3;
 // The room board's layout grips (Customise.dc.html), in percent: the members
 // and chat column's share of the board's width, and the members' share of that
 // column over chat. Each snaps to its step from the default.
@@ -129,6 +131,28 @@ constexpr const char* GameThemeLabels[GameThemePartCount] = {
     "settings.game_theme_main_menu", "settings.game_theme_title", "settings.game_theme_chara_select", "settings.game_theme_stage_select",
     "settings.game_theme_versus", "settings.game_theme_pause_menu", "settings.game_theme_network", "settings.game_theme_edition_marks",
     "settings.game_theme_buttons", "settings.game_theme_menu_sounds", "settings.game_theme_battle_hud" };
+
+// Fight chat (docs/design/FIGHT_CHAT.md): which room chat shows over a fight this
+// PC plays or watches, and the quick lines a fighter sends from it.
+struct FightChatPreferences {
+    // MyTable: what the members at this player's own table say (its fighters,
+    // queue and watchers); Everyone: the whole room; Off: nothing over a fight.
+    enum class Scope { MyTable, Everyone, Off };
+    Scope scope = Scope::MyTable;
+    // Back and a direction on the pad, or F1 to F4, send a quick line in a fight.
+    bool quickLines = true;
+    // The line each slot sends: Up, Right, Down and Left with Back held (F1 to F4).
+    QuickLine slots[quickchat::Slots] = {QuickLine::GoodGame, QuickLine::OneMore, QuickLine::Sorry, QuickLine::Lag};
+    bool operator==(const FightChatPreferences& other) const {
+        for (int slot = 0; slot < quickchat::Slots; ++slot) if (slots[slot] != other.slots[slot]) return false;
+        return scope == other.scope && quickLines == other.quickLines;
+    }
+    bool operator!=(const FightChatPreferences& other) const { return !(*this == other); }
+    bool Valid() const {
+        for (const QuickLine line : slots) if (!quickchat::RowOf(line)) return false;
+        return scope == Scope::MyTable || scope == Scope::Everyone || scope == Scope::Off;
+    }
+};
 
 struct PlayerPreferences {
     std::string displayName = "Player";
@@ -279,8 +303,8 @@ struct PlayerPreferences {
     bool sendProblemReports = false;
     float interfaceScale = 1.f;
     // Takes `from`'s settings a room leaves open, as they change nothing about
-    // play: the button layouts, the room board's layout, the chat filter and
-    // the watched game's picture, which the board's grips, Hide and Show, More… and
+    // play: the button layouts, the room board's layout, the chat filter, fight
+    // chat and the watched game's picture, which the board's grips, Hide and Show, More… and
     // Settings › Interface › Room layout change in a room
     // (commands::RoomSettings). The shell sends these alone while a room
     // locks the rest (OnlyRoomSettingsChanged), and the runtime saves these
@@ -289,10 +313,11 @@ struct PlayerPreferences {
         buttonLayouts = from.buttonLayouts;
         roomColumn = from.roomColumn; roomSplit = from.roomSplit;
         roomShowMembers = from.roomShowMembers; roomShowChat = from.roomShowChat; roomTableGrid = from.roomTableGrid;
-        roomCharacterPictures = from.roomCharacterPictures; chatFilter = from.chatFilter;
+        roomCharacterPictures = from.roomCharacterPictures; chatFilter = from.chatFilter; fightChat = from.fightChat;
         pictureMode = from.pictureMode; pictureSpot = from.pictureSpot;
     }
     SpeechPreferences speech;
+    FightChatPreferences fightChat;
     // Which rooms the Public rooms list shows (Region, Type, Open seats,
     // Connection); the default shows every room.
     publicrooms::RoomFilter roomFilter;
@@ -337,7 +362,7 @@ struct PlayerPreferences {
             cardPins.size() > profiles::MaxPins) return false;
         for (std::size_t i = 0; i < cardPins.size(); ++i)
             if (!profiles::FamilyIdShaped(cardPins[i]) || std::find(cardPins.begin(), cardPins.begin() + i, cardPins[i]) != cardPins.begin() + i) return false;
-        return country.Valid() && area.Valid() && speech.Valid() && roomFilter.Valid() && tableRules.Valid() && publicTableRules.Valid();
+        return country.Valid() && area.Valid() && speech.Valid() && fightChat.Valid() && roomFilter.Valid() && tableRules.Valid() && publicTableRules.Valid();
     }
 };
 

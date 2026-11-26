@@ -13,6 +13,7 @@
 #include <vector>
 
 #include <nlohmann/json_fwd.hpp>
+#include "../common/QuickChat.hxx"
 
 #include "../common/InputDelay.hxx"
 #include "../common/NetworkLink.hxx"
@@ -472,6 +473,9 @@ struct ChatMessage {
 	std::uint64_t sequence = 0;
 	MemberId sender = 0;
 	std::string text;
+	// The quick line this message is (its text is the line's English words), or
+	// None for typed text. Written only when set.
+	QuickLine quick = QuickLine::None;
 };
 
 // What a room is created as: the choices made on Create, or the closed room's
@@ -616,6 +620,8 @@ struct Action {
 	// Ready: the fighter has Lower input lag on. Written only when set.
 	bool lowerLag = false;
 	std::string text;
+	// Chat: the quick line sent, whose English words must be the text. Written only when set.
+	QuickLine quick = QuickLine::None;
 	// PermitReady: the permit's start window in milliseconds (its start_by
 	// less its issued_at, both on the bridge's clock).
 	std::uint64_t startWindowMs = 0;

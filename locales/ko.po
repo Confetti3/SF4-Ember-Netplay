@@ -3887,6 +3887,22 @@ msgstr "{1} 님의 준비까지 {0}초 남았습니다"
 
 msgid "chat.event.ready_timeout"
 msgstr "{0}님이 대전 슬롯 {1}에서 나갔습니다: 시간 안에 준비하지 않았습니다"
+msgid "chat.quick.gg"
+msgstr "GG"
+msgid "chat.quick.one_more"
+msgstr "한 판 더?"
+msgid "chat.quick.lag"
+msgstr "랙?"
+msgid "chat.quick.sorry"
+msgstr "미안!"
+msgid "chat.quick.nice"
+msgstr "굿!"
+msgid "chat.quick.thanks"
+msgstr "고마워요!"
+msgid "chat.quick.good_luck"
+msgstr "행운을 빌어요!"
+msgid "chat.quick.close_one"
+msgstr "아슬아슬했네요!"
 
 msgid "room.hold.status"
 msgstr "관전자 대기 중: {0}초"
@@ -8880,6 +8896,39 @@ msgstr "채팅 필터"
 
 msgid "settings.chat_filter_detail"
 msgstr "방 채팅의 욕설과 혐오 표현을 내 화면에서만 별표로 가립니다. 메시지는 쓴 그대로 전송됩니다."
+
+msgid "settings.fight_chat"
+msgstr "대전 중 채팅"
+
+msgid "settings.fight_chat_table"
+msgstr "내 테이블"
+
+msgid "settings.fight_chat_everyone"
+msgstr "모두"
+
+msgid "settings.fight_chat_detail"
+msgstr "방 채팅을 내가 플레이하거나 관전 중인 경기 위에 몇 초간 표시합니다. 내 테이블의 플레이어, 방 전체, 또는 표시 안 함 중에서 고를 수 있습니다."
+
+msgid "settings.quick_lines"
+msgstr "빠른 채팅"
+
+msgid "settings.quick_lines_detail"
+msgstr "대전 중에 뒤로를 누른 채 방향을 누르거나 F1~F4를 누르면 방에 빠른 채팅을 보냅니다. 뒤로를 누르는 동안 캐릭터는 가만히 서 있습니다."
+
+msgid "settings.quick_slot_up"
+msgstr "뒤로 + 위 (F1)"
+
+msgid "settings.quick_slot_right"
+msgstr "뒤로 + 오른쪽 (F2)"
+
+msgid "settings.quick_slot_down"
+msgstr "뒤로 + 아래 (F3)"
+
+msgid "settings.quick_slot_left"
+msgstr "뒤로 + 왼쪽 (F4)"
+
+msgid "settings.quick_slot_detail"
+msgstr "이 키로 보내는 문구입니다. 왼쪽과 오른쪽으로 다른 문구를 고릅니다."
 
 msgid "room.v2.unread"
 msgstr "읽지 않음 {0}"

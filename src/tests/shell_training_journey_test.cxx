@@ -22,7 +22,8 @@ void TrainingSettingsAndHome() {
  // The Interface tab's panels, each with its rows in order; endless lobby music is a sound.
  const std::pair<const char*,std::vector<std::string>> interfacePanels[]={{"tab-interface/look",{"tv","menu-artwork"}},{"tab-interface/game-themes",{"game-theme-main-menu","game-theme-title","game-theme-chara-select","game-theme-stage-select","game-theme-versus","game-theme-pause-menu","game-theme-network","game-theme-edition-marks","game-theme-buttons","game-theme-menu-sounds","game-theme-battle-hud"}},
   {"tab-interface/match-hud",{"hud","hud-layout","hud-name-offset","hud-size","hud-position","hud-spacing"}},
-  {"tab-interface/room-layout",{"arrange-column","arrange-split","arrange-preset","arrange-members","arrange-chat","arrange-tables","arrange-pictures","chat-filter","arrange-picture","arrange-reset"}},
+  {"tab-interface/room-layout",{"arrange-column","arrange-split","arrange-preset","arrange-members","arrange-chat","arrange-tables","arrange-pictures","chat-filter","fight-chat","quick-lines",
+   "quick-slot-0","quick-slot-1","quick-slot-2","quick-slot-3","arrange-picture","arrange-reset"}},
   {"tab-interface/sounds",{"ready-sound","ready-volume","ready-test","lobby-music"}}};
  for(const auto& [screen,ids]:interfacePanels){
   h.Screen(screen);

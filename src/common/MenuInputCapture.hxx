@@ -112,8 +112,9 @@ private:
     unsigned kept_=0;
 };
 // Which of the netplay log's counts (sf4e::Pad::WithheldUpdates) a pad update
-// in a fight this PC plays adds to: one at most, the window behind first.
-enum class WithheldReason { None, Focus, Menu, Kept };
+// in a fight this PC plays adds to: one at most, the window behind first, a gesture last.
+// Gesture: a gesture (Training's Start, a fight's chat chord) owned buttons.
+enum class WithheldReason { None, Focus, Menu, Kept, Gesture };
 // What one pad update gives the game, and so a fight's GGPO input.
 struct PadGate {
     // The buttons cleared from every cache (WithholdNativeInputs).
@@ -122,18 +123,20 @@ struct PadGate {
     bool blocked=false;
     WithheldReason counted=WithheldReason::None;
 };
-// The menu's gate, plus the Start of a Training gesture (TrainingPad.hxx) that
-// owns it whether or not it opened anything. `clearedBehind`: the update was
-// emptied because the window is behind (BackgroundPlay); `fighting`: a GGPO
-// session this PC fights in, the only updates the log counts.
-inline PadGate GatePad(const MenuGate& menu,bool gestureOwnsStart,bool clearedBehind,bool fighting) {
+// The menu's gate, plus the native buttons `gestureOwns` that a gesture holds
+// back from the game whether or not it did anything: Training's Start
+// (TrainingPad.hxx), and a fight's chat chord (QuickChatPad.hxx). `clearedBehind`: the
+// update was emptied because the window is behind (BackgroundPlay);
+// `fighting`: a GGPO session this PC fights in, the only updates the log counts.
+inline PadGate GatePad(const MenuGate& menu,unsigned gestureOwns,bool clearedBehind,bool fighting) {
     PadGate gate;
-    gate.withheld=menu.Withheld()|(gestureOwnsStart?NativeStart:0u);
+    gate.withheld=menu.Withheld()|gestureOwns;
     gate.blocked=menu.capturing;
     if(!fighting)gate.counted=WithheldReason::None;
     else if(clearedBehind)gate.counted=WithheldReason::Focus;
     else if(menu.capturing)gate.counted=WithheldReason::Menu;
     else if(menu.kept)gate.counted=WithheldReason::Kept;
+    else if(gestureOwns)gate.counted=WithheldReason::Gesture;
     return gate;
 }
 } }

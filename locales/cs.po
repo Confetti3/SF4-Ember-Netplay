@@ -3887,6 +3887,22 @@ msgstr "{1} má ještě {0} s na přípravu"
 
 msgid "chat.event.ready_timeout"
 msgstr "{0} opustil(a) stůl {1}: nepřipravil(a) se včas"
+msgid "chat.quick.gg"
+msgstr "GG"
+msgid "chat.quick.one_more"
+msgstr "Ještě jednou?"
+msgid "chat.quick.lag"
+msgstr "Lag?"
+msgid "chat.quick.sorry"
+msgstr "Sorry!"
+msgid "chat.quick.nice"
+msgstr "Pěkné!"
+msgid "chat.quick.thanks"
+msgstr "Díky!"
+msgid "chat.quick.good_luck"
+msgstr "Hodně štěstí!"
+msgid "chat.quick.close_one"
+msgstr "Těsný zápas!"
 
 msgid "room.hold.status"
 msgstr "Čeká se na diváky: {0} s"
@@ -8880,6 +8896,39 @@ msgstr "Filtr chatu"
 
 msgid "settings.chat_filter_detail"
 msgstr "Skryje v chatu místnosti nadávky a urážky za hvězdičky, jen na vaší obrazovce. Zprávy se dál odesílají tak, jak byly napsány."
+
+msgid "settings.fight_chat"
+msgstr "Chat v zápasech"
+
+msgid "settings.fight_chat_table"
+msgstr "Můj stůl"
+
+msgid "settings.fight_chat_everyone"
+msgstr "Všichni"
+
+msgid "settings.fight_chat_detail"
+msgstr "Chat místnosti se na pár sekund zobrazí přes zápas, který hrajete nebo sledujete: od hráčů u vašeho stolu, od celé místnosti, nebo vůbec."
+
+msgid "settings.quick_lines"
+msgstr "Rychlé hlášky"
+
+msgid "settings.quick_lines_detail"
+msgstr "V zápase podržte Zpět a stiskněte směr, nebo stiskněte F1 až F4, a pošlete místnosti rychlou hlášku. Dokud držíte Zpět, vaše postava stojí na místě."
+
+msgid "settings.quick_slot_up"
+msgstr "Zpět + Nahoru (F1)"
+
+msgid "settings.quick_slot_right"
+msgstr "Zpět + Doprava (F2)"
+
+msgid "settings.quick_slot_down"
+msgstr "Zpět + Dolů (F3)"
+
+msgid "settings.quick_slot_left"
+msgstr "Zpět + Doleva (F4)"
+
+msgid "settings.quick_slot_detail"
+msgstr "Hláška, kterou toto odešle. Vlevo a Vpravo vyberou jinou."
 
 msgid "room.v2.unread"
 msgstr "Nepřečtené: {0}"

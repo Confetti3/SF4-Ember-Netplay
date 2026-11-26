@@ -3887,6 +3887,22 @@ msgstr "{1} heeft nog {0} s om klaar te zijn"
 
 msgid "chat.event.ready_timeout"
 msgstr "{0} heeft tafel {1} verlaten: niet op tijd klaar"
+msgid "chat.quick.gg"
+msgstr "GG"
+msgid "chat.quick.one_more"
+msgstr "Nog een?"
+msgid "chat.quick.lag"
+msgstr "Lag?"
+msgid "chat.quick.sorry"
+msgstr "Sorry!"
+msgid "chat.quick.nice"
+msgstr "Mooi!"
+msgid "chat.quick.thanks"
+msgstr "Bedankt!"
+msgid "chat.quick.good_luck"
+msgstr "Succes!"
+msgid "chat.quick.close_one"
+msgstr "Op het randje!"
 
 msgid "room.hold.status"
 msgstr "Wachten op kijkers: {0} s"
@@ -8880,6 +8896,39 @@ msgstr "Chatfilter"
 
 msgid "settings.chat_filter_detail"
 msgstr "Verbergt scheldwoorden en beledigingen in de kamerchat achter sterretjes, alleen op je eigen scherm. Berichten worden nog steeds verstuurd zoals ze zijn geschreven."
+
+msgid "settings.fight_chat"
+msgstr "Chat in potjes"
+
+msgid "settings.fight_chat_table"
+msgstr "Mijn tafel"
+
+msgid "settings.fight_chat_everyone"
+msgstr "Iedereen"
+
+msgid "settings.fight_chat_detail"
+msgstr "De kamerchat verschijnt een paar seconden over een potje dat je speelt of bekijkt: van de spelers aan jouw tafel, van de hele kamer, of helemaal niet."
+
+msgid "settings.quick_lines"
+msgstr "Snelle berichten"
+
+msgid "settings.quick_lines_detail"
+msgstr "Houd in een potje Terug ingedrukt en druk op een richting, of druk op F1 tot F4, om een snel bericht naar de kamer te sturen. Je vechter blijft stilstaan zolang Terug ingedrukt is."
+
+msgid "settings.quick_slot_up"
+msgstr "Terug + Omhoog (F1)"
+
+msgid "settings.quick_slot_right"
+msgstr "Terug + Rechts (F2)"
+
+msgid "settings.quick_slot_down"
+msgstr "Terug + Omlaag (F3)"
+
+msgid "settings.quick_slot_left"
+msgstr "Terug + Links (F4)"
+
+msgid "settings.quick_slot_detail"
+msgstr "Het bericht dat dit verstuurt. Links en Rechts kiezen een ander."
 
 msgid "room.v2.unread"
 msgstr "{0} ongelezen"

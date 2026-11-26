@@ -1,4 +1,6 @@
 #include "sf4e__Overlay.hxx"
+#include "sf4e__OverlayKeys.hxx"
+#include "sf4e__OverlayMatchStrip.hxx"
 #include "sf4e__OverlayPrefs.hxx"
 #include "sf4e__OverlayRandomFighter.hxx"
 #include "sf4e__WatchedPicture.hxx"
@@ -38,6 +40,8 @@
 #include "../common/Localization.hxx"
 #include "../platform/GameDisplaySettings.hxx"
 #include "../platform/UiPreferencesStore.hxx"
+#include "sf4e__QuickLines.hxx"
+#include "../common/QuickChatPad.hxx"
 #include <imgui.h>
 #include <imgui_impl_dx9.h>
 #include <imgui_impl_win32.h>
@@ -334,10 +338,9 @@ static void ConcealApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& s
     view.identityTicket = snapshot.identityTicket; view.identityRequest = snapshot.identityRequest;
     view.identityRefusal = snapshot.identityRefusal;
     view.hostPublicRoom = snapshot.hostPublicRoom;
-    shell.Background(view, view.room, [](sf4e::ui::ShellAction action) {
-        auto request = sf4e::ui::ForRuntime(std::move(action));
-        return request && SubmitToRuntime(std::move(*request));
-    });
+    const sf4e::ui::ApplicationShell::Submit submit = [](sf4e::ui::ShellAction action) { auto request = sf4e::ui::ForRuntime(std::move(action)); return request && SubmitToRuntime(std::move(*request)); };
+    shell.Background(view, view.room, submit);
+    for (const int slot : sf4e::overlay::TakeQuickLines()) shell.SendQuickLine(slot, view, submit);
     s_roomCarry.Return(view);
 }
 static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snapshot, const sf4e::NetplayStatus& status) {
@@ -827,24 +830,8 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     // are: ImGui's restarts with a device reset.
     static sf4e::ui::ReplayHudFeed replayHud;
     replayHud.Fill(layers.replay, snapshot.replays, replayKeys, GetTickCount64() / 1000.0);
-    if (layers.matchActive) {
-        auto& strip = layers.match;
-        // Each fighter's rank as rooms show it; Class emblems off hides it mid-match too.
-        for (int side = 0; side < 2; ++side) {
-            strip.names[side] = status.matchSides[side].name; strip.links[side] = status.matchSides[side].link;
-            strip.badges[side] = snapshot.preferences.classEmblems ? status.matchSides[side].badge : sf4e::SkillBadge();
-        }
-        if (status.hasMatchScore) strip.score = sf4e::ui::SetScoreText(status.matchScore);
-        strip.rollbackFrames = status.rollbackFrames;
-        strip.pingMs = status.pingMs; strip.appliedDelay = status.appliedDelay;
-        strip.spectator = status.spectator; strip.behindFrames = status.spectatorBacklog; strip.ownDelays = status.ownDelays;
-        strip.queuePosition = status.queuePosition; strip.queueLength = status.queueLength;
-        strip.size = snapshot.preferences.matchHudSize; strip.raised = snapshot.preferences.matchHudRaised; strip.anchor = snapshot.preferences.matchHudAnchor;
-        strip.layout = snapshot.preferences.matchHudLayout; strip.nameOffset = snapshot.preferences.matchHudNameOffset; strip.spectators = status.spectators;
-        strip.notice = status.lastError; strip.noticeSeverity = static_cast<int>(status.lastErrorSeverity);
-        strip.connectionWarning = status.connectionWarning; strip.predictionStalled = status.predictionStalled;
-        strip.disconnectCountdownMs = status.disconnectCountdownMs;
-    }
+    if (layers.matchActive) layers.match = sf4e::overlay::MatchStripOf(status, snapshot.preferences);
+    layers.feed = shell.FightFeed(snapshot.Room(), layers.matchActive);
     // "F10 or Start" for its first seconds each time it applies again, on the
     // process clock for the same reason as watchingHint below.
     static sf4e::ui::TimedHint shortcutHint(sf4e::ui::ShortcutHintSeconds);
@@ -996,12 +983,9 @@ LRESULT WINAPI Overlay::OverlayWindowFunc(HWND window, UINT message, WPARAM w, L
     // menu or the game sees it, for the call that stands now. Taken, it is
     // the call's alone; otherwise it goes on as any key does.
     if (s_goNowKey.Take(message, w, l, sf4e::input::TrainingGoNow(), focused && !CapturesInput() && !sf4e::battlePause.Paused())) return 1;
+    const auto quick = sf4e::input::QuickLineKey(message, w, l, sf4e::overlay::QuickLinesLive() && focused && !CapturesInput());
+    if (quick.slot >= 0) sf4e::overlay::PostQuickLine(quick.slot);
+    if (quick.keep) return 1;
     const auto handled = sf4e::ui::HandleOverlayMessage(window, message, w, l, CapturesInput(), s_f10, pointerCapture);
-    // The position hotkeys only as plain keys, so Alt+F4 still reaches the game.
-    const bool plainKey = message == WM_KEYDOWN || message == WM_KEYUP, systemKey = message == WM_SYSKEYDOWN || message == WM_SYSKEYUP;
-    if (sf4e::replaytransport::KeepsKey(replayPlayback, message, static_cast<unsigned>(w))) return 1;
-    if (sf4e::ui::KeepsAltEnter(message, w, l, watchingStream)) return 1;
-    if (trainingAvailable && !replayPlayback && ((w >= VK_F5 && w <= VK_F8 && (plainKey || systemKey)) ||
-        (plainKey && w >= VK_F1 && w <= VK_F12 && sf4e::ui::TrainingHotkeyBound(static_cast<int>(w - VK_F1))))) return 1;
-    return handled;
+    return sf4e::overlay::KeepsKeyFromGame(message, w, l, {replayPlayback, watchingStream, trainingAvailable}) ? 1 : handled;
 }

@@ -3887,6 +3887,22 @@ msgstr "A {1} le quedan {0} s para prepararse"
 
 msgid "chat.event.ready_timeout"
 msgstr "{0} dejó la mesa {1}: no se preparó a tiempo"
+msgid "chat.quick.gg"
+msgstr "GG"
+msgid "chat.quick.one_more"
+msgstr "¿Una más?"
+msgid "chat.quick.lag"
+msgstr "¿Lag?"
+msgid "chat.quick.sorry"
+msgstr "¡Perdón!"
+msgid "chat.quick.nice"
+msgstr "¡Bien!"
+msgid "chat.quick.thanks"
+msgstr "¡Gracias!"
+msgid "chat.quick.good_luck"
+msgstr "¡Suerte!"
+msgid "chat.quick.close_one"
+msgstr "¡Qué cerca!"
 
 msgid "room.hold.status"
 msgstr "Esperando espectadores: {0} s"
@@ -8880,6 +8896,39 @@ msgstr "Filtro del chat"
 
 msgid "settings.chat_filter_detail"
 msgstr "Oculta groserías e insultos del chat de la sala con asteriscos, solo en tu pantalla. Los mensajes se siguen enviando tal como se escribieron."
+
+msgid "settings.fight_chat"
+msgstr "Chat en partidas"
+
+msgid "settings.fight_chat_table"
+msgstr "Mi mesa"
+
+msgid "settings.fight_chat_everyone"
+msgstr "Todos"
+
+msgid "settings.fight_chat_detail"
+msgstr "El chat de la sala se muestra unos segundos sobre una partida que juegas o miras: de los jugadores de tu mesa, de toda la sala o de nadie."
+
+msgid "settings.quick_lines"
+msgstr "Frases rápidas"
+
+msgid "settings.quick_lines_detail"
+msgstr "En una partida, mantén Volver y pulsa una dirección, o pulsa F1 a F4, para enviar una frase rápida a la sala. Tu luchador se queda quieto mientras mantienes Volver."
+
+msgid "settings.quick_slot_up"
+msgstr "Volver + Arriba (F1)"
+
+msgid "settings.quick_slot_right"
+msgstr "Volver + Derecha (F2)"
+
+msgid "settings.quick_slot_down"
+msgstr "Volver + Abajo (F3)"
+
+msgid "settings.quick_slot_left"
+msgstr "Volver + Izquierda (F4)"
+
+msgid "settings.quick_slot_detail"
+msgstr "La frase que envía este atajo. Izquierda y Derecha eligen otra."
 
 msgid "room.v2.unread"
 msgstr "{0} sin leer"

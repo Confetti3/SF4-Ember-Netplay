@@ -9,6 +9,7 @@ sf4e_add_unit_test(NAME RoomLoadWindow SOURCES "src/tests/room_load_window_test.
 # Includes nlohmann/json, found after sf4e_core_tests.cmake.
 sf4e_add_unit_test(NAME TrainingRemoteProtocol SOURCES "src/tests/training_remote_protocol_test.cxx" STD 17
     LIBS nlohmann_json::nlohmann_json LABELS training)
+sf4e_add_unit_test(NAME QuickChatPad SOURCES "src/tests/quick_chat_pad_test.cxx" STD 17 TIMEOUT 15 LABELS ui)
 sf4e_add_unit_test(NAME HudLayout SOURCES "src/tests/hud_layout_test.cxx" STD 17 LIBS sf4e_hud_layout TIMEOUT 15 LABELS training)
 if(WIN32)
     sf4e_add_unit_test(NAME HudBundleCheck SOURCES "src/tests/hud_bundle_check_test.cxx"
@@ -72,6 +73,7 @@ sf4e_add_unit_test(NAME RoomDelayLimits SOURCES "src/tests/room_delay_limits_tes
 sf4e_add_unit_test(NAME RoomSnapshot SOURCES "src/tests/room_snapshot_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
 sf4e_add_unit_test(NAME RoomSteamProfile SOURCES "src/tests/room_steam_profile_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
 sf4e_add_unit_test(NAME RoomCountry SOURCES "src/tests/room_country_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
+sf4e_add_unit_test(NAME RoomQuickChat SOURCES "src/tests/room_quick_chat_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
 sf4e_add_unit_test(NAME RoomSets SOURCES "src/tests/room_sets_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
 sf4e_add_unit_test(NAME RoomTableCount SOURCES "src/tests/room_table_count_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
 sf4e_add_unit_test(NAME RoomWiredOnly SOURCES "src/tests/room_wired_only_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
