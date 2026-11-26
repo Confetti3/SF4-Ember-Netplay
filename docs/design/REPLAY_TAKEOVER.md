@@ -11,7 +11,7 @@ While the game's Battle Log plays a replay, the player can take one fighter and 
 | Retry (taking over) | F6 | Back, tapped |
 | Back to the replay (taking over) | F7 | Back, held half a second |
 
-Taking over works in the fight under Ember's controls, paused or not, and starts at 1x. While the player has a fighter, every pad button except Back belongs to the fighter, so the transport's pad controls stand down. Their keys are dropped too, with no "works during the fight" chip. The player's own controller is the one the game reads as Player 1's, for either side taken. The strip at the bottom shows the takeover's controls, and its place line names the fighter taken. Once the round is over it stays up with Retry lit.
+Taking over works in the fight under Ember's controls, paused or not, and starts at 1x. While the player has a fighter, every pad button except Back belongs to the fighter, so the transport's pad controls stand down. Their keys are dropped too, with no "works during the fight" chip. The player's own controller is the one the game reads as Player 1's, for either side taken: outside a match Ember keeps the selected device there (`input::AssignToSide`), the same device whose Back the pad controls read. The strip at the bottom shows the takeover's controls, and its place line names the fighter taken. Once the round is over it stays up with Retry lit. The input lanes and the frame meter's inputs are the replay file's, so the lanes hide and the meter gets no inputs while the player has a fighter. A take that cannot begin (the fight just ended, no recording, a battle that would not save) is refused like a control outside the fight.
 
 ## How it works
 
@@ -31,12 +31,12 @@ So (`sf4e__ReplayTakeover.cxx`):
 - **Speed:** `replaytransport::Decide` gives a takeover its own route, `Takeover`. It always runs at 1x and ignores the game's Select half speed. The transport resets each time the takeover's phase changes, as it does at a round's start, so the replay plays on at 1x afterwards. A camera jump asked for during a takeover is dropped, and one under way ends.
 - **One save:** the takeover's save sits beside the snapshot ring, about 90 memento claims next to the ring's budget, so Retry is always exact. The battle's close frees it, and "Play again" reclaims it.
 
-The commands are the replay controls' own (`replaytransport::Command`). The keys send them (`overlay::SendReplayKeys`), and so does the pad, whose `PadControls` has a takeover mode in which only Back acts. `replaytransport::FateOf` decides each command at the cadence call, and a takeover's acts before the next battle update in the phase it finds then (`replaytransport::StepOf`).
+The commands are the replay controls' own (`replaytransport::Command`). The keys send them (`overlay::SendReplayKeys`), and so does the pad: `PadControls` while the replay plays, and `TakeoverPad` while the player has a fighter, which times Back with Training's own gesture (`TrainingPadGesture`: a tap resets, half a second held saves). `replaytransport::FateOf` decides each command at the cadence call, and `replaytransport::StepOf` turns a takeover's into its step there, in the phase it was taken in. The steps act before the next battle update, from `replayplayback::BeforeUpdate`, each only if it still applies (`takeover::Applies`): two takes in one batch take one fighter.
 
 ## Files
 
 - `common/ReplayTakeover.hxx`: the model. It covers phases, plans, steps, `Recording` and `OtherWord`.
-- `common/ReplayTransport.hxx`: the commands and their kinds, `StepOf`, the `Takeover` route, `FateOf`, the pad's takeover mode and the F6 to F8 keys.
+- `common/ReplayTransport.hxx`: the commands and their kinds, `StepOf`, the `Takeover` route, `FateOf`, `PadControls`, `TakeoverPad` and the F6 to F8 keys.
 - `common/ReplayInputs.hxx`: `ReadStream` and `PadWord`, the record format both ways.
 - `sf4e/sf4e__ReplayTakeover.cxx`: the save, the recorder, the round's end and the words the battle reads.
 - `sf4e/sf4e__Pad.cxx`: `ReadButtons` reads each side from where the takeover says.
@@ -52,5 +52,5 @@ Tests: `ReplayTakeoverTest`, `ReplayTransportTest`, and the in-game `-Test takeo
 
 ## Open points
 
-- The pad's directions and Back are XInput's physical bits (`TrainingPad.hxx`). DirectInput pads cannot take over by pad, only by keyboard.
+- The replay's pad controls read XInput pads only (`replayplayback::Tick`), so a DirectInput pad takes over by keyboard. The physical bits themselves (`PadKind.hxx`: `PhysicalUp`, `PhysicalBack`) are the same on both.
 - Dummy recording slots (the Training dummy's saved recordings) are not offered yet. They need Training's recording banks moved out of `TrainingRuntime.cxx`.

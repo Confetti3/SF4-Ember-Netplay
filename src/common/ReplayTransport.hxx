@@ -21,6 +21,7 @@
 
 #include "PadKind.hxx"
 #include "ReplayTakeover.hxx"
+#include "TrainingPad.hxx"
 
 namespace sf4e { namespace replaytransport {
 
@@ -255,40 +256,27 @@ inline Observation ObserveUpdate(AdvanceGate& gate, int round, std::uint32_t cur
 	return seen;
 }
 
-// The pad's controls, from its physical XInput buttons sampled once a game
-// tick, in three modes:
-//   Transport: RB pause or play, RT step (held, again after kRepeatDelay ticks
-//     and every kRepeatEvery after), LB the next speed, LT the input lanes; L3
-//     takes Player 1 over, R3 Player 2, and Up changes what the other fighter
-//     would do (directions do nothing in a replay). Start and Back stay the game's.
-//   Takeover: the player has a fighter, whose buttons they all are but Back: a
-//     tap retries, and a hold of kBackHold ticks goes back to the replay, as
-//     Training's Back resets and holds. Only a Back pressed in this mode counts.
-//   Blocked: the game's pause menu is open, whose input the buttons are. They
-//     ask for nothing then, and what is held when it closes counts as already
-//     pressed, so neither a press made under the menu nor a held RT acts once
-//     it is gone: each needs a fresh press.
+// The pad's controls while a replay plays, from its physical XInput buttons
+// sampled once a game tick: RB pause or play, RT step (held, again after
+// kRepeatDelay ticks and every kRepeatEvery after), LB the next speed, LT the
+// input lanes; L3 takes Player 1 over, R3 Player 2, and Up changes what the
+// other fighter would do (directions do nothing in a replay). Start and Back
+// stay the game's.
 constexpr unsigned kRepeatDelay = 18, kRepeatEvery = 6; // 300 ms, then 10 a second
-constexpr unsigned kBackHold = 30;                      // half a second
-enum class PadMode { Transport, Takeover, Blocked };
 constexpr int kMostPadCommands = 7;
 class PadControls {
 public:
 	// Writes what this sample asks for to `out` (room for kMostPadCommands); the count.
-	int Sample(std::uint32_t physical, Command* out, PadMode mode = PadMode::Transport) {
-		if (mode == PadMode::Blocked) { Reset(physical); return 0; }
+	// blocked: the game's pause menu is open, whose input the buttons are, or
+	// the player has a fighter (TakeoverPad). They ask for nothing then, and
+	// what is held when that ends counts as already pressed, so neither a
+	// press made meanwhile nor a held RT acts once it is gone: each needs a fresh press.
+	int Sample(std::uint32_t physical, Command* out, bool blocked = false) {
+		if (blocked) { Reset(physical); return 0; }
 		namespace xinput = input::xinput;
 		const std::uint32_t down = physical & ~previous_;
 		previous_ = physical;
 		int count = 0;
-		if (mode == PadMode::Takeover) {
-			repeating_ = false;
-			if (down & xinput::View) { back_ = true; backHeld_ = 0; }
-			else if (back_ && (physical & xinput::View)) { if (++backHeld_ == kBackHold) out[count++] = Command::TakeoverSecondary; }
-			else if (back_) { if (backHeld_ < kBackHold) out[count++] = Command::TakeoverPrimary; back_ = false; }
-			return count;
-		}
-		back_ = false;
 		if (down & xinput::RB) out[count++] = Command::TogglePause;
 		if (physical & xinput::RT) {
 			if (down & xinput::RT) { held_ = 0; repeating_ = true; out[count++] = Command::Step; }
@@ -298,17 +286,36 @@ public:
 		if (down & xinput::LT) out[count++] = Command::Inputs;
 		if (down & xinput::LS) out[count++] = Command::TakeoverPrimary;
 		if (down & xinput::RS) out[count++] = Command::TakeoverSecondary;
-		if (down & xinput::Up) out[count++] = Command::TakeoverOther;
+		if (down & input::PhysicalUp) out[count++] = Command::TakeoverOther;
 		return count;
 	}
 	// The buttons held now count as already pressed, and a held RT does not
 	// repeat until it is pressed again.
-	void Reset(std::uint32_t held = 0) { previous_ = held; held_ = 0; repeating_ = false; back_ = false; backHeld_ = 0; }
+	void Reset(std::uint32_t held = 0) { previous_ = held; held_ = 0; repeating_ = false; }
 private:
 	std::uint32_t previous_ = 0;
-	unsigned held_ = 0, backHeld_ = 0;
-	// RT went down since the last Reset, so holding it steps again; Back went down while taking over.
-	bool repeating_ = false, back_ = false;
+	unsigned held_ = 0;
+	// RT went down since the last Reset, so holding it steps again.
+	bool repeating_ = false;
+};
+
+// The pad while the player has a fighter, whose buttons they all are but
+// Back: a tap retries and a hold goes back to the replay, timed as Training's
+// Back resets and saves (TrainingPadGesture). `now` is seconds.
+class TakeoverPad {
+public:
+	// Writes what this sample asks for to `out` (room for 1); the count.
+	// blocked: not taking over, or under the game's pause menu; a Back held
+	// then counts only once it is pressed again.
+	int Sample(std::uint32_t physical, double now, bool blocked, Command* out) {
+		if (blocked) { gesture_.Reset(); return 0; }
+		const input::TrainingPadEvents events = gesture_.Update(physical, false, now);
+		if (events.reset) { out[0] = Command::TakeoverPrimary; return 1; }
+		if (events.save) { out[0] = Command::TakeoverSecondary; return 1; }
+		return 0;
+	}
+private:
+	input::TrainingPadGesture gesture_;
 };
 
 // The keyboard's controls during playback: F1 pause or play, F2 step, F3

@@ -15,7 +15,6 @@
 namespace {
 using rSystem = Dimps::Game::Battle::System;
 using fSystem = sf4e::Game::Battle::System;
-using Command = sf4e::replaytransport::Command;
 namespace takeover = sf4e::takeover;
 using takeover::Phase;
 using takeover::Step;
@@ -35,7 +34,7 @@ struct Takeover {
 	// The record the update under way plays, and the other fighter's word for it.
 	std::uint32_t frame = 0;
 	unsigned otherWord = 0;
-	std::vector<Command> asked;
+	std::vector<Step> asked;
 	Takeover() { save.stake = sf4e::memento::Stake::Optional; }
 } s_takeover;
 
@@ -89,11 +88,12 @@ bool Load(rSystem* system) {
 
 // Only in the fight, with a round to follow: the cadence takes a takeover's
 // command only under Ember's controls, and the fight may end before it acts.
-void Begin(rSystem* system, sf4e::replay::Recorder& recorder, int side) {
-	if (!(system->*rSystem::publicMethods.IsFight)()) return;
+// False when it cannot begin.
+bool Begin(rSystem* system, sf4e::replay::Recorder& recorder, int side) {
+	if (!(system->*rSystem::publicMethods.IsFight)()) return false;
 	takeover::Recording recording;
-	if (!ReadRound(recorder, recording)) { spdlog::warn("Takeover: round {} has no recording to follow", recorder.round + 1); return; }
-	if (!fSystem::SaveState::Save(&s_takeover.save)) { spdlog::warn("Takeover: the battle could not be saved"); return; }
+	if (!ReadRound(recorder, recording)) { spdlog::warn("Takeover: round {} has no recording to follow", recorder.round + 1); return false; }
+	if (!fSystem::SaveState::Save(&s_takeover.save)) { spdlog::warn("Takeover: the battle could not be saved"); return false; }
 	fSystem::SaveState::ForgetFinishedSounds(&s_takeover.save);
 	s_takeover.plan.side = side;
 	s_takeover.cursor = recorder.cursor;
@@ -101,33 +101,37 @@ void Begin(rSystem* system, sf4e::replay::Recorder& recorder, int side) {
 	s_takeover.recording = std::move(recording);
 	Stop(recorder);
 	spdlog::info("Takeover: player {} taken at frame {} of round {} ({} recorded)", side + 1, recorder.cursor, recorder.round + 1, s_takeover.recording.Frames());
+	return true;
 }
 
-void Act(rSystem* system, sf4e::replay::Recorder& recorder, Step step) {
+// False when a takeover could not begin. A save that does not load leaves the battle (Load).
+bool Act(rSystem* system, sf4e::replay::Recorder& recorder, Step step) {
 	switch (step) {
-	case Step::TakePlayer1: Begin(system, recorder, 0); break;
-	case Step::TakePlayer2: Begin(system, recorder, 1); break;
-	case Step::Retry: if (Load(system)) Stop(recorder); break;
-	case Step::BackToReplay: if (Load(system)) Finish(true); break;
-	case Step::CycleOther: s_takeover.plan.other = takeover::NextOther(s_takeover.plan.other); break;
+	case Step::TakePlayer1: return Begin(system, recorder, 0);
+	case Step::TakePlayer2: return Begin(system, recorder, 1);
+	case Step::Retry: if (Load(system)) Stop(recorder); return true;
+	case Step::BackToReplay: if (Load(system)) Finish(true); return true;
+	case Step::CycleOther: s_takeover.plan.other = takeover::NextOther(s_takeover.plan.other); return true;
 	}
+	return true;
 }
 }
 
-void sf4e::replaytakeover::Ask(Command command) { s_takeover.asked.push_back(command); }
+void sf4e::replaytakeover::Ask(Step step) { s_takeover.asked.push_back(step); }
 
-void sf4e::replaytakeover::BeforeUpdate(rSystem* system) {
+std::uint32_t sf4e::replaytakeover::BeforeUpdate(rSystem* system) {
 	sf4e::replay::Recorder* recorder = sf4e::replayplayback::OfflineRecorder();
 	const auto asked = std::exchange(s_takeover.asked, {});
-	// A command acts on a replay the recorder plays, or on the takeover holding one.
-	if (!recorder || (s_takeover.phase == Phase::Off && recorder->mode != sf4e::replay::RecorderPlaying)) return;
-	for (const Command command : asked) Act(system, *recorder, sf4e::replaytransport::StepOf(command, s_takeover.phase));
-	if (s_takeover.phase != Phase::Playing) return;
+	// A step acts on a replay the recorder plays, or on the takeover holding one.
+	if (!recorder || (s_takeover.phase == Phase::Off && recorder->mode != sf4e::replay::RecorderPlaying)) return 0;
+	std::uint32_t refused = 0;
+	for (const Step step : asked) if (takeover::Applies(step, s_takeover.phase) && !Act(system, *recorder, step)) ++refused;
+	if (s_takeover.phase != Phase::Playing) return refused;
 	// The knockout or the time running out ends the takeover's round; the cadence holds the battle there.
 	if (!(system->*rSystem::publicMethods.IsFight)()) {
 		s_takeover.phase = Phase::RoundOver;
 		spdlog::info("Takeover: the round is over at frame {}", sf4e::replaytakeover::Cursor(*recorder, Simulated(system)));
-		return;
+		return refused;
 	}
 	const int side = s_takeover.plan.side;
 	const std::uint32_t frame = sf4e::replaytakeover::Cursor(*recorder, Simulated(system));
@@ -137,6 +141,7 @@ void sf4e::replaytakeover::BeforeUpdate(rSystem* system) {
 	feed.otherOnRight = OtherOnRight(system, side);
 	s_takeover.frame = frame;
 	s_takeover.otherWord = takeover::OtherWord(s_takeover.plan, feed);
+	return refused;
 }
 
 sf4e::replaytakeover::Source sf4e::replaytakeover::SourceOf(int side, unsigned& word) {

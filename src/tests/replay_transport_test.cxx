@@ -355,8 +355,8 @@ void TestSessionQueue() {
 		PadControls paused;
 		Command made[kMostPadCommands];
 		paused.Reset(0);
-		CHECK(paused.Sample(xinput::RT, made, PadMode::Blocked) == 0 && paused.Sample(xinput::RT | xinput::RB, made, PadMode::Blocked) == 0);
-		for (unsigned i = 0; i < kRepeatDelay * 2; i++) CHECK(paused.Sample(xinput::RT | xinput::RB, made, PadMode::Blocked) == 0);
+		CHECK(paused.Sample(xinput::RT, made, true) == 0 && paused.Sample(xinput::RT | xinput::RB, made, true) == 0);
+		for (unsigned i = 0; i < kRepeatDelay * 2; i++) CHECK(paused.Sample(xinput::RT | xinput::RB, made, true) == 0);
 		// The menu closes with RT and RB still down: nothing.
 		for (unsigned i = 0; i < kRepeatDelay * 2; i++) CHECK(paused.Sample(xinput::RT | xinput::RB, made) == 0);
 		// Let go and pressed again: the press acts.
@@ -410,39 +410,36 @@ void TestPad() {
 	CHECK(pad.Sample(xinput::LS, out) == 1 && out[0] == Command::TakeoverPrimary);
 	CHECK(pad.Sample(xinput::LS, out) == 0);
 	CHECK(pad.Sample(xinput::RS, out) == 1 && out[0] == Command::TakeoverSecondary);
-	CHECK(pad.Sample(xinput::Up, out) == 1 && out[0] == Command::TakeoverOther);
+	CHECK(pad.Sample(sf4e::input::PhysicalUp, out) == 1 && out[0] == Command::TakeoverOther);
 	CHECK(pad.Sample(0, out) == 0);
 	// Every control at once fits.
-	CHECK(pad.Sample(xinput::RB | xinput::RT | xinput::LB | xinput::LT | xinput::LS | xinput::RS | xinput::Up, out) == kMostPadCommands);
+	CHECK(pad.Sample(xinput::RB | xinput::RT | xinput::LB | xinput::LT | xinput::LS | xinput::RS | sf4e::input::PhysicalUp, out) == kMostPadCommands);
 	// Under the pause menu nothing, and what is held there is no press after.
-	CHECK(pad.Sample(0, out, PadMode::Blocked) == 0 && pad.Sample(xinput::RB, out, PadMode::Blocked) == 0);
+	CHECK(pad.Sample(0, out, true) == 0 && pad.Sample(xinput::RB, out, true) == 0);
 	CHECK(pad.Sample(xinput::RB, out) == 0);
 }
 
 void TestTakeoverPad() {
-	PadControls pad;
-	Command out[kMostPadCommands];
-	const auto taking = [&](std::uint32_t physical) { return pad.Sample(physical, out, PadMode::Takeover); };
+	TakeoverPad pad;
+	Command out[1];
+	const std::uint32_t back = sf4e::input::PhysicalBack;
+	double now = 0;
+	const auto at = [&](std::uint32_t physical, double seconds) { now = seconds; return pad.Sample(physical, now, false, out); };
 	// Taking over, the fight's buttons are the fighter's.
-	for (std::uint32_t button : {xinput::RB, xinput::RT, xinput::LB, xinput::LT, xinput::LS, xinput::RS, xinput::Up, xinput::A}) {
-		CHECK(taking(button) == 0);
-		CHECK(taking(0) == 0);
+	for (std::uint32_t button : {xinput::RB, xinput::RT, xinput::LB, xinput::LT, xinput::LS, xinput::RS, sf4e::input::PhysicalUp, xinput::A}) {
+		CHECK(at(button, now + .1) == 0);
+		CHECK(at(0, now + .1) == 0);
 	}
 	// A tap of Back retries as it is let go.
-	CHECK(taking(xinput::View) == 0);
-	CHECK(taking(0) == 1 && out[0] == Command::TakeoverPrimary);
-	// Held, it goes back to the replay once, kBackHold ticks after the press, and its release does nothing.
-	CHECK(taking(xinput::View) == 0);
-	int asked = 0;
-	for (unsigned tick = 1; tick <= kBackHold + 20; ++tick) {
-		const int count = taking(xinput::View);
-		if (count) { CHECK(tick == kBackHold && out[0] == Command::TakeoverSecondary); asked += count; }
-	}
-	CHECK(asked == 1 && taking(0) == 0);
-	// A Back already down when the takeover begins is no tap and no hold.
-	CHECK(pad.Sample(xinput::View, out, PadMode::Transport) == 0);
-	for (unsigned tick = 0; tick <= kBackHold; ++tick) CHECK(taking(xinput::View) == 0);
-	CHECK(taking(0) == 0);
+	CHECK(at(back, 1.0) == 0);
+	CHECK(at(0, 1.2) == 1 && out[0] == Command::TakeoverPrimary);
+	// Held half a second, as Training's Back saves, it goes back to the replay once; its release does nothing.
+	CHECK(at(back, 2.0) == 0 && at(back, 2.3) == 0);
+	CHECK(at(back, 2.5) == 1 && out[0] == Command::TakeoverSecondary);
+	CHECK(at(back, 2.9) == 0 && at(0, 3.0) == 0);
+	// Blocked (not taking over, or under the pause menu) it asks for nothing, and a Back held then is no press after.
+	CHECK(pad.Sample(back, 4.0, true, out) == 0);
+	CHECK(at(back, 4.1) == 0 && at(back, 5.0) == 0 && at(0, 5.1) == 0);
 }
 
 void TestKeys() {

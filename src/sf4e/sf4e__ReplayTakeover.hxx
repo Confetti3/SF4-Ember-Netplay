@@ -15,11 +15,14 @@ namespace Dimps { namespace Game { namespace Battle { struct System; } } }
 namespace sf4e { namespace replay { struct Recorder; } }
 
 namespace sf4e { namespace replaytakeover {
-// A takeover command the replay cadence took (ReplayTransport.hxx: FateOf),
-// acted on before the next battle update in the phase it finds then.
-void Ask(replaytransport::Command command);
-// Before each offline battle update, after replayplayback::BeforeUpdate.
-void BeforeUpdate(Dimps::Game::Battle::System* system);
+// A step the replay cadence took (ReplayTransport.hxx: FateOf, StepOf), acted
+// on before the next battle update if it still applies then (takeover::Applies).
+void Ask(takeover::Step step);
+// Before each offline battle update, from replayplayback::BeforeUpdate: acts
+// on the steps asked for and plays the takeover's frame. The count of steps
+// that could not act (no fight any more, no recording to follow, a battle
+// that would not save), which the strip answers as refused.
+std::uint32_t BeforeUpdate(Dimps::Game::Battle::System* system);
 
 // What the battle reads for a side (0 or 1): its native pad outside a
 // takeover; during one, the player's own controller for the fighter taken,

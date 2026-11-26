@@ -16,7 +16,7 @@
 
 namespace sf4e { namespace input {
 // The slot of each direction: Up, Right, Down, Left.
-constexpr std::uint32_t SlotDirection[quickchat::Slots] = {xinput::Up, xinput::Right, xinput::Down, xinput::Left};
+constexpr std::uint32_t SlotDirection[quickchat::Slots] = {PhysicalUp, PhysicalRight, PhysicalDown, PhysicalLeft};
 // What the chord withholds from the game's native caches (WithholdNativeInputs):
 // the fight map's directions (ReplayInputs.hxx: Up, Down, Left, Right) and its
 // Select, the function of the pad's Back (ReplayInputs.hxx: the pad word's 0x2000).

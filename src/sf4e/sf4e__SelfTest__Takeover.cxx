@@ -34,6 +34,7 @@
 #include "../common/ReplayTakeover.hxx"
 #include "../platform/ReplayFiles.hxx"
 #include "../platform/Utf8.hxx"
+#include "sf4e__BattleFighters.hxx"
 #include "sf4e__GameEvents.hxx"
 #include "sf4e__ReplayPlayback.hxx"
 #include "sf4e__ReplayStore.hxx"
@@ -83,15 +84,11 @@ struct Run : Steps<Stage> {
 
 bool Read(Frame& frame) {
 	using Actor = Dimps::Game::Battle::Chara::Actor;
-	using Unit = Dimps::Game::Battle::Chara::Unit;
-	rSystem* system = rSystem::staticMethods.GetSingleton ? rSystem::staticMethods.GetSingleton() : nullptr;
-	Unit* unit = system ? (system->*rSystem::publicMethods.GetCharaUnit)() : nullptr;
-	if (!unit) return false;
+	const auto actors = battle::ReadActors(rSystem::staticMethods.GetSingleton ? rSystem::staticMethods.GetSingleton() : nullptr);
 	for (unsigned side = 0; side < 2; ++side) {
-		Actor* actor = (unit->*Unit::publicMethods.GetActorByIndex)(side);
-		if (!actor) return false;
-		frame.x[side] = (actor->*Actor::publicMethods.GetCurrentRootPosition)()[0];
-		frame.action[side] = (actor->*Actor::publicMethods.GetActionID)();
+		if (!actors[side]) return false;
+		frame.x[side] = (actors[side]->*Actor::publicMethods.GetCurrentRootPosition)()[0];
+		frame.action[side] = (actors[side]->*Actor::publicMethods.GetActionID)();
 	}
 	return true;
 }

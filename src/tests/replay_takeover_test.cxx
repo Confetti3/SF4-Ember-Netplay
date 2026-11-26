@@ -15,6 +15,14 @@ namespace replayinputs = sf4e::replayinputs;
 
 namespace {
 
+void TestSteps() {
+	// A step acts only in a phase it still applies to: two takes in one batch take one fighter, and nothing retries without a takeover.
+	CHECK(Applies(Step::TakePlayer1, Phase::Off) && !Applies(Step::TakePlayer2, Phase::Playing) && !Applies(Step::TakePlayer1, Phase::RoundOver));
+	CHECK(!Applies(Step::Retry, Phase::Off) && Applies(Step::Retry, Phase::Playing) && Applies(Step::Retry, Phase::RoundOver));
+	CHECK(!Applies(Step::BackToReplay, Phase::Off) && Applies(Step::BackToReplay, Phase::RoundOver));
+	for (Phase phase : {Phase::Off, Phase::Playing, Phase::RoundOver}) CHECK(Applies(Step::CycleOther, phase));
+}
+
 void TestOthers() {
 	// The other fighter's modes go round.
 	Other other = Other::FollowReplay;
@@ -83,6 +91,7 @@ void TestOtherWord() {
 }
 
 int main() {
+	TestSteps();
 	TestOthers();
 	TestRecording();
 	TestOtherWord();

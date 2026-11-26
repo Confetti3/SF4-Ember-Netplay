@@ -252,8 +252,10 @@ unsigned int fSystem::ReadButtons(int pindex, bool raw) {
     sf4e::training::Input trainingInput;
     if (sf4e::training::ReadOverride(pindex, trainingInput)) return raw ? trainingInput.raw : trainingInput.mapped;
     // A replay taken over (sf4e__ReplayTakeover.hxx): the fighter taken reads
-    // the player's own controller, player 1's, read as a match reads it so the
-    // self-test may play it (MatchInput); the other reads the takeover's word.
+    // the player's own controller, player 1's, where Ember keeps the selected
+    // device outside a match (input::AssignToSide), the device whose Back the
+    // replay's pad controls read; read as a match reads it, so the self-test
+    // may play it (MatchInput). The other fighter reads the takeover's word.
     unsigned other = 0;
     switch (sf4e::replaytakeover::SourceOf(pindex, other)) {
     case sf4e::replaytakeover::Source::Other: return other;

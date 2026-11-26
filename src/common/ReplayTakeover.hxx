@@ -29,8 +29,20 @@ struct Plan {
 	int side = 0;
 	Other other = Other::FollowReplay;
 };
-// What a takeover command does (ReplayTransport.hxx: StepOf).
+// What a takeover command does (ReplayTransport.hxx: StepOf), decided in the
+// phase the command was taken in.
 enum class Step : std::uint8_t { TakePlayer1, TakePlayer2, Retry, BackToReplay, CycleOther };
+// Whether a step still applies in the phase it is acted on: one taken with
+// another in the same batch may find the phase changed (two takes at once
+// take one fighter; a Retry after Back to the replay has nothing to retry).
+inline bool Applies(Step step, Phase phase) {
+	switch (step) {
+	case Step::TakePlayer1: case Step::TakePlayer2: return phase == Phase::Off;
+	case Step::Retry: case Step::BackToReplay: return phase != Phase::Off;
+	case Step::CycleOther: return true;
+	}
+	return false;
+}
 
 // One round's recorded inputs, frame by frame (ReplayInputs::ReadStream).
 class Recording {

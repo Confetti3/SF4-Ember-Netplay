@@ -99,8 +99,8 @@ void TickTraining();
 // The room test (sf4e__SelfTest__Room.cxx), both of its sides.
 bool StartRoom();
 void TickRoom();
-// The room game test's fighters, from MatchInput: true when it played `side`.
-bool RoomMatchInput(int side, unsigned& mapped, unsigned& raw);
+// The room game test's fighters, from MatchInput.
+void RoomMatchInput(int side, unsigned& mapped, unsigned& raw);
 
 // The room layout test (sf4e__SelfTest__RoomLayout.cxx), on one PC.
 bool StartRoomLayout();

@@ -174,12 +174,10 @@ void TickRoom() {
 	}
 }
 
-bool RoomMatchInput(int side, unsigned& mapped, unsigned& raw) {
-	if (!Game()) return false;
+void RoomMatchInput(int side, unsigned& mapped, unsigned& raw) {
 	// The guest's fighter stands still; the host's attacks while the game is played.
 	const bool attacks = Host() && s_room.stage == Stage::Playing;
 	mapped = raw = attacks ? AttackInput(s_room.frames++, side == 0) : 0u;
-	return true;
 }
 
 } }

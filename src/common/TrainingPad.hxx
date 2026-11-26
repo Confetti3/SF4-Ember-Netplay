@@ -4,6 +4,7 @@
 #include <mutex>
 #include <vector>
 #include "MenuButtons.hxx"
+#include "PadKind.hxx"
 #include "TrainingCallInput.hxx"
 
 // The assigned pad in offline Training, outside Ember's own menu input. It
@@ -50,7 +51,6 @@
 // whether or not it opens anything (TrainingPadEvents::owned), so the game
 // never takes it for its pause, under the call too.
 namespace sf4e { namespace input {
-constexpr std::uint32_t PhysicalBack = 0x100, PhysicalStart = 0x200;
 // Called: the room calls the player back and the controls stay shut. GoNow:
 // also, the banner offers go now on this pad.
 enum class TrainingCall { None, Called, GoNow };

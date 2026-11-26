@@ -47,6 +47,7 @@ transport::Transport s_transport;
 transport::View s_view;
 transport::AdvanceGate s_meterGate;
 transport::PadControls s_pad;
+transport::TakeoverPad s_takeoverPad;
 bool s_padActive = false, s_deviceKnown = false;
 // F5 turns the replay's own meter choice the other way.
 bool s_meterFlipped = false;
@@ -188,7 +189,7 @@ void Cadence::Run() {
 		if (fate == transport::Fate::Drop) continue;
 		if (fate == transport::Fate::Refuse) { ++s_view.refused; continue; }
 		switch (transport::KindOf(queued.command)) {
-		case transport::Kind::Takeover: sf4e::replaytakeover::Ask(queued.command); break;
+		case transport::Kind::Takeover: sf4e::replaytakeover::Ask(transport::StepOf(queued.command, context.takeover)); break;
 		case transport::Kind::Transport: s_transport.Apply(queued.command); break;
 		case transport::Kind::Layer:
 			if (queued.command == Command::Meter) s_meterFlipped = !s_meterFlipped; else s_lanesOn = !s_lanesOn;
@@ -318,6 +319,8 @@ bool sf4e::replayplayback::AfterUpdate(Dimps::Game::Battle::System* system) {
 }
 
 void sf4e::replayplayback::BeforeUpdate(Dimps::Game::Battle::System* system) {
+	// The takeover first: it may stop the recorder, and the snapshots below are the replay's own.
+	s_view.refused += sf4e::replaytakeover::BeforeUpdate(system);
 	const sf4e::replay::Recorder* recorder = sf4e::replayplayback::OfflineRecorder();
 	if (!recorder || recorder->mode != transport::kRecorderPlaying || !s_view.playback || s_view.exporting) return;
 	if (s_loadWaiting) {
@@ -378,7 +381,8 @@ bool sf4e::replayplayback::SeekMore(Dimps::Game::Battle::System* system, int don
 bool sf4e::replayplayback::PlayedInputs(unsigned (&inputs)[2]) {
 	const auto lanes = s_lanes;
 	std::uint32_t frame = 0;
-	if (!lanes || !replaylane::PlayedFrame(s_view.cursor, frame)) return false;
+	// The lanes are the file's: what a takeover plays is not in them.
+	if (!lanes || s_view.takeover != sf4e::takeover::Phase::Off || !replaylane::PlayedFrame(s_view.cursor, frame)) return false;
 	for (int side = 0; side < 2; side++) {
 		replaylane::Row row;
 		if (!replaylane::Rows(*lanes, side, s_view.round, frame, &row, 1)) return false;
@@ -407,10 +411,11 @@ void sf4e::replayplayback::Tick(int deviceType, int deviceIndex, bool connected)
 		Command commands[transport::kMostPadCommands];
 		// Under the game's pause menu the pad asks for nothing, so no press
 		// made there waits to act once the menu closes. While the player has a
-		// fighter its buttons are the fighter's, all but Back.
-		const transport::PadMode mode = battlePause.Paused() ? transport::PadMode::Blocked :
-			sf4e::replaytakeover::GetPhase() == sf4e::takeover::Phase::Off ? transport::PadMode::Transport : transport::PadMode::Takeover;
-		const int count = s_pad.Sample(physical, commands, mode);
+		// fighter its buttons are the fighter's, all but Back (TakeoverPad);
+		// one of the two acts at a time.
+		const bool paused = battlePause.Paused(), taking = sf4e::replaytakeover::GetPhase() != sf4e::takeover::Phase::Off;
+		int count = s_pad.Sample(physical, commands, paused || taking);
+		count += s_takeoverPad.Sample(physical, GetTickCount64() / 1000.0, paused || !taking, commands + count);
 		for (int i = 0; i < count; i++) Submit(commands[i], Device::Pad, s_view.session);
 	}
 
