@@ -22,6 +22,7 @@
 #include "../common/RoomRules.hxx"
 #include "../common/SteamId.hxx"
 #include "../common/Country.hxx"
+#include "../common/Area.hxx"
 #include "Admission.hxx"
 #include "TournamentBinding.hxx"
 
@@ -232,6 +233,8 @@ struct MemberProfile {
 	SteamId steamId;
 	// The country the player shows, or none when it is Hidden or unknown.
 	CountryCode country;
+	// The area the player shows (ShownArea), or None when it is Hidden or unknown.
+	Area area = Area::None;
 	// The joiner asks to watch a bound tournament match: a room that does not
 	// name its endpoint as a watcher refuses it. A courtesy of a cooperating
 	// game, never part of a snapshot.
@@ -286,6 +289,9 @@ struct Member {
     SteamId steamId;
     // The country this member showed when it joined, or none.
     CountryCode country;
+    // The area this member showed when it joined, or None. A public room lists it
+    // for a member who waits alone to play (roomhost::DetailsOf).
+    Area area = Area::None;
     // The class a public room's ticket vouched for (MemberProfile::admission), or none.
     SkillBadge badge;
     // The card token in that ticket (FIGHTER_LEVELS.md), which members ask the

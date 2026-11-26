@@ -602,9 +602,9 @@ static void Sound(const RoomAuthority& authority, const std::string& what) {
 	}
 	sound(asking <= 1, "one table asks");
 	const auto inPlay = r.tables.begin() + static_cast<std::ptrdiff_t>(TablesInPlay(r));
-	sound(!asking || (r.line.empty() && std::none_of(r.tables.begin(), inPlay, [](const Table& t) { return ArcadeAlone(t) || ArcadeEmpty(t); })),
+	sound(!asking || (r.line.empty() && std::none_of(r.tables.begin(), inPlay, [](const Table& t) { return SeatedAlone(t) || ArcadeEmpty(t); })),
 		"a request waits while nobody is free");
-	sound(std::count_if(r.tables.begin(), r.tables.end(), ArcadeAlone) <= 2, "two alone at most");
+	sound(std::count_if(r.tables.begin(), r.tables.end(), SeatedAlone) <= 2, "two alone at most");
 	for (const auto& seat : seats) sound(seat.second == 1 && CabinetOf(r, seat.first) >= 0, "a seat has a cabinet");
 	for (std::size_t i = 0; i < CabinetCount; ++i) {
 		const bool seated = r.cabinets[i] && seats[r.cabinets[i]] == 1;
@@ -614,7 +614,7 @@ static void Sound(const RoomAuthority& authority, const std::string& what) {
 	const bool line = !r.line.empty();
 	for (std::size_t i = 0; i < TableCount; ++i) {
 		const auto& t = r.tables[i];
-		const MemberId lone = ArcadeAlone(t) ? (t.p1 ? t.p1 : t.p2) : 0;
+		const MemberId lone = SeatedAlone(t) ? (t.p1 ? t.p1 : t.p2) : 0;
 		const bool meets = lone && std::any_of(r.line.begin(), r.line.end(), [&](MemberId m) { return authority.MayMeet(lone, m); });
 		if (i >= TablesInPlay(r)) sound(ArcadeEmpty(t), "a table out of play is empty");
 		else sound(!line || (!ArcadeEmpty(t) && !meets), "the line waits only beside pairs, or a lone fighter none of it may meet");

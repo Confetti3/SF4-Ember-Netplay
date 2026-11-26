@@ -4,7 +4,8 @@
 
 namespace sf4e { namespace netplay { namespace publicrooms {
 
-// Which rooms the Public rooms list shows. Saved with the player's preferences,
+// Which rooms the Public rooms list shows, and whom Quick join looks for first
+// (Opponents, which hides no room). Saved with the player's preferences,
 // which C++14 targets include, so this header keeps to C++14; matching rooms is
 // PublicRoomFilterMatch.hxx. The default shows every room.
 struct RoomFilter {
@@ -20,23 +21,27 @@ struct RoomFilter {
 	bool openSeats = false;
 	// Only rooms that take wired players alone.
 	bool wiredOnly = false;
+	// Whom Quick join looks for first: players near the player's own class, or any
+	// (QuickJoinFit.hxx). It hides no room, so it is kept apart from the filter
+	// itself: Active ignores it and Cleared keeps it.
+	enum class Opponents { Similar, Any };
+	Opponents opponents = Opponents::Similar;
 
 	bool operator==(const RoomFilter& other) const {
-		return scope == other.scope && areas == other.areas && type == other.type && openSeats == other.openSeats && wiredOnly == other.wiredOnly;
+		return scope == other.scope && areas == other.areas && type == other.type && openSeats == other.openSeats && wiredOnly == other.wiredOnly &&
+			opponents == other.opponents;
 	}
 	bool operator!=(const RoomFilter& other) const { return !(*this == other); }
+	// Every room listed again, with Quick join's choice kept.
+	RoomFilter Cleared() const {
+		RoomFilter cleared;
+		cleared.opponents = opponents;
+		return cleared;
+	}
 	// Anything but the default: some room may be hidden.
-	bool Active() const { return *this != RoomFilter(); }
+	bool Active() const { return *this != Cleared(); }
 	// Areas are named exactly when the scope is Areas.
 	bool Valid() const { return (scope == Place::Areas) == !areas.Empty(); }
-
-	// Quick join looks for a room near the player first unless the player chose areas. A room is
-	// near only when it names an area, so Quick join then falls back to this filter itself.
-	RoomFilter ForQuickJoin() const {
-		RoomFilter quick = *this;
-		if (quick.scope == Place::All) quick.scope = Place::Near;
-		return quick;
-	}
 
 	// Ticks or unticks one area. Ticking leaves Near me; unticking the last one is All.
 	void SetArea(Area area, bool ticked) {

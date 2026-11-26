@@ -549,15 +549,13 @@ void ApplicationShell::AnswerDialog(const Submit& submit) {
  // Any closed notice answers the update question if it is the one on show.
  if(updatePrompt_.Open()&&!menu_.NoticeOpen())FinishUpdatePrompt(result,submit);
 }
-// Quick join asks for the first room with a free seat that the room filter lists, near the player's
-// area when it is set and the filter names none, else any such room. With none it offers to create
-// one, which the next frame opens.
+// Quick join asks for the room with a free seat that the room filter lists and that fits the player
+// best: near their area, then near their class (netplay::publicrooms::PickQuickJoin). With none it
+// offers to create one, which the next frame opens.
 void ApplicationShell::QuickJoin(const ShellView& v) {
  error_.clear();
- if(const auto id=publicRooms_.QuickPick(v,PublicRoomsPanel::FilterHome(v),preferences_.roomFilter)){
-  if(publicRooms_.Join(*id))menu_.navigation.Prefer("pr-room:"+*id);
-  return;
- }
+ if(publicRooms_.Busy())return;
+ if(const auto id=publicRooms_.QuickJoin(v,PublicRoomsPanel::SeekerOf(v),preferences_.roomFilter)){menu_.navigation.Prefer("pr-room:"+*id);return;}
  menu_.ShowNotice(NoticeDialog{loc::T(preferences_.roomFilter.Active()?"public.quick_none_filtered":"public.quick_none"),loc::T("public.quick"),{{loc::T("common.ok")},{loc::T("public.create_room"),NoticeResult::CreatePublicRoom}}});
 }
 

@@ -87,6 +87,12 @@ RoomDetails DetailsOf(const room::Snapshot& snapshot) {
 	details.ownDelay = snapshot.delayPolicy == room::DelayPolicy::Own;
 	details.roomType = static_cast<int>(snapshot.type);
 	details.wiredOnly = snapshot.wiredOnly;
+	for (const auto& member : snapshot.members) details.classes.push_back(member.badge.ClassBand());
+	std::sort(details.classes.begin(), details.classes.end());
+	for (const room::MemberId id : room::WaitingAlone(snapshot)) {
+		if (details.waiting.size() >= MaximumWaiting) break;
+		if (const auto* member = room::FindMember(snapshot, id)) details.waiting.push_back({member->badge.ClassBand(), member->area});
+	}
 	return details;
 }
 
@@ -99,6 +105,15 @@ std::string StatusLine(const Status& status) {
 	// Written only for the room that has it, so any other room's line is what it was.
 	if (details.ownDelay) detail["own_delay"] = true;
 	if (details.wiredOnly) detail["wired_only"] = true;
+	if (!details.classes.empty()) detail["classes"] = details.classes;
+	if (!details.waiting.empty()) {
+		auto& waiting = detail["waiting"] = nlohmann::json::array();
+		for (const auto& player : details.waiting) {
+			nlohmann::json entry{{"class", player.band}};
+			if (player.area != Area::None) entry["area"] = AreaCode(player.area);
+			waiting.push_back(entry);
+		}
+	}
 	nlohmann::json line{{"type", "status"}, {"members", status.members}, {"tables_playing", status.tablesPlaying},
 		{"invitation", status.invitation}, {"banned", status.banned}, {"details", detail}};
 	if (!status.games.empty()) line["games"] = status.games;

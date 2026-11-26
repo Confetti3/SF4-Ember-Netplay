@@ -5,15 +5,23 @@
 //! stream.
 use std::{
     collections::{BTreeSet, HashMap},
-    sync::atomic::Ordering,
+    sync::{Arc, atomic::Ordering},
     time::Duration,
 };
 
-use ember_protocol::{EmberId, event::Kind, play::MAX_INVITATION, rooms::ENDED};
+use ember_protocol::{
+    EmberId,
+    event::Kind,
+    play::MAX_INVITATION,
+    rooms::{ENDED, MAX_CAPACITY},
+};
 use rusqlite::{Transaction, params};
 
 use super::{
-    PENDING_SECS, Room, announce, details::Details, load, supervisor::Reported,
+    PENDING_SECS, Room, announce,
+    details::{Details, QuickJoin, QuickJoins},
+    load,
+    supervisor::Reported,
     supervisor::Supervisor,
 };
 use crate::{AppState, Keys, config::Config, error::Result, skill};
@@ -31,14 +39,28 @@ fn applied_revs(state: &AppState) -> Revs {
         .clone()
 }
 
-/// Remembers `revs` as what `state`'s polls have applied. Called only after
-/// the write that applied them committed.
-fn remember_revs(state: &AppState, revs: Revs) {
+/// What one committed poll leaves for the next.
+struct Applied {
+    /// The `rev` of each room the poll applied.
+    revs: Revs,
+    /// What the report said about who is in each room it listed, rooms
+    /// skipped by their `rev` included.
+    quick_joins: QuickJoins,
+}
+
+/// Remembers what `state`'s last poll applied and read. Called only after the
+/// write that applied it committed.
+fn remember(state: &AppState, applied: Applied) {
     *state
         .rooms
         .applied
         .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner()) = revs;
+        .unwrap_or_else(|poisoned| poisoned.into_inner()) = applied.revs;
+    *state
+        .rooms
+        .quick_joins
+        .write()
+        .unwrap_or_else(|poisoned| poisoned.into_inner()) = Arc::new(applied.quick_joins);
 }
 
 /// How often the supervisor is asked which rooms are alive.
@@ -120,7 +142,7 @@ async fn poll_once(state: &AppState, supervisor: &Supervisor<'_>) {
         .write(move |tx| apply(tx, &keys, &config, &reported, &published, &before, now))
         .await
     {
-        remember_revs(state, applied);
+        remember(state, applied);
     }
 }
 
@@ -154,7 +176,8 @@ async fn published_rooms(state: &AppState) -> BTreeSet<String> {
 /// the rooms this report carried a `rev` for and that were open and published
 /// when it was applied (so a room whose creation had not stored its
 /// invitation yet is applied again at the next poll, whatever its `rev`), and
-/// no room the report leaves out.
+/// no room the report leaves out. Who is in each room is read from every room
+/// the report lists, skipped or not: it is not stored, so it is not skipped.
 fn apply(
     tx: &Transaction<'_>,
     keys: &Keys,
@@ -163,11 +186,15 @@ fn apply(
     published: &BTreeSet<String>,
     seen: &Revs,
     now: u64,
-) -> Result<Revs> {
+) -> Result<Applied> {
     let mut alive = BTreeSet::new();
     let mut applied = Revs::new();
+    let mut quick_joins = QuickJoins::new();
     for room in rooms {
         alive.insert(room.room_id.as_str());
+        if let Some(joins) = quick_join_of(room) {
+            quick_joins.insert(room.room_id.clone(), joins);
+        }
         if let Some(rev) = room.rev
             && seen.get(&room.room_id) == Some(&rev)
         {
@@ -273,7 +300,21 @@ fn apply(
         [cutoff],
     )?;
     tx.execute("DELETE FROM rooms WHERE closed_at <= ?1", [cutoff])?;
-    Ok(applied)
+    Ok(Applied {
+        revs: applied,
+        quick_joins,
+    })
+}
+
+/// Who the report says is in the room, when it says anything usable.
+fn quick_join_of(room: &Reported) -> Option<QuickJoin> {
+    let members = u8::try_from(room.members)
+        .unwrap_or(u8::MAX)
+        .min(MAX_CAPACITY);
+    room.details
+        .as_ref()
+        .map(|details| QuickJoin::from_value(details, members))
+        .filter(|joins| *joins != QuickJoin::default())
 }
 
 /// The room as one report leaves it: what the room's record would hold after

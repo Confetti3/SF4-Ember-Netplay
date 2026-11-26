@@ -102,6 +102,27 @@ void DecodeDetails(const json& view, Room& room) {
 		room.rotation = static_cast<int>(found->get<std::uint64_t>());
 		room.hasDetails = true;
 	}
+	// Quick join's facts (docs/design/QUICK_JOIN.md): each list stands alone and is
+	// read whole or not at all.
+	if (const auto found = view.find("classes"); found != view.end() && found->is_array() && found->size() <= room.members &&
+		found->size() <= netplay::publicrooms::MaxRoomFighters) {
+		std::vector<std::uint8_t> classes;
+		for (const auto& item : *found)
+			if (item.is_number_unsigned() && item.get<std::uint64_t>() <= SkillBadge::Classes) classes.push_back(static_cast<std::uint8_t>(item.get<std::uint64_t>()));
+		if (classes.size() == found->size()) { room.classes = std::move(classes); room.hasDetails = true; }
+	}
+	if (const auto found = view.find("waiting"); found != view.end() && found->is_array() && found->size() <= room.members &&
+		found->size() <= netplay::publicrooms::MaxWaiting) {
+		std::vector<netplay::publicrooms::WaitingPlayer> waiting;
+		for (const auto& item : *found) {
+			const auto band = item.is_object() ? item.find("class") : item.end();
+			if (band == item.end() || !band->is_number_unsigned() || band->get<std::uint64_t>() > SkillBadge::Classes) break;
+			const auto area = item.find("area");
+			waiting.push_back({static_cast<std::uint8_t>(band->get<std::uint64_t>()),
+				area != item.end() && area->is_string() ? AreaFromCode(area->get<std::string>()) : Area::None});
+		}
+		if (waiting.size() == found->size()) { room.waiting = std::move(waiting); room.hasDetails = true; }
+	}
 	if (const auto found = view.find("room_type"); found == view.end()) {
 		if (room.hasDetails) room.type = room::RoomType::Classic;
 	} else if (found->is_number_unsigned() && found->get<std::uint64_t>() <= static_cast<std::uint64_t>(room::RoomType::King)) {

@@ -191,11 +191,31 @@ inline Charter CharterOf(const Snapshot& room) {
 inline std::size_t TablesInPlay(const Snapshot& room) {
 	return room.tableCount < 1 ? 1 : room.tableCount > TableCount ? TableCount : room.tableCount;
 }
-// An Arcade table where one fighter waits for an opponent, and an empty one.
-inline bool ArcadeAlone(const Table& table) {
+// A table between games where one fighter sits alone (at the cabinets: waits for an
+// opponent), and an empty Arcade table.
+inline bool SeatedAlone(const Table& table) {
 	return table.phase == TablePhase::Idle && (table.p1 == 0) != (table.p2 == 0);
 }
 inline bool ArcadeEmpty(const Table& table) { return table.phase == TablePhase::Idle && !table.p1 && !table.p2; }
+
+// The members a newcomer would play at once, in the order they would meet them.
+// A room that seats by cabinet (RulesOf) pairs a newcomer with whoever has waited
+// alone longest (RoomAuthority::Waiter); any other room seats them at a table where
+// one fighter sits alone between games with nobody queued, and the newcomer picks
+// the table, so those come in table order. The rule a pair that parted may not meet
+// again (MayMeet) is the room's own and left out: this is what a listing says.
+inline std::vector<MemberId> WaitingAlone(const Snapshot& room) {
+	std::vector<const Table*> alone;
+	for (std::size_t index = 0; index < TablesInPlay(room) && index < room.tables.size(); ++index) {
+		const auto& table = room.tables[index];
+		if (SeatedAlone(table) && table.queue.empty()) alone.push_back(&table);
+	}
+	if (RulesOf(room).cabinets)
+		std::stable_sort(alone.begin(), alone.end(), [](const Table* a, const Table* b) { return a->waitingSince < b->waitingSince; });
+	std::vector<MemberId> members;
+	for (const auto* table : alone) members.push_back(table->p1 ? table->p1 : table->p2);
+	return members;
+}
 
 // Whether New opponent parts the Arcade pair at `table` at once: someone
 // waits in line or alone at another table, or another table is free to wait at.
@@ -203,7 +223,7 @@ inline bool ArcadeEmpty(const Table& table) { return table.phase == TablePhase::
 inline bool ArcadeSomeoneFree(const Snapshot& room, std::size_t table) {
 	if (!room.line.empty()) return true;
 	for (std::size_t other = 0; other < TablesInPlay(room); ++other)
-		if (other != table && (ArcadeAlone(room.tables[other]) || ArcadeEmpty(room.tables[other]))) return true;
+		if (other != table && (SeatedAlone(room.tables[other]) || ArcadeEmpty(room.tables[other]))) return true;
 	return false;
 }
 

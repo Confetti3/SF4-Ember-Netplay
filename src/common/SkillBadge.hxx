@@ -23,6 +23,8 @@ struct SkillBadge {
 	static SkillBadge Developer() { return {Kind::Developer, 0, false}; }
 	bool Present() const { return kind != Kind::None; }
 	bool HasClass() const { return kind == Kind::Class; }
+	// The class's band, or 0 for every other kind: what a listing and Quick join count.
+	std::uint8_t ClassBand() const { return HasClass() ? band : 0; }
 	bool Valid() const { return kind == Kind::Class ? band >= 1 && band <= Classes : band == 0 && !settled; }
 	bool operator==(const SkillBadge& other) const { return kind == other.kind && band == other.band && settled == other.settled; }
 };

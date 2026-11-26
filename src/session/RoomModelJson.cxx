@@ -386,6 +386,7 @@ void to_json(nlohmann::json& json, const Member& value) { json = nlohmann::json{
     // Only a member who showed the room a profile has the key; older readers skip it.
     if (value.steamId.Present()) json["steam_id"] = value.steamId.ToString();
     if (value.country.Present()) json["country"] = value.country.ToString();
+    if (value.area != Area::None) json["area"] = AreaCode(value.area);
     if (value.badge.Present()) json["badge"] = SkillBadgeJson(value.badge);
     if (value.card.Present()) json["card"] = value.card.ToString(); }
 void from_json(const nlohmann::json& json, Member& value) {
@@ -424,6 +425,8 @@ void from_json(const nlohmann::json& json, Member& value) {
     // Text that is not a SteamId reads as none, as an unknown link does.
     value.steamId = json.contains("steam_id") && json.at("steam_id").is_string() ? SteamId::Parsed(json.at("steam_id").get<std::string>()) : SteamId();
     value.country = json.contains("country") && json.at("country").is_string() ? CountryCode::Parsed(json.at("country").get<std::string>()) : CountryCode();
+    // An area this build does not know reads as none, as an unknown country does.
+    value.area = json.contains("area") && json.at("area").is_string() ? AreaFromCode(json.at("area").get<std::string>()) : Area::None;
     value.badge = ReadSkillBadge(json);
     // A card that is not shaped like a token reads as none, as a badge does.
     value.card = ReadCardToken(json);

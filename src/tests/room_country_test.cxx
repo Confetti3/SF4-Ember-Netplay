@@ -46,9 +46,36 @@ static void TestJoinRequestCountry() {
     }
 }
 
+// A member's area, as its country: carried by the join, kept by the snapshot and a
+// checkpoint, and none for an older peer or a code this build does not know.
+static void TestMemberArea() {
+    namespace protocol=sf4e::SessionProtocol;
+    RoomAuthority authority("Areas",16,72);
+    MemberProfile shows;shows.area=sf4e::Area::EuropeEast;
+    EXPECT(authority.Join("Shows",Peer(0),true,shows).accepted);
+    EXPECT(authority.Join("Hides",Peer(1)).accepted);
+    const auto snapshot=authority.SnapshotView();
+    EXPECT(snapshot.members[0].area==sf4e::Area::EuropeEast&&snapshot.members[1].area==sf4e::Area::None);
+    const auto first=nlohmann::json(snapshot.members[0]),second=nlohmann::json(snapshot.members[1]);
+    EXPECT(first.at("area")=="eue"&&!second.contains("area"));
+    RoomAuthority restored("Restore");EXPECT(restored.RestoreCheckpoint(authority.Checkpoint()));
+    EXPECT(restored.SnapshotView().members[0].area==sf4e::Area::EuropeEast);
+    for(const nlohmann::json invalid:{nlohmann::json("EUE"),nlohmann::json("use1"),nlohmann::json(3)}){
+        auto member=first;member["area"]=invalid;EXPECT(member.get<Member>().area==sf4e::Area::None);
+    }
+    protocol::SessionJoinRequest request;request.SetProfile(shows);
+    const nlohmann::json sent=request;
+    EXPECT(sent.at("area")=="eue"&&sent.get<protocol::SessionJoinRequest>().Profile().area==sf4e::Area::EuropeEast);
+    protocol::SessionJoinRequest hidden;hidden.SetProfile(MemberProfile{});
+    EXPECT(!nlohmann::json(hidden).contains("area"));
+    auto forged=sent;forged["area"]="mars";
+    EXPECT(forged.get<protocol::SessionJoinRequest>().Profile().area==sf4e::Area::None);
+}
+
 int main() {
     TestMemberCountry();
     TestJoinRequestCountry();
+    TestMemberArea();
     if(TEST_FAILURES())return 1;
     std::puts("RoomCountry test passed");
     return 0;

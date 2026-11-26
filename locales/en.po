@@ -5379,7 +5379,10 @@ msgid "public.quick"
 msgstr "Quick join"
 
 msgid "public.quick_detail"
-msgstr "Joins the open room near you with the most free seats."
+msgstr "Joins an open room near you, with players near your class first."
+
+msgid "public.quick_wider"
+msgstr "Nobody near your class has a free seat right now, so Quick join picked the best room for your area."
 
 msgid "public.quick_none"
 msgstr "No open room near you has a free seat right now. Create one and players nearby will find it."
@@ -5465,6 +5468,21 @@ msgstr "Wired only"
 msgid "public.filter_wired_detail"
 msgstr "Show only the rooms that take wired players alone."
 
+msgid "public.filter_quick"
+msgstr "Quick join"
+
+msgid "public.filter_quick_similar"
+msgstr "Near my class first"
+
+msgid "public.filter_quick_any"
+msgstr "Any class"
+
+msgid "public.filter_quick_detail"
+msgstr "Quick join looks for players near your class first, then takes any open room. The list itself is not filtered."
+
+msgid "public.filter_quick_no_class"
+msgstr "You have no class yet, so Quick join goes by area and free seats."
+
 msgid "public.filter_near_unset"
 msgstr "Your area is not set, so Ember can't tell which rooms are near you. Set it in Settings, Country and area."
 
@@ -5503,6 +5521,12 @@ msgstr "Host {0}. {1} of {2} seats taken."
 
 msgid "public.room_detail_area"
 msgstr "Area: {0}."
+
+msgid "public.room_detail_classes"
+msgstr "Classes: {0} to {1}."
+
+msgid "public.room_detail_class"
+msgstr "Class: {0}."
 
 msgid "public.room_detail_match"
 msgstr " A match is on."

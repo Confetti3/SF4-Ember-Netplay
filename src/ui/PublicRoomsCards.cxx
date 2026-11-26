@@ -4,6 +4,7 @@
 #include "GameMenu.hxx"
 #include "MenuProbes.hxx"
 #include "MenuRows.hxx"
+#include "NameMarks.hxx"
 #include "PublicRoomsPanel.hxx"
 #include "Theme.hxx"
 #include "V2.hxx"
@@ -262,7 +263,22 @@ void DrawRoomCard(const ShellView& v, const MenuEntry& e, PublicRoomsPanel::Card
     if (room.wiredOnly) {
         const char* wired = loc::T("public.wired_only");
         const float chip = ChipWidth(wired, limit - x);
-        if (x + chip <= limit) DrawChip(ImVec2(x, chipTop), wired, palette::Muted, ChipDark, "pr-chip-wired-only", chip);
+        if (x + chip <= limit) { DrawChip(ImVec2(x, chipTop), wired, palette::Muted, ChipDark, "pr-chip-wired-only", chip); x += chip + 6 * s; }
+    }
+    // The members' classes, lowest to highest, as their emblems: what Quick join reads (QuickJoinFit.hxx).
+    if (const auto span = PublicRoomsPanel::ShownClasses(v, room)) {
+        const float side = 20 * s, dashSize = 14 * s;
+        const SkillBadge low = SkillBadge::OfClass(span->low, true), high = SkillBadge::OfClass(span->high, true);
+        const float lowWidth = BadgeWidth(low, side, ImGui::GetFont()), highWidth = span->high == span->low ? 0 : BadgeWidth(high, side, ImGui::GetFont());
+        const float dash = highWidth > 0 ? Measure(dashSize, "-") + 8 * s : 0;
+        if (lowWidth > 0 && x + lowWidth + dash + highWidth <= limit) {
+            auto* draw = ImGui::GetWindowDrawList();
+            x += DrawBadge(draw, ImVec2(x, chipTop), side, ImGui::GetFont(), low);
+            if (highWidth > 0) {
+                Text(ImVec2(x + 4 * s, chipTop + (side - dashSize) * .5f), dashSize, palette::Muted, "-");
+                DrawBadge(draw, ImVec2(x + dash, chipTop), side, ImGui::GetFont(), high);
+            }
+        }
     }
     if (busy) DrawBusyBar(min, max, now);
     DrawFrame(min, max, focused);

@@ -5770,7 +5770,10 @@ msgid "public.quick"
 msgstr "Ingresso rapido"
 
 msgid "public.quick_detail"
-msgstr "Entra nella sala aperta vicino a te con più posti liberi."
+msgstr "Entra in una sala aperta vicino a te, prima con giocatori della tua classe."
+
+msgid "public.quick_wider"
+msgstr "Nessuno vicino alla tua classe ha un posto libero al momento, quindi Ingresso rapido ha scelto la sala migliore per la tua area."
 
 msgid "public.quick_none"
 msgstr "Nessuna sala aperta vicino a te ha un posto libero al momento. Creane una e i giocatori vicini la troveranno."
@@ -5856,6 +5859,21 @@ msgstr "Wired only"
 msgid "public.filter_wired_detail"
 msgstr "Show only the rooms that take wired players alone."
 
+msgid "public.filter_quick"
+msgstr "Ingresso rapido"
+
+msgid "public.filter_quick_similar"
+msgstr "Prima la mia classe"
+
+msgid "public.filter_quick_any"
+msgstr "Qualsiasi classe"
+
+msgid "public.filter_quick_detail"
+msgstr "Ingresso rapido cerca prima giocatori vicini alla tua classe, poi prende qualsiasi sala aperta. L'elenco in sé non viene filtrato."
+
+msgid "public.filter_quick_no_class"
+msgstr "Non hai ancora una classe, quindi Ingresso rapido si basa su area e posti liberi."
+
 msgid "public.filter_near_unset"
 msgstr "La tua area non è impostata, quindi Ember non sa quali sale sono vicine a te. Impostala in Impostazioni, Paese e area."
 
@@ -5894,6 +5912,12 @@ msgstr "Host {0}. {1} posti occupati su {2}."
 
 msgid "public.room_detail_area"
 msgstr "Area: {0}."
+
+msgid "public.room_detail_classes"
+msgstr "Classi: da {0} a {1}."
+
+msgid "public.room_detail_class"
+msgstr "Classe: {0}."
 
 msgid "public.room_detail_match"
 msgstr " È in corso una partita."

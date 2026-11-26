@@ -5770,7 +5770,10 @@ msgid "public.quick"
 msgstr "Schnellbeitritt"
 
 msgid "public.quick_detail"
-msgstr "Tritt dem offenen Raum in Ihrer Nähe mit den meisten freien Plätzen bei."
+msgstr "Tritt einem offenen Raum in Ihrer Nähe bei, zuerst mit Spielern in Ihrer Klasse."
+
+msgid "public.quick_wider"
+msgstr "Niemand in der Nähe Ihrer Klasse hat gerade einen freien Platz, deshalb hat Schnellbeitritt den besten Raum für Ihr Gebiet gewählt."
 
 msgid "public.quick_none"
 msgstr "In Ihrer Nähe hat gerade kein offener Raum einen freien Platz. Erstellen Sie einen, dann finden ihn Spieler in der Nähe."
@@ -5856,6 +5859,21 @@ msgstr "Wired only"
 msgid "public.filter_wired_detail"
 msgstr "Show only the rooms that take wired players alone."
 
+msgid "public.filter_quick"
+msgstr "Schnellbeitritt"
+
+msgid "public.filter_quick_similar"
+msgstr "Meine Klasse zuerst"
+
+msgid "public.filter_quick_any"
+msgstr "Jede Klasse"
+
+msgid "public.filter_quick_detail"
+msgstr "Schnellbeitritt sucht zuerst Spieler in Ihrer Klasse und nimmt dann jeden offenen Raum. Die Liste selbst wird nicht gefiltert."
+
+msgid "public.filter_quick_no_class"
+msgstr "Sie haben noch keine Klasse, deshalb wählt Schnellbeitritt nach Gebiet und freien Plätzen."
+
 msgid "public.filter_near_unset"
 msgstr "Ihr Gebiet ist nicht festgelegt, daher kann Ember nicht sagen, welche Räume in Ihrer Nähe sind. Legen Sie es unter Einstellungen, Land und Gebiet fest."
 
@@ -5894,6 +5912,12 @@ msgstr "Host {0}. {1} von {2} Plätzen belegt."
 
 msgid "public.room_detail_area"
 msgstr "Gebiet: {0}."
+
+msgid "public.room_detail_classes"
+msgstr "Klassen: {0} bis {1}."
+
+msgid "public.room_detail_class"
+msgstr "Klasse: {0}."
 
 msgid "public.room_detail_match"
 msgstr " Ein Spiel läuft."

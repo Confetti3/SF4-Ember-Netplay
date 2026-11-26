@@ -350,6 +350,10 @@ void PublicRooms(ui::ShellView& view) {
         room("c", "Beginners, ask anything", "Sven", Area::None, 2, 12, 0), room("d", "East coast casuals", "Marn", Area::NaEast, 8, 8, 3), room("e", "Tokyo late night", "Kaz", Area::EastAsia, 5, 10, 2)};
     // Each type of room on the board: Arcade cabinets and a King of the hill among the Classic tables.
     list.rooms[0].type = room::RoomType::Arcade; list.rooms[4].type = room::RoomType::King;
+    // Quick join's facts (docs/design/QUICK_JOIN.md): a range of classes, one class alone, and none listed.
+    list.rooms[0].classes = {0, 3, 4, 5, 6, 7};
+    list.rooms[1].classes = {6, 6, 6}; list.rooms[1].waiting = {{6, Area::EuropeEast}};
+    list.rooms[3].classes = {2, 4, 7, 8, 9, 9, 10, 10};
 }
 // --archive full|more|loading|failed|unsupported|empty|nobridge: the public replay archive on a trusted service, as
 // Replays' Archive tab reads it (--screen replay-archive): a tournament set with the bridge's score, online matches of

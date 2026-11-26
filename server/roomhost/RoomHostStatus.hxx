@@ -33,6 +33,15 @@ static_assert(MaximumWonGames == 32, "MAX_GAMES_BYTES in ember-rooms and the bri
 // deployed supervisor accepts, whichever is upgraded first.
 constexpr std::size_t SupervisorDetailsBytes = 2048, SupervisorGamesBytes = 8192;
 
+// A member who waits alone to play, as a listing names them for Quick join
+// (docs/design/QUICK_JOIN.md): their class band (0 for none) and the area they
+// showed when they joined.
+struct WaitingPlayer {
+	int band = 0;
+	Area area = Area::None;
+	bool operator==(const WaitingPlayer& other) const { return band == other.band && area == other.area; }
+};
+
 // What the bridge lists beside a room (the status line's "details" object).
 // Everything is copied from the room model, so a change re-emits the line.
 struct RoomDetails {
@@ -60,16 +69,25 @@ struct RoomDetails {
 	// Only players whose PC is not on Wi-Fi sit down (room::Snapshot::wiredOnly).
 	// The creator sets it just after the room opens, and the host can change it.
 	bool wiredOnly = false;
+	// One class band per member (1 to SkillBadge::Classes, 0 for a member placing,
+	// a developer or one with none), ascending, so it never pairs a class with
+	// hostName or fighters.
+	std::vector<int> classes;
+	// The members a newcomer would play at once (room::WaitingAlone), in that
+	// order, at most MaximumWaiting.
+	std::vector<WaitingPlayer> waiting;
 	bool operator==(const RoomDetails& other) const {
 		return name == other.name && hostName == other.hostName && capacity == other.capacity &&
 			locked == other.locked && fighters == other.fighters && setFormat == other.setFormat &&
 			rotation == other.rotation && ownDelay == other.ownDelay && roomType == other.roomType &&
-			creatorIn == other.creatorIn && wiredOnly == other.wiredOnly;
+			creatorIn == other.creatorIn && wiredOnly == other.wiredOnly && classes == other.classes && waiting == other.waiting;
 	}
 };
 constexpr int NoFighter = 255;
 constexpr std::size_t MaximumDetailFighters = 16;
 constexpr std::size_t MaximumHostNameBytes = 32;
+// The most waiting players a listing names (MAX_WAITING in ember-protocol).
+constexpr std::size_t MaximumWaiting = 8;
 
 // A member name as the bridge accepts a host name: valid UTF-8 with control
 // characters replaced by spaces, surrounding whitespace trimmed, and at most 32
@@ -97,7 +115,8 @@ struct Status {
 //  "details":{"name":s,"capacity":n,"locked":b,"host_name":s (only with a
 //  moderator),"fighters":[n...],"set_format":n,"rotation":n,"room_type":n,"creator_in":b,"own_delay":true (only
 //  for a room whose fighters each play at their own input delay),"wired_only":true (only for a room for
-//  wired players)},
+//  wired players),"classes":[n...] (only with a member),"waiting":[{"class":n,"area":s (only when
+//  shown)}...] (only with a member waiting alone)},
 //  "games":[{"table":n,"generation":n,"winner":s,"loser":s,"game":n,"fighters":[n,n]}...]
 //  (only once the room has a won game, oldest first; "game" and "fighters" as
 //  WonGame's to_json writes them, src/common/SkillBadgeJson.hxx)}

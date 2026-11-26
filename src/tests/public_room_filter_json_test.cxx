@@ -71,6 +71,15 @@ static void RoomFilterRoundTrips(const Path& root) {
     const auto odd=netplay::ReadRoomFilter({{"roomFilter",{{"region",3},{"type","brawl"},{"seats","yes"},{"wired",1}}}});
     CHECK(odd==RoomFilter());
     CHECK(netplay::ReadRoomFilter({{"roomFilter",{{"region","near"}}}}).scope==RoomFilter::Place::Near);
+    // Quick join's opponents: saved beside the filter, Any only when it says so; a profile from before it is Similar.
+    netplay::PlayerPreferences any; any.roomFilter.opponents=RoomFilter::Opponents::Any; any.roomFilter.wiredOnly=true;
+    Json withAny; netplay::WriteRoomFilter(any,withAny);
+    CHECK(withAny["roomFilter"]["opponents"]=="any"&&netplay::ReadRoomFilter(withAny)==any.roomFilter);
+    netplay::WriteRoomFilter(netplay::PlayerPreferences(),withAny);
+    CHECK(withAny["roomFilter"]["opponents"]=="similar");
+    for (const Json& other : {Json("similar"),Json("ANY"),Json(true),Json(nullptr)})
+        CHECK(netplay::ReadRoomFilter({{"roomFilter",{{"opponents",other}}}}).opponents==RoomFilter::Opponents::Similar);
+    CHECK(netplay::ReadRoomFilter({{"roomFilter",{{"opponents","any"}}}}).opponents==RoomFilter::Opponents::Any);
     // Preferences carrying a filter that names no area to filter by are invalid.
     netplay::PlayerPreferences invalid; invalid.roomFilter.scope=RoomFilter::Place::Areas; CHECK(!invalid.Valid());
     invalid.roomFilter.SetArea(Area::NaEast,true); CHECK(invalid.Valid());

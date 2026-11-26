@@ -5770,7 +5770,10 @@ msgid "public.quick"
 msgstr "Snel meedoen"
 
 msgid "public.quick_detail"
-msgstr "Neemt je mee naar de open kamer bij jou in de buurt met de meeste vrije plekken."
+msgstr "Neemt je mee naar een open kamer bij jou in de buurt, eerst met spelers van jouw klasse."
+
+msgid "public.quick_wider"
+msgstr "Niemand in de buurt van jouw klasse heeft nu een vrije plek, dus Snel meedoen koos de beste kamer voor jouw gebied."
 
 msgid "public.quick_none"
 msgstr "Er is nu geen open kamer bij jou in de buurt met een vrije plek. Maak er een en spelers in de buurt vinden hem."
@@ -5856,6 +5859,21 @@ msgstr "Wired only"
 msgid "public.filter_wired_detail"
 msgstr "Show only the rooms that take wired players alone."
 
+msgid "public.filter_quick"
+msgstr "Snel meedoen"
+
+msgid "public.filter_quick_similar"
+msgstr "Mijn klasse eerst"
+
+msgid "public.filter_quick_any"
+msgstr "Elke klasse"
+
+msgid "public.filter_quick_detail"
+msgstr "Snel meedoen zoekt eerst spelers in de buurt van jouw klasse en pakt dan elke open kamer. De lijst zelf wordt niet gefilterd."
+
+msgid "public.filter_quick_no_class"
+msgstr "Je hebt nog geen klasse, dus Snel meedoen kijkt naar gebied en vrije plekken."
+
 msgid "public.filter_near_unset"
 msgstr "Je gebied is niet ingesteld, dus Ember kan niet zeggen welke kamers bij jou in de buurt zijn. Stel het in bij Instellingen, Land en gebied."
 
@@ -5894,6 +5912,12 @@ msgstr "Host {0}. {1} van {2} plekken bezet."
 
 msgid "public.room_detail_area"
 msgstr "Gebied: {0}."
+
+msgid "public.room_detail_classes"
+msgstr "Klassen: {0} tot {1}."
+
+msgid "public.room_detail_class"
+msgstr "Klasse: {0}."
 
 msgid "public.room_detail_match"
 msgstr " Er is een wedstrijd bezig."

@@ -86,6 +86,7 @@ sf4e_add_unit_test(NAME WatchPlay SOURCES "src/tests/watch_play_test.cxx" LIBS s
 sf4e_add_unit_test(NAME RoomWatch SOURCES "src/tests/room_watch_test.cxx" LIBS sf4e_room_model LABELS room)
 sf4e_add_unit_test(NAME RoomFollow SOURCES "src/tests/room_follow_test.cxx" LIBS sf4e_room_model LABELS room)
 sf4e_add_unit_test(NAME PublicRoomFilter SOURCES "src/tests/public_room_filter_test.cxx" LIBS sf4e_room_model STD 17 LABELS room)
+sf4e_add_unit_test(NAME QuickJoinFit SOURCES "src/tests/quick_join_fit_test.cxx" LIBS sf4e_room_model STD 17 LABELS room)
 sf4e_add_unit_test(NAME RankingRequests SOURCES "src/tests/ranking_requests_test.cxx" STD 17)
 sf4e_add_unit_test(NAME LevelRequests SOURCES "src/tests/level_requests_test.cxx" STD 17)
 sf4e_add_unit_test(NAME Awards SOURCES "src/tests/awards_test.cxx" STD 17)

@@ -62,11 +62,11 @@ public:
         auto& shell = f.shell;
         if (f.screen == PublicRoomsPanel::FiltersScreen) {
             title = loc::T("public.filters");
-            return PublicRoomsPanel::FilterRows(shell.preferences_.roomFilter, PublicRoomsPanel::HomeArea(f.view), PublicRoomsPanel::AreasListed(f.view), f.view.canEditPreferences);
+            return PublicRoomsPanel::FilterRows(shell.preferences_.roomFilter, PublicRoomsPanel::FilterContextOf(f.view));
         }
         if (f.screen == PublicRoomsPanel::AreasScreen) {
             title = loc::T("public.filter_areas_title");
-            return PublicRoomsPanel::AreaRows(shell.preferences_.roomFilter, PublicRoomsPanel::HomeArea(f.view), PublicRoomsPanel::AreasListed(f.view), f.view.canEditPreferences);
+            return PublicRoomsPanel::AreaRows(shell.preferences_.roomFilter, PublicRoomsPanel::FilterContextOf(f.view));
         }
         title = loc::T("screen.public_rooms");
         const std::string bridge = shell.identity_.UsableBridge(f.view);

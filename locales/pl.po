@@ -5770,7 +5770,10 @@ msgid "public.quick"
 msgstr "Szybkie dołączenie"
 
 msgid "public.quick_detail"
-msgstr "Dołącza do otwartego pokoju w pobliżu, w którym jest najwięcej wolnych miejsc."
+msgstr "Dołącza do otwartego pokoju w pobliżu, najpierw z graczami z twojej klasy."
+
+msgid "public.quick_wider"
+msgstr "Nikt w pobliżu twojej klasy nie ma teraz wolnego miejsca, więc Szybkie dołączenie wybrało najlepszy pokój dla twojego obszaru."
 
 msgid "public.quick_none"
 msgstr "W pobliżu nie ma teraz otwartego pokoju z wolnym miejscem. Utwórz własny, a gracze z okolicy go znajdą."
@@ -5856,6 +5859,21 @@ msgstr "Wired only"
 msgid "public.filter_wired_detail"
 msgstr "Show only the rooms that take wired players alone."
 
+msgid "public.filter_quick"
+msgstr "Szybkie dołączenie"
+
+msgid "public.filter_quick_similar"
+msgstr "Najpierw moja klasa"
+
+msgid "public.filter_quick_any"
+msgstr "Dowolna klasa"
+
+msgid "public.filter_quick_detail"
+msgstr "Szybkie dołączenie najpierw szuka graczy z twojej klasy, a potem bierze dowolny otwarty pokój. Sama lista nie jest filtrowana."
+
+msgid "public.filter_quick_no_class"
+msgstr "Nie masz jeszcze klasy, więc Szybkie dołączenie kieruje się obszarem i wolnymi miejscami."
+
 msgid "public.filter_near_unset"
 msgstr "Twój obszar nie jest ustawiony, więc Ember nie wie, które pokoje są w pobliżu. Ustaw go w Ustawienia, Kraj i obszar."
 
@@ -5894,6 +5912,12 @@ msgstr "Host {0}. Zajęte miejsca: {1} z {2}."
 
 msgid "public.room_detail_area"
 msgstr "Obszar: {0}."
+
+msgid "public.room_detail_classes"
+msgstr "Klasy: {0} do {1}."
+
+msgid "public.room_detail_class"
+msgstr "Klasa: {0}."
 
 msgid "public.room_detail_match"
 msgstr " Trwa mecz."

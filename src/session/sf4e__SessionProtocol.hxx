@@ -257,6 +257,9 @@ namespace sf4e {
 			// The country the player shows, as its code; absent when none, and read
 			// as none when the table lacks it.
 			std::string country;
+			// The area the player shows, as its code (AreaCode); absent when none,
+			// and read as none when this build does not know it.
+			std::string area;
 			// The joiner watches a tournament match: its room admits only the
 			// watchers it names. Sent only when true, and read as false otherwise.
 			bool observer = false;
@@ -269,6 +272,7 @@ namespace sf4e {
 				room::MemberProfile profile{mainFighter, NetworkLinkFromWire(link), NatClassFromWire(nat)};
 				profile.steamId = SteamId::Parsed(steamId);
 				profile.country = CountryCode::Parsed(country);
+				profile.area = AreaFromCode(area);
 				profile.observer = observer;
 				return profile;
 			}
@@ -276,6 +280,7 @@ namespace sf4e {
 				mainFighter = profile.mainFighter; link = static_cast<int>(profile.link); nat = static_cast<int>(profile.nat);
 				steamId = profile.steamId.Present() ? profile.steamId.ToString() : std::string();
 				country = profile.country.ToString();
+				area = AreaCode(profile.area);
 				observer = profile.observer;
 			}
 			AdmissionRequest Admission(const std::string& peerAddress) const {
@@ -463,6 +468,7 @@ namespace sf4e {
 				{"link", value.link}, {"nat", value.nat}, {"roomChatDelta", value.roomChatDelta}};
 			if (!value.steamId.empty()) j["steamId"] = value.steamId;
 			if (!value.country.empty()) j["country"] = value.country;
+			if (!value.area.empty()) j["area"] = value.area;
 			if (value.observer) j["observer"] = true;
 			if (value.latency.Valid()) j["latency"] = value.latency;
 		}
@@ -486,6 +492,10 @@ namespace sf4e {
 			const auto country = j.find("country");
 			value.country.clear();
 			if (country != j.end() && country->is_string() && CountryCode::Parsed(country->get<std::string>()).Present()) value.country = country->get<std::string>();
+			// And an area it does not know.
+			const auto area = j.find("area");
+			value.area.clear();
+			if (area != j.end() && area->is_string() && AreaFromCode(area->get<std::string>()) != Area::None) value.area = area->get<std::string>();
 			// Anything but a true is a plain join.
 			const auto observer = j.find("observer");
 			value.observer = observer != j.end() && observer->is_boolean() && observer->get<bool>();

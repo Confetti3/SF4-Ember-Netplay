@@ -45,7 +45,7 @@ bool RoomAuthority::MayMeet(MemberId a, MemberId b) const {
 Table* RoomAuthority::Waiter(MemberId member, MemberId parted, const Table* except) {
 	Table* longest = nullptr;
 	for (auto& table : snapshot_.tables) {
-		if (&table == except || !ArcadeAlone(table) || Lone(table) == member) continue;
+		if (&table == except || !SeatedAlone(table) || Lone(table) == member) continue;
 		if (Lone(table) == parted || !MayMeet(member, Lone(table))) continue;
 		if (!longest || table.waitingSince < longest->waitingSince) longest = &table;
 	}

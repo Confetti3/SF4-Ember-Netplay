@@ -5770,7 +5770,10 @@ msgid "public.quick"
 msgstr "빠른 참가"
 
 msgid "public.quick_detail"
-msgstr "가까운 공개 방 중 빈자리가 가장 많은 방에 참가합니다."
+msgstr "가까운 공개 방에 참가하며, 클래스가 비슷한 플레이어를 먼저 찾습니다."
+
+msgid "public.quick_wider"
+msgstr "지금은 내 클래스 근처에 빈자리가 있는 방이 없어, 빠른 참가가 내 권역에서 가장 좋은 방을 골랐습니다."
 
 msgid "public.quick_none"
 msgstr "지금 가까운 공개 방에는 빈자리가 없습니다. 방을 만들면 근처 플레이어가 찾을 수 있습니다."
@@ -5856,6 +5859,21 @@ msgstr "Wired only"
 msgid "public.filter_wired_detail"
 msgstr "Show only the rooms that take wired players alone."
 
+msgid "public.filter_quick"
+msgstr "빠른 참가"
+
+msgid "public.filter_quick_similar"
+msgstr "내 클래스 우선"
+
+msgid "public.filter_quick_any"
+msgstr "모든 클래스"
+
+msgid "public.filter_quick_detail"
+msgstr "빠른 참가는 내 클래스와 비슷한 플레이어를 먼저 찾은 다음 열린 방 아무 곳에나 참가합니다. 목록 자체는 필터링되지 않습니다."
+
+msgid "public.filter_quick_no_class"
+msgstr "아직 클래스가 없어 빠른 참가는 권역과 빈자리를 기준으로 합니다."
+
 msgid "public.filter_near_unset"
 msgstr "내 권역이 설정되지 않아 Ember가 가까운 방을 구분할 수 없습니다. 설정의 국가/지역 및 권역에서 정하세요."
 
@@ -5894,6 +5912,12 @@ msgstr "방장 {0}. {2}자리 중 {1}자리가 찼습니다."
 
 msgid "public.room_detail_area"
 msgstr "권역: {0}."
+
+msgid "public.room_detail_classes"
+msgstr "클래스: {0}~{1}."
+
+msgid "public.room_detail_class"
+msgstr "클래스: {0}."
 
 msgid "public.room_detail_match"
 msgstr " 대전이 진행 중입니다."

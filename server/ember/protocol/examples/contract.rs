@@ -81,6 +81,8 @@ fn main() {
         rotation: Some(0),
         room_type: Some(0),
         wired_only: true,
+        classes: None,
+        waiting: None,
     };
     let room = ConnectionRoom {
         room: summary.clone(),

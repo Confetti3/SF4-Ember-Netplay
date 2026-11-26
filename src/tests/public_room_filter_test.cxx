@@ -1,6 +1,6 @@
 // The public rooms filter (netplay/PublicRoomFilter.hxx): which rooms it lists
-// by area, type, free seats and connection, how its settings step, and what
-// Quick join takes from it.
+// by area, type, free seats and connection, how its settings step, and Quick
+// join's choice of opponents beside it.
 #include "../netplay/PublicRoomFilterMatch.hxx"
 
 #include <string>
@@ -139,27 +139,31 @@ void TypeSteps() {
 	filter.StepType(-1); EXPECT(filter.type == RoomFilter::Type::Arcade);
 }
 
-// A room with no area is listed under All and never under Near, so Quick join has to try the filter itself after
-// the near rooms (PublicRoomsPanel::QuickPick) to reach it.
+// A room with no area is listed under All and never under Near.
 void ARoomWithNoAreaIsListedUnderAllOnly() {
 	const Room placeless = Make(Area::None);
-	RoomFilter filter;
-	EXPECT(Matches(filter, placeless, Area::NaEast) && !Matches(filter.ForQuickJoin(), placeless, Area::NaEast));
-	EXPECT(Matches(filter, placeless, Area::None) && Matches(filter.ForQuickJoin(), placeless, Area::None));
+	RoomFilter near; near.SetNear(true);
+	EXPECT(Matches(RoomFilter(), placeless, Area::NaEast) && !Matches(near, placeless, Area::NaEast));
+	// Without the player's own area Near cannot tell rooms apart, so it lists them all.
+	EXPECT(Matches(near, placeless, Area::None));
 }
 
-void QuickJoinStaysNearUnlessAskedOtherwise() {
+// Quick join's choice of opponents hides no room: it is not an active filter, and
+// Clear filters keeps it while clearing everything else.
+void QuickJoinsOpponentsAreNoFilter() {
 	RoomFilter filter;
-	EXPECT(filter.ForQuickJoin().scope == RoomFilter::Place::Near && filter.ForQuickJoin().type == RoomFilter::Type::All);
-	EXPECT(filter.scope == RoomFilter::Place::All);
-	// The player's own choice of areas, and every other setting, is kept.
-	filter.SetArea(Area::EastAsia, true); filter.SetArea(Area::NaWest, true); filter.type = RoomFilter::Type::Classic; filter.openSeats = true; filter.wiredOnly = true;
-	EXPECT(filter.ForQuickJoin() == filter);
-	// With areas ticked Quick join lists those areas, never the near rooms of a player elsewhere.
-	// A wired-only room is what the wired filter lists.
-	Room ticked = Make(Area::NaWest), elsewhere = Make(Area::EuropeWest);
-	ticked.wiredOnly = elsewhere.wiredOnly = true;
-	EXPECT(Matches(filter.ForQuickJoin(), ticked, Area::EuropeWest) && !Matches(filter.ForQuickJoin(), elsewhere, Area::EuropeWest));
+	EXPECT(filter.opponents == RoomFilter::Opponents::Similar);
+	filter.opponents = RoomFilter::Opponents::Any;
+	EXPECT(!filter.Active() && filter != RoomFilter() && filter.Cleared() == filter);
+	filter.SetArea(Area::EastAsia, true); filter.type = RoomFilter::Type::Classic; filter.openSeats = true; filter.wiredOnly = true;
+	EXPECT(filter.Active());
+	const RoomFilter cleared = filter.Cleared();
+	EXPECT(!cleared.Active() && cleared.opponents == RoomFilter::Opponents::Any && cleared.scope == RoomFilter::Place::All &&
+		cleared.type == RoomFilter::Type::All && !cleared.openSeats && !cleared.wiredOnly);
+	// It lists the same rooms either way.
+	const Room room = Make(Area::EastAsia);
+	RoomFilter similar = filter; similar.opponents = RoomFilter::Opponents::Similar;
+	EXPECT(Matches(filter, room, Area::NaEast) == Matches(similar, room, Area::NaEast));
 }
 }
 
@@ -174,7 +178,7 @@ int main() {
 	AreaSetsKeepTheirOrderAndIgnoreNone();
 	TypeSteps();
 	ARoomWithNoAreaIsListedUnderAllOnly();
-	QuickJoinStaysNearUnlessAskedOtherwise();
+	QuickJoinsOpponentsAreNoFilter();
 	if (!TEST_FAILURES()) std::printf("Public room filter tests passed\n");
 	return TEST_EXIT_CODE();
 }

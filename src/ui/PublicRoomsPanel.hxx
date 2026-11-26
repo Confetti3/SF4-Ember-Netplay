@@ -4,6 +4,7 @@
 #include "MenuNavigation.hxx"
 #include "../netplay/PublicRoomFilterMatch.hxx"
 #include "../netplay/PublicRooms.hxx"
+#include "../netplay/QuickJoinFit.hxx"
 #include "../netplay/TableSetup.hxx"
 #include "../netplay/TournamentStatus.hxx"
 #include "../common/RoomRules.hxx"
@@ -49,12 +50,24 @@ public:
     // The areas page, which Select on the filters page's Area row opens: each area a switch, and Near me.
     static constexpr const char* AreasScreen = "public-filter-areas";
     static bool Owns(const std::string& screen) { return screen == "public-rooms" || screen == FiltersScreen || screen == AreasScreen; }
-    // The filters page's rows: the four values that Left and Right step, then Clear
-    // filters. `home` is HomeArea and `areasListed` is AreasListed; `enabled` is whether the filter can be changed.
-    static std::vector<MenuEntry> FilterRows(const netplay::publicrooms::RoomFilter& filter, Area home, bool areasListed, bool enabled);
+    // What the filters pages say beside the filter: the player's own area (HomeArea), whether any listed room
+    // names one (AreasListed), whether the player has a class for Quick join to look near, and whether the
+    // filter can be changed.
+    struct FilterContext {
+        Area home = Area::None;
+        bool areasListed = false;
+        bool ownClass = false;
+        bool enabled = false;
+    };
+    static FilterContext FilterContextOf(const ShellView& view);
+    // The player Quick join looks for: FilterHome and their class (netplay::publicrooms::SeekerBand).
+    static netplay::publicrooms::Seeker SeekerOf(const ShellView& view);
+    // The filters page's rows: the four values that Left and Right step, Quick join's choice of
+    // opponents, then Clear filters.
+    static std::vector<MenuEntry> FilterRows(const netplay::publicrooms::RoomFilter& filter, const FilterContext& context);
     // The areas page's rows: Near me, each area as a switch in the table's order, then Show every area.
     // The arguments are FilterRows'.
-    static std::vector<MenuEntry> AreaRows(const netplay::publicrooms::RoomFilter& filter, Area home, bool areasListed, bool enabled);
+    static std::vector<MenuEntry> AreaRows(const netplay::publicrooms::RoomFilter& filter, const FilterContext& context);
     // A refused request or a failed refresh, by its stable code, in words.
     static std::string FailureText(const std::string& code);
     // The player's own area (Settings, a pick or Automatic from Windows, also while it is
@@ -66,6 +79,9 @@ public:
     // The area the filter's Near me works from: HomeArea while some listed room names an area,
     // else None, where Near me is not offered and lists every room.
     static Area FilterHome(const ShellView& view);
+    // The lowest and highest class of a listed room's members, as its card and detail show them: none
+    // while the player turned class emblems off (PlayerPreferences::classEmblems) or no member has one.
+    static std::optional<netplay::publicrooms::ClassSpan> ShownClasses(const ShellView& view, const netplay::publicrooms::Room& room);
     // How long ago a list was heard from its service, `seconds` ago.
     static std::string UpdatedText(double seconds);
     // The setup card's line: the step while the setup runs, why it stopped once
@@ -100,10 +116,11 @@ public:
     bool Shortcut(const MenuAction& action, const ShellView& view);
     // The screen shows a list that Options can refresh.
     bool Refreshable(const ShellView& view) const;
-    // The room Quick join would ask for: the first listed one with a free seat that
-    // is not locked, was not refused this visit and `filter` lists: a room near `home`
-    // (FilterHome) first unless the filter ticks areas, then any such room.
-    std::optional<std::string> QuickPick(const ShellView& view, Area home, const netplay::publicrooms::RoomFilter& filter) const;
+    // Quick join: asks for the room that fits `seeker` best (PickQuickJoin) among those with a free
+    // seat that were not refused this visit and `filter` lists, as pressing its row does, and says
+    // while it waits when the room is not near the player's class. The room asked for; none when no
+    // room fits. Not while a request waits (Busy).
+    std::optional<std::string> QuickJoin(const ShellView& view, const netplay::publicrooms::Seeker& seeker, const netplay::publicrooms::RoomFilter& filter);
     // Asks for a room's ticket, as pressing its row does; false while a request is waiting.
     bool Join(const std::string& roomId);
     // Gives up waiting for the ticket or room in flight: its answer joins nothing.
@@ -160,6 +177,9 @@ private:
         // A create's chosen tables, and the room it is created as.
         std::optional<netplay::TableSetup> createdRules;
         room::Charter createdCharter;
+        // Quick join's ticket for a room not near the player's class (QuickJoinPick::widened):
+        // the wait says why that room.
+        bool widened = false;
     };
     // The room joined with an admission, kept while it is being opened and while
     // the player is in it. `seen`: the session has left Idle for it.

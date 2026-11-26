@@ -5770,7 +5770,10 @@ msgid "public.quick"
 msgstr "Rychlé připojení"
 
 msgid "public.quick_detail"
-msgstr "Připojí vás do otevřené místnosti ve vašem okolí s nejvíce volnými místy."
+msgstr "Připojí vás do otevřené místnosti ve vašem okolí, nejdřív s hráči podobné třídy."
+
+msgid "public.quick_wider"
+msgstr "Nikdo poblíž vaší třídy teď nemá volné místo, proto Rychlé připojení vybralo nejlepší místnost pro vaši oblast."
 
 msgid "public.quick_none"
 msgstr "V okolí teď nemá žádná otevřená místnost volné místo. Vytvořte si vlastní a hráči poblíž ji najdou."
@@ -5856,6 +5859,21 @@ msgstr "Wired only"
 msgid "public.filter_wired_detail"
 msgstr "Show only the rooms that take wired players alone."
 
+msgid "public.filter_quick"
+msgstr "Rychlé připojení"
+
+msgid "public.filter_quick_similar"
+msgstr "Nejdřív podobná třída"
+
+msgid "public.filter_quick_any"
+msgstr "Jakákoli třída"
+
+msgid "public.filter_quick_detail"
+msgstr "Rychlé připojení hledá nejdřív hráče podobné vaší třídy, pak vezme jakoukoli otevřenou místnost. Samotný seznam se nefiltruje."
+
+msgid "public.filter_quick_no_class"
+msgstr "Zatím nemáte třídu, proto Rychlé připojení vybírá podle oblasti a volných míst."
+
 msgid "public.filter_near_unset"
 msgstr "Vaše oblast není nastavena, takže Ember nepozná, které místnosti jsou poblíž. Nastavte ji v Nastavení, Země a oblast."
 
@@ -5894,6 +5912,12 @@ msgstr "Hostitel {0}. Obsazená místa: {1} z {2}."
 
 msgid "public.room_detail_area"
 msgstr "Oblast: {0}."
+
+msgid "public.room_detail_classes"
+msgstr "Třídy: {0} až {1}."
+
+msgid "public.room_detail_class"
+msgstr "Třída: {0}."
 
 msgid "public.room_detail_match"
 msgstr " Probíhá zápas."

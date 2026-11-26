@@ -105,6 +105,9 @@ pub struct RoomSummary {
     pub area: Option<String>,   // where the creator plays from ("naw" ...), when they said; written only then
     pub created_at: u64,
     pub own_delay: bool,        // each fighter plays at their own input delay; written only when true
+    // detail=1 by a player only, each written only when said (QUICK_JOIN.md):
+    pub classes: Option<Vec<u8>>,              // one class band per member, ascending; left out while classes are hidden
+    pub waiting: Option<Vec<WaitingPlayer>>,   // { class, area? }: who a newcomer plays at once, in that order
 }
 ```
 
@@ -156,11 +159,11 @@ netplay section) as `region` (`all`, `near` or `areas`) and `areas` (the ticked 
 before several areas saved one area's code as the region, and that loads as the one area. A saved place that
 is not an area (a relay code saved before areas, or the US West no build could report) loads as every area.
 A build from before several areas reads `areas` as an unknown region and lists every room, keeping the other fields.
-Quick join takes the first room the filter lists, a room near the player's area
-first unless the filter ticks areas, then any room the filter lists (a room with no
-area is near no one: the bridge may not list areas, or its creator hid it). Near me is
-not offered while no listed room names an area, and then lists every room. Nothing is
-sent to the bridge.
+Quick join takes the room the filter lists that fits the player best: near the
+player's area, then near their class, then one where a player waits alone to play,
+then the list's own order (QUICK_JOIN.md). A room with no area is near no one: the
+bridge may not list areas, or its creator hid it. Near me is not offered while no
+listed room names an area, and then lists every room. Nothing is sent to the bridge.
 
 `POST /v1/rooms/{room_id}/tickets` with `TicketRequest { endpoint_id, build_id }`
 returns `RoomAdmission`. Refusals: `room_not_found`, `room_not_open`,

@@ -19,6 +19,7 @@ use crate::{
     matches::games_to_win_valid,
     play::{MAX_INVITATION, check_build, is_hex},
     relay,
+    skill::SKILL_BANDS,
 };
 
 mod connection;
@@ -85,6 +86,8 @@ pub const MAX_ROOM_TYPE: u8 = KING_ROOM;
 /// the helper (`sf4-net` `public_room`, which uses this constant); keep
 /// them equal.
 pub const MAX_ROOM_BANS: usize = 512;
+/// The most players a room lists as waiting (`RoomSummary::waiting`).
+pub const MAX_WAITING: usize = 8;
 const MAX_REGION: usize = 8;
 
 /// A room name: 1 to 64 bytes of single-line text with no control characters
@@ -108,7 +111,7 @@ pub fn check_host_name(name: &str) -> Result<()> {
 
 /// A short code as listings carry them: 1 to 8 of a to z and 0 to 9. A
 /// relay's code and an area's both are; a reader takes one it does not know.
-fn is_listed_code(code: &str) -> bool {
+pub fn is_listed_code(code: &str) -> bool {
     !code.is_empty()
         && code.len() <= MAX_REGION
         && code
@@ -196,6 +199,34 @@ pub struct RoomSummary {
     /// host that predates it, or a room without the rule, says nothing.
     #[serde(default, skip_serializing_if = "is_false")]
     pub wired_only: bool,
+    /// The members' classes, ascending: one band per member, 1 to
+    /// `SKILL_BANDS`, or 0 for a member with none. Never in member order, so
+    /// it never pairs a class with `host_name` or `fighters`. Only in a
+    /// player's detailed listing, and only for a room host that says it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub classes: Option<Vec<u8>>,
+    /// The players a newcomer would meet at once, in the order they would meet
+    /// them: at most `MAX_WAITING`. Only in a player's detailed listing, and
+    /// only for a room host that says it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub waiting: Option<Vec<WaitingPlayer>>,
+}
+
+/// A player in a room who would play a newcomer at once.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WaitingPlayer {
+    /// 1 to `SKILL_BANDS`, or 0 for a player with none shown.
+    pub class: u8,
+    /// Where the player plays from (`area::Area`'s code), when they showed
+    /// one. A reader takes a code it does not know as none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub area: Option<String>,
+}
+
+impl WaitingPlayer {
+    fn is_valid(&self) -> bool {
+        self.class <= SKILL_BANDS && self.area.as_deref().is_none_or(is_listed_code)
+    }
 }
 
 impl RoomSummary {
@@ -226,6 +257,18 @@ impl RoomSummary {
         }
         if self.room_type.is_some_and(|kind| kind > MAX_ROOM_TYPE) {
             return Err(Error::InvalidField("room_type"));
+        }
+        if let Some(classes) = &self.classes
+            && (classes.len() > usize::from(self.members)
+                || classes.iter().any(|class| *class > SKILL_BANDS))
+        {
+            return Err(Error::InvalidField("classes"));
+        }
+        if let Some(waiting) = &self.waiting
+            && (waiting.len() > MAX_WAITING.min(usize::from(self.members))
+                || !waiting.iter().all(WaitingPlayer::is_valid))
+        {
+            return Err(Error::InvalidField("waiting"));
         }
         Ok(())
     }
@@ -421,6 +464,8 @@ mod tests {
             rotation: None,
             room_type: None,
             wired_only: false,
+            classes: None,
+            waiting: None,
         }
     }
 

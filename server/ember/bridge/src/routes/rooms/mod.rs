@@ -21,9 +21,13 @@ mod supervisor;
 mod ticket;
 
 use std::{
+    collections::HashMap,
     convert::Infallible,
     net::{IpAddr, SocketAddr},
-    sync::atomic::{AtomicBool, AtomicU64},
+    sync::{
+        Arc, RwLock,
+        atomic::{AtomicBool, AtomicU64},
+    },
 };
 
 use axum::{
@@ -45,6 +49,7 @@ use rusqlite::{OptionalExtension, Row, Transaction, params};
 
 use self::{
     create::{Owner, open},
+    details::{QuickJoin, QuickJoins},
     supervisor::Supervisor,
 };
 pub use self::{
@@ -85,7 +90,23 @@ pub struct Shared {
     /// The supervisor's `rev` of each room as the last committed poll applied
     /// it, by room id. Only the poll reads or writes it, while it holds
     /// `poll`.
-    applied: std::sync::Mutex<std::collections::HashMap<String, u64>>,
+    applied: std::sync::Mutex<HashMap<String, u64>>,
+    /// Who the room hosts said is in each room, as the last committed poll
+    /// read it. A poll replaces the whole map, so a listing clones the `Arc`
+    /// and reads one poll's answer.
+    quick_joins: RwLock<Arc<QuickJoins>>,
+}
+
+impl Shared {
+    /// What the last committed poll read.
+    fn quick_joins(&self) -> Arc<QuickJoins> {
+        Arc::clone(
+            &self
+                .quick_joins
+                .read()
+                .unwrap_or_else(|poisoned| poisoned.into_inner()),
+        )
+    }
 }
 
 impl Default for Shared {
@@ -95,6 +116,7 @@ impl Default for Shared {
             down: AtomicBool::new(false),
             polls: AtomicU64::new(0),
             applied: Default::default(),
+            quick_joins: Default::default(),
         }
     }
 }
@@ -359,6 +381,8 @@ impl Room {
             rotation: None,
             room_type: None,
             wired_only: false,
+            classes: None,
+            waiting: None,
         };
         summary.check().map_err(|_| ApiFailure::unavailable())?;
         Ok(summary)
@@ -367,7 +391,10 @@ impl Room {
     /// The listing form a player asks for with `detail=1`: the summary and
     /// whatever the room host reported. A report that does not hold together
     /// is left out whole, and the room is listed as it would be without one.
-    fn listing(&self) -> Result<RoomSummary> {
+    /// Who is in the room is held to the members stored, so a report the
+    /// room's capacity cut loses only that.
+    fn listing(&self, quick_join: QuickJoin) -> Result<RoomSummary> {
+        let quick_join = quick_join.within(self.members);
         let mut summary = self.summary()?;
         let detailed = RoomSummary {
             host_name: self.host_name.clone(),
@@ -377,6 +404,8 @@ impl Room {
             rotation: self.rotation,
             room_type: self.room_type,
             wired_only: self.wired_only,
+            classes: quick_join.classes,
+            waiting: quick_join.waiting,
             ..summary.clone()
         };
         if detailed.details_valid() {
@@ -478,12 +507,20 @@ pub async fn list(
     }
     let config = state.config.clone();
     let detailed = query.detail == Some(1);
+    let listing = if detailed {
+        Listing::Players {
+            quick_joins: state.rooms.quick_joins(),
+            classes_shown: classes_shown(&state),
+        }
+    } else {
+        Listing::Plain
+    };
     let now = state.now();
     let body = state
         .db
         .read(move |tx| match caller {
             Caller::Player(_) => Ok(serde_json::to_value(RoomList {
-                rooms: player_rooms(tx, query.build_id.as_deref(), detailed)?,
+                rooms: player_rooms(tx, query.build_id.as_deref(), &listing)?,
                 listed_at: detailed.then_some(now),
             })),
             Caller::Connection { connection_id, .. } => {
@@ -507,12 +544,46 @@ pub async fn list(
     Ok(ok(&body))
 }
 
+/// How much of each room a listing shows.
+enum Listing {
+    /// The counts.
+    Plain,
+    /// Also what the room host reported, but not who is in the room: the web
+    /// page's listing, which needs no account.
+    Reported,
+    /// Also who is in the room, as the last poll read it, for a player's
+    /// detailed listing.
+    Players {
+        quick_joins: Arc<QuickJoins>,
+        /// Whether classes are shown (`classes_shown`).
+        classes_shown: bool,
+    },
+}
+
+impl Listing {
+    fn room(&self, room: &Room) -> Result<RoomSummary> {
+        match self {
+            Self::Plain => room.summary(),
+            Self::Reported => room.listing(QuickJoin::default()),
+            Self::Players {
+                quick_joins,
+                classes_shown,
+            } => room.listing(
+                quick_joins
+                    .get(&room.room_id)
+                    .map(|joins| joins.shown(*classes_shown))
+                    .unwrap_or_default(),
+            ),
+        }
+    }
+}
+
 /// The rooms a player's listing shows: open, with at least one member,
 /// unlocked ones first and those with the most free seats first.
 fn player_rooms(
     tx: &Transaction<'_>,
     build_id: Option<&str>,
-    detailed: bool,
+    listing: &Listing,
 ) -> Result<Vec<RoomSummary>> {
     let mut statement = tx.prepare(&format!(
         "SELECT {COLUMNS} FROM rooms
@@ -523,12 +594,7 @@ fn player_rooms(
     let rows = statement.query_map(params![build_id, LIST_LIMIT], room_of)?;
     let mut rooms = Vec::new();
     for room in rows {
-        let room = room?;
-        rooms.push(if detailed {
-            room.listing()?
-        } else {
-            room.summary()?
-        });
+        rooms.push(listing.room(&room?)?);
     }
     Ok(rooms)
 }
@@ -551,7 +617,7 @@ pub async fn public_list(State(state): State<AppState>) -> Result<Response> {
     let listed_at = state.now();
     let rooms = state
         .db
-        .read(move |tx| player_rooms(tx, None, true))
+        .read(move |tx| player_rooms(tx, None, &Listing::Reported))
         .await?;
     Ok(ok(&PublicRoomList {
         bridge_id,

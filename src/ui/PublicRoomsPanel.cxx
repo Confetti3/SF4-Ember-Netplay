@@ -3,6 +3,7 @@
 #include "AreaNames.hxx"
 #include "IdentityRows.hxx"
 #include "MenuRows.hxx"
+#include "NameMarks.hxx"
 #include "PublicRoomsCards.hxx"
 #include "Theme.hxx"
 #include "../common/Localization.hxx"
@@ -19,6 +20,7 @@ namespace sf4e { namespace ui {
 namespace {
 using netplay::publicrooms::Room;
 using netplay::publicrooms::RoomFilter;
+using netplay::publicrooms::Seeker;
 using PublicList = netplay::publicrooms::Status;
 using netplay::tournament::Command;
 // The runtime answers every request, if only with a refusal after its own
@@ -94,7 +96,7 @@ std::vector<const Room*> Listing(const void* owner, const PublicList& list, Area
 // The filters page's value rows, which Left and Right step; the list's Filters row opens the page,
 // and Clear filters is a row on the page and a card on a list the filter has emptied.
 constexpr const char *FilterAreaRow = "pr-filter-area", *AreaNearRow = "pr-area-near", *AreaAllRow = "pr-area-all",  *FilterTypeRow = "pr-filter-type", *FilterSeatsRow = "pr-filter-seats",
-    *FilterWiredRow = "pr-filter-wired", *ClearFiltersCard = "pr-clear-filters", *ClearFiltersRow = "pr-filters-clear", *FiltersRow = "pr-filters";
+    *FilterWiredRow = "pr-filter-wired", *FilterQuickRow = "pr-filter-quick", *ClearFiltersCard = "pr-clear-filters", *ClearFiltersRow = "pr-filters-clear", *FiltersRow = "pr-filters";
 const std::string AreaRowPrefix = "pr-area:";
 constexpr float FiltersRowHeight = 40;
 
@@ -138,8 +140,17 @@ namespace {
 
 // What a room's row says: who hosts it and how full it is, where its creator
 // plays from when they said, and whether a match is on.
-std::string RoomDetail(const Room& room) {
-    const std::string area = room.area == Area::None ? std::string() : " " + loc::Tf("public.room_detail_area", AreaName(room.area));
+// Where the room's creator plays from and its members' classes, each when known, as sentences after the seats.
+std::string PlaceAndClasses(const Room& room, const std::optional<netplay::publicrooms::ClassSpan>& span) {
+    std::string text = room.area == Area::None ? std::string() : " " + loc::Tf("public.room_detail_area", AreaName(room.area));
+    if (span)
+        text += " " + (span->low == span->high ? loc::Tf("public.room_detail_class", ClassName(span->low)) :
+            loc::Tf("public.room_detail_classes", ClassName(span->low), ClassName(span->high)));
+    return text;
+}
+
+std::string RoomDetail(const Room& room, const std::optional<netplay::publicrooms::ClassSpan>& classes) {
+    const std::string area = PlaceAndClasses(room, classes);
     if (room.hostName.empty()) {
         std::string text = loc::Tf("public.room_detail_seats", room.name, room.members, room.capacity) + area;
         if (room.playing > 0) text += "\n" + loc::Tf("public.room_detail_matches", room.playing);
@@ -201,6 +212,10 @@ Area PublicRoomsPanel::HomeArea(const ShellView& v) {
 bool PublicRoomsPanel::AreasListed(const ShellView& v) {
     const auto& rooms = v.publicRooms.rooms;
     return std::any_of(rooms.begin(), rooms.end(), [](const Room& room) { return room.area != Area::None; });
+}
+
+std::optional<netplay::publicrooms::ClassSpan> PublicRoomsPanel::ShownClasses(const ShellView& v, const Room& room) {
+    return v.preferences.classEmblems ? netplay::publicrooms::ClassesOf(room) : std::nullopt;
 }
 
 Area PublicRoomsPanel::FilterHome(const ShellView& v) {
@@ -396,7 +411,7 @@ bool PublicRoomsPanel::Shortcut(const MenuAction& a, const ShellView& v) {
 
 bool PublicRoomsPanel::Status(const ShellView& v, const std::string& screen, std::string& status, Tone& tone, double now, const RoomFilter& filter) const {
     if (pending_) {
-        status = loc::T(pending_->command.op == Command::Op::RoomTicket ? "room.joining_status" : "room.creating_status");
+        status = loc::T(pending_->widened ? "public.quick_wider" : pending_->command.op == Command::Op::RoomTicket ? "room.joining_status" : "room.creating_status");
         tone = Tone::Pending; return true;
     }
     if (!Owns(screen)) return false;
@@ -416,17 +431,15 @@ bool PublicRoomsPanel::Status(const ShellView& v, const std::string& screen, std
     return true;
 }
 
-std::optional<std::string> PublicRoomsPanel::QuickPick(const ShellView& v, Area home, const RoomFilter& filter) const {
+std::optional<std::string> PublicRoomsPanel::QuickJoin(const ShellView& v, const Seeker& seeker, const RoomFilter& filter) {
     if (v.publicRooms.bridge != bridge_) return std::nullopt;
-    // A room near the player first; a room that names no area is near no one, so the filter's own rooms follow.
-    const RoomFilter nearFirst = filter.ForQuickJoin();
-    const auto sorted = Sorted(this, v.publicRooms, home);
-    for (const RoomFilter& wanted : {nearFirst, filter}) {
-        for (const Room* room : sorted)
-            if (room->Joinable() && !refused_.count(room->id) && Matches(wanted, *room, home)) return room->id;
-        if (nearFirst == filter) break;
-    }
-    return std::nullopt;
+    std::vector<const Room*> candidates;
+    for (const Room* room : Sorted(this, v.publicRooms, seeker.home))
+        if (room->Joinable() && !refused_.count(room->id) && Matches(filter, *room, seeker.home)) candidates.push_back(room);
+    const auto pick = netplay::publicrooms::PickQuickJoin(candidates, seeker, filter.opponents);
+    if (!pick || !Join(pick->room)) return std::nullopt;
+    pending_->widened = pick->widened;
+    return pick->room;
 }
 
 std::vector<MenuEntry> PublicRoomsPanel::Rows(const ShellView& v, const std::string& bridge, bool identityPending, const PublicSetupView& setup,
@@ -501,7 +514,7 @@ std::vector<MenuEntry> PublicRoomsPanel::Rows(const ShellView& v, const std::str
     }
     const auto shown = Listing(this, list, home, filter);
     for (const Room* room : shown) {
-        auto row = Row("pr-room:" + room->id, room->name, RoomDetail(*room), free && room->Joinable());
+        auto row = Row("pr-room:" + room->id, room->name, RoomDetail(*room, ShownClasses(v, *room)), free && room->Joinable());
         row.userText = true; row.detailText = DetailText::Name; row.hint = loc::T("online.join"); row.quiet = true;
         if (PhaseOf(row.id) == CardPhase::Joining) row.value = loc::T("public.joining_value");
         rows.push_back(Wide(std::move(row), PublicRoomBare(*room) ? NarrowCardHeight : cardHeight));
@@ -523,9 +536,19 @@ std::vector<MenuEntry> PublicRoomsPanel::Rows(const ShellView& v, const std::str
     return rows;
 }
 
-std::vector<MenuEntry> PublicRoomsPanel::FilterRows(const RoomFilter& filter, Area home, bool areasListed, bool enabled) {
+PublicRoomsPanel::FilterContext PublicRoomsPanel::FilterContextOf(const ShellView& v) {
+    return {HomeArea(v), AreasListed(v), netplay::publicrooms::SeekerBand(v.rankings.standing.value) != 0, v.canEditPreferences};
+}
+
+Seeker PublicRoomsPanel::SeekerOf(const ShellView& v) {
+    return {FilterHome(v), netplay::publicrooms::SeekerBand(v.rankings.standing.value)};
+}
+
+std::vector<MenuEntry> PublicRoomsPanel::FilterRows(const RoomFilter& filter, const FilterContext& context) {
+    const Area home = context.home;
+    const bool enabled = context.enabled;
     const bool nearUnknown = filter.scope == RoomFilter::Place::Near && home == Area::None;
-    const bool nearUnlisted = filter.scope == RoomFilter::Place::Near && home != Area::None && !areasListed;
+    const bool nearUnlisted = filter.scope == RoomFilter::Place::Near && home != Area::None && !context.areasListed;
     std::vector<MenuEntry> rows;
     rows.push_back(Value(FilterAreaRow, loc::T("public.filter_area"), PlaceValue(filter),
         loc::T(nearUnknown ? "public.filter_near_unset" : nearUnlisted ? "public.filter_near_unlisted" : "public.filter_area_detail"), enabled));
@@ -535,11 +558,16 @@ std::vector<MenuEntry> PublicRoomsPanel::FilterRows(const RoomFilter& filter, Ar
         loc::T("public.filter_seats_detail"), enabled));
     rows.push_back(Value(FilterWiredRow, loc::T("public.filter_wired"), loc::T(filter.wiredOnly ? "public.filter_wired_only" : "public.filter_wired_all"),
         loc::T("public.filter_wired_detail"), enabled));
+    const bool similar = filter.opponents == RoomFilter::Opponents::Similar;
+    rows.push_back(Value(FilterQuickRow, loc::T("public.filter_quick"), loc::T(similar ? "public.filter_quick_similar" : "public.filter_quick_any"),
+        loc::T(context.ownClass ? "public.filter_quick_detail" : "public.filter_quick_no_class"), enabled));
     rows.push_back(Row(ClearFiltersRow, loc::T("public.clear_filters"), loc::T("public.clear_filters_detail"), enabled && filter.Active()));
     return rows;
 }
 
-std::vector<MenuEntry> PublicRoomsPanel::AreaRows(const RoomFilter& filter, Area home, bool areasListed, bool enabled) {
+std::vector<MenuEntry> PublicRoomsPanel::AreaRows(const RoomFilter& filter, const FilterContext& context) {
+    const Area home = context.home;
+    const bool areasListed = context.areasListed, enabled = context.enabled;
     const auto onOff = [](bool on) { return loc::T(on ? "common.on" : "common.off"); };
     std::vector<MenuEntry> rows;
     rows.push_back(Value(AreaNearRow, loc::T("public.filter_region_near"), onOff(filter.scope == RoomFilter::Place::Near),
@@ -552,7 +580,7 @@ std::vector<MenuEntry> PublicRoomsPanel::AreaRows(const RoomFilter& filter, Area
 }
 
 bool PublicRoomsPanel::ChangeFilter(const MenuAction& a, Area home, RoomFilter& filter) {
-    if (a.kind == MenuAction::Activate && (a.id == ClearFiltersCard || a.id == ClearFiltersRow)) { filter = RoomFilter(); return true; }
+    if (a.kind == MenuAction::Activate && (a.id == ClearFiltersCard || a.id == ClearFiltersRow)) { filter = filter.Cleared(); return true; }
     if (a.kind == MenuAction::Activate && a.id == AreaAllRow) { filter.SetNear(false); return true; }
     if (a.kind != MenuAction::Adjust) return false;
     if (a.id == FilterAreaRow) filter.StepNear(home);
@@ -561,6 +589,7 @@ bool PublicRoomsPanel::ChangeFilter(const MenuAction& a, Area home, RoomFilter& 
     else if (a.id == FilterTypeRow) filter.StepType(a.delta);
     else if (a.id == FilterSeatsRow) filter.openSeats = a.delta > 0;
     else if (a.id == FilterWiredRow) filter.wiredOnly = a.delta > 0;
+    else if (a.id == FilterQuickRow) filter.opponents = a.delta > 0 ? RoomFilter::Opponents::Any : RoomFilter::Opponents::Similar;
     else return false;
     return true;
 }

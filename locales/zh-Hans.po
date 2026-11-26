@@ -5770,7 +5770,10 @@ msgid "public.quick"
 msgstr "快速加入"
 
 msgid "public.quick_detail"
-msgstr "加入附近空位最多的公开房间。"
+msgstr "加入附近的公开房间，优先选择等级相近的玩家。"
+
+msgid "public.quick_wider"
+msgstr "你的等级附近目前没有空位，所以快速加入为你所在的大区选了最合适的房间。"
 
 msgid "public.quick_none"
 msgstr "附近的公开房间目前都没有空位。创建一个，附近的玩家就能找到。"
@@ -5856,6 +5859,21 @@ msgstr "Wired only"
 msgid "public.filter_wired_detail"
 msgstr "Show only the rooms that take wired players alone."
 
+msgid "public.filter_quick"
+msgstr "快速加入"
+
+msgid "public.filter_quick_similar"
+msgstr "优先等级相近"
+
+msgid "public.filter_quick_any"
+msgstr "任意等级"
+
+msgid "public.filter_quick_detail"
+msgstr "快速加入会先找等级与你相近的玩家，再加入任意公开房间。列表本身不会被筛选。"
+
+msgid "public.filter_quick_no_class"
+msgstr "你还没有等级，所以快速加入按大区和空位来选。"
+
 msgid "public.filter_near_unset"
 msgstr "你的大区尚未设置，因此 Ember 无法判断哪些房间在附近。请在设置的“国家/地区和大区”中设置。"
 
@@ -5894,6 +5912,12 @@ msgstr "房主 {0}。{2} 个位置中已占 {1} 个。"
 
 msgid "public.room_detail_area"
 msgstr "大区：{0}。"
+
+msgid "public.room_detail_classes"
+msgstr "等级：{0}至{1}。"
+
+msgid "public.room_detail_class"
+msgstr "等级：{0}。"
 
 msgid "public.room_detail_match"
 msgstr "对战正在进行。"
