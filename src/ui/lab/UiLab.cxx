@@ -912,7 +912,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
             // Room chat over the fight (FightChatFeed.hxx): a folded repeat, a watcher's line and this player's own, fading.
             ui::FightChatFeedView feed;
             feed.entries = {{"Player 2", loc::T("chat.quick.gg"), 2, false, 1}, {"Player 3", "that whiff punish was clean", 1, false, 1}, {"Player 1", loc::T("chat.quick.thanks"), 1, true, .6f}};
-            ui::DrawFightChatFeed(feed);
+            ui::DrawFightChatFeed(feed, ui::MatchStripGeometry(strip).panel);
             ui::DrawMatchStrip(strip);
             if (toasts) shell.Background(view, view.room, submit);
         } else {

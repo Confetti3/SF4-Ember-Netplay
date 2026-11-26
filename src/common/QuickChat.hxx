@@ -29,9 +29,16 @@ constexpr Row Table[Count] = {
 // The quick slots: Up, Right, Down and Left with Back held, and F1 to F4.
 constexpr int Slots = 4;
 
-inline const Row* RowOf(QuickLine line) {
+// The row of a line, or null for None and anything past the table: for a line not yet checked.
+inline const Row* FindRow(QuickLine line) {
 	const int index = static_cast<int>(line) - 1;
 	return index >= 0 && index < Count ? &Table[index] : nullptr;
+}
+// The row of a line already checked (a saved slot, a message the room took). It cannot
+// come back empty: any other value reads as the first row.
+inline const Row& RowOf(QuickLine line) {
+	const Row* row = FindRow(line);
+	return row ? *row : Table[0];
 }
 // The line a wire id names; None for 0 and anything past the table.
 inline QuickLine FromWire(long long id) {

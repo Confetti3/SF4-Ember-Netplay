@@ -10,9 +10,11 @@ see-through menu a watcher opens over the game they watch.
 
 - **The feed** (`ui/FightChatFeed`): over a fight this PC plays or watches, the newest
   three messages said since the fight began, each for six seconds and then a second's
-  fade. A member's repeated line folds into one ("GG x2"). It sits under the life bar on
-  the left, or on the right while the match strip is anchored top left, clear of the
-  timer and the strip's usual place. It is never drawn over Ember's own windows.
+  fade. A member's repeated line folds into one ("GG x2"); two members who share a name
+  never fold together. A line is stamped once, when the feed first sees it, and never
+  again after it fades. It sits under the life bar on the left, or on the right when the
+  match strip's panel, wherever the strip placed it (`MatchStripGeometry`), is in the way.
+  It is never drawn over Ember's own windows.
 - **Settings › Interface › Room layout** (with the chat filter, which a room leaves open):
   - Chat in matches: My table (default: the fighters, queue and watchers of the table
     this player has a place at), Everyone, or Off.
@@ -30,13 +32,16 @@ see-through menu a watcher opens over the game they watch.
 | Catalog | `common/QuickChat.hxx`: the eight lines, each with a saved code, a catalog key and its English text. |
 | Pad | `common/QuickChatPad.hxx`: while Back is held in a fight this PC fights in, the directions belong to the chord, and one that goes down sends its slot once. The game sees neither Back nor the directions meanwhile: the fighter stands still while choosing. The pad update counts those updates as withheld by a gesture (`WithheldReason::Gesture`). |
 | Keys | F1 to F4 down in such a fight (not repeats), kept from Ember's menu and the window's other keys. USF4 reads its own keyboard through Raw Input, so a game key the player bound to F1 to F4 still reaches the game. |
-| Hand-off | Both post the slot (`sf4e::overlay::PostQuickLine`); the overlay's frame hands each to the shell (`ApplicationShell::SendQuickLine`). |
+| Hand-off | Both post the slot into one bit mask (`sf4e::overlay::PostQuickLine`). Whether quick lines are live (a fight this PC fights in, the player's quick lines on) is decided once, by the pad update on the game thread (`SetQuickLinesLive`); the window procedure reads that. The overlay's frame takes the mask every frame and hands it to the shell (`ApplicationShell::SendQuickLines`) while Ember is hidden; while Ember is shown the lines are dropped. The shell applies only the room's rules. |
 | Send | The slot's line goes as a room chat action with `quick` set and its English text, now or never: one the room cannot take at this moment, or a second inside the room's one-a-second rule, is dropped rather than sent after the moment it was for. |
 | Room | `RoomAuthority::ApplyChat` keeps every chat rule and takes a quick line only with its own English text. The message keeps `quick`. |
 | Readers | Each shows the line in their own language; anything that does not know the id reads the English text. |
 
 Every peer in a room runs the same build (public rooms are listed per build, private
 rooms check the sidecar hash), so a quick line never meets a reader without the field.
+
+Chat in matches is one table (`netplay::FightChatScopes`: saved word, catalog key, next
+scope) that the saved file, the Settings row and the validity check all read.
 
 ## Not done here
 

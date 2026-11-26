@@ -696,6 +696,7 @@ bool ApplicationShell::AdjustSetting(netplay::PlayerPreferences& p, const MenuAc
     using namespace netplay;
     const auto clamp = [](int value, int least, int most) { return (std::max)(least, (std::min)(most, value)); };
     const std::string& id = a.id;
+    if (AdjustFightChat(id, a.delta, p.fightChat)) return true;
     if (id == "hud-layout") p.matchHudLayout = clamp(p.matchHudLayout + a.delta, 0, 1);
     else if (id == "hud-name-offset") p.matchHudNameOffset = clamp(p.matchHudNameOffset + 2 * a.delta, -MaxMatchHudNameOffset, MaxMatchHudNameOffset);
     else if (id == "hud-size") p.matchHudSize = clamp(p.matchHudSize + a.delta, 0, 2);
@@ -707,7 +708,6 @@ bool ApplicationShell::AdjustSetting(netplay::PlayerPreferences& p, const MenuAc
     else if (id == "arrange-members") p.roomShowMembers = a.delta > 0;
     else if (id == "arrange-chat") p.roomShowChat = a.delta > 0;
     else if (id == "arrange-tables") p.roomTableGrid = a.delta > 0;
-    else if (AdjustFightChat(id, a.delta, p.fightChat)) {}
     else if (id == "arrange-pictures") p.roomCharacterPictures = a.delta > 0;
     else if (id == "tv") p.tvMode = a.delta > 0;
     else if (id == "area") p.area = p.area.Stepped(a.delta);

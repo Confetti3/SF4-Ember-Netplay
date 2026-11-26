@@ -71,7 +71,7 @@ constexpr float MinInterfaceScale = .7f, MaxInterfaceScale = 1.5f, InterfaceScal
 inline float InterfaceScaleOrDefault(float scale) { return scale >= MinInterfaceScale && scale <= MaxInterfaceScale ? scale : 1.f; }
 // The match HUD positions run from 0 (bottom center) to this one (top center);
 // the top left is 3.
-constexpr int MaxMatchHudAnchor = 5, MatchHudTopLeft = 3;
+constexpr int MaxMatchHudAnchor = 5;
 // The room board's layout grips (Customise.dc.html), in percent: the members
 // and chat column's share of the board's width, and the members' share of that
 // column over chat. Each snaps to its step from the default.
@@ -148,11 +148,36 @@ struct FightChatPreferences {
         return scope == other.scope && quickLines == other.quickLines;
     }
     bool operator!=(const FightChatPreferences& other) const { return !(*this == other); }
-    bool Valid() const {
-        for (const QuickLine line : slots) if (!quickchat::RowOf(line)) return false;
-        return scope == Scope::MyTable || scope == Scope::Everyone || scope == Scope::Off;
-    }
+    bool Valid() const;
 };
+// Each scope in the order Right steps through them: the word it is saved as, its
+// catalog key and the scope after it.
+struct FightChatScopeRow { FightChatPreferences::Scope scope; const char* word; const char* key; FightChatPreferences::Scope next; };
+constexpr FightChatScopeRow FightChatScopes[3] = {
+    {FightChatPreferences::Scope::MyTable, "table", "settings.fight_chat_table", FightChatPreferences::Scope::Everyone},
+    {FightChatPreferences::Scope::Everyone, "everyone", "settings.fight_chat_everyone", FightChatPreferences::Scope::Off},
+    {FightChatPreferences::Scope::Off, "off", "common.off", FightChatPreferences::Scope::MyTable},
+};
+// The row of a scope, or null for a value outside the enum (a cast from a bad file).
+inline const FightChatScopeRow* FindScopeRow(FightChatPreferences::Scope scope) {
+    for (const auto& row : FightChatScopes) if (row.scope == scope) return &row;
+    return nullptr;
+}
+// The row of a scope already checked; any other value reads as the first row.
+inline const FightChatScopeRow& ScopeRowOf(FightChatPreferences::Scope scope) {
+    const auto* row = FindScopeRow(scope);
+    return row ? *row : FightChatScopes[0];
+}
+// The scope Right (delta above 0) or Left moves to from `scope`.
+inline FightChatPreferences::Scope SteppedScope(FightChatPreferences::Scope scope, int delta) {
+    if (delta > 0) return ScopeRowOf(scope).next;
+    for (const auto& row : FightChatScopes) if (row.next == scope) return row.scope;
+    return scope;
+}
+inline bool FightChatPreferences::Valid() const {
+    for (const QuickLine line : slots) if (!quickchat::FindRow(line)) return false;
+    return FindScopeRow(scope) != nullptr;
+}
 
 struct PlayerPreferences {
     std::string displayName = "Player";

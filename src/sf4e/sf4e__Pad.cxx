@@ -219,8 +219,9 @@ void fSystem::UpdateInputs() {
     // quick line, and while Back is held the chord's buttons are its own.
     const bool fighting=sf4e::Game::Battle::System::ggpo&&sf4e::Game::Battle::System::LocalFighter();
     static sf4e::input::QuickChatChord chatChord;
-    sf4e::overlay::SetQuickLinesLive(fighting&&snapshot.preferences.fightChat.quickLines);
-    const auto chat=chatChord.Update(sf4e::overlay::QuickLinesLive()&&!sf4e::Overlay::CapturesMenuInput(),physical);
+    const bool quickLive=fighting&&snapshot.preferences.fightChat.quickLines;
+    sf4e::overlay::SetQuickLinesLive(quickLive);
+    const auto chat=chatChord.Update(quickLive&&!sf4e::Overlay::CapturesMenuInput(),physical);
     for(int slot=0;slot<sf4e::quickchat::Slots;++slot)if(chat.slots&(1u<<slot))sf4e::overlay::PostQuickLine(slot);
     const unsigned held=sf4e::input::NativeMenuHeld(this);
     static sf4e::input::MenuInputCapture capture;

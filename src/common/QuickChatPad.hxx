@@ -17,7 +17,6 @@
 namespace sf4e { namespace input {
 // The slot of each direction: Up, Right, Down, Left.
 constexpr std::uint32_t SlotDirection[quickchat::Slots] = {xinput::Up, xinput::Right, xinput::Down, xinput::Left};
-constexpr std::uint32_t PhysicalChord = PhysicalBack | xinput::Up | xinput::Down | xinput::Left | xinput::Right;
 // What the chord withholds from the game's native caches (WithholdNativeInputs):
 // the fight map's directions (ReplayInputs.hxx: Up, Down, Left, Right) and its
 // Select, the function of the pad's Back (ReplayInputs.hxx: the pad word's 0x2000).
@@ -28,9 +27,7 @@ constexpr unsigned NativeChord = NativeDirections | NativeSelect;
 struct QuickChatSample {
     // Bit n: slot n was sent this update.
     unsigned slots = 0;
-    // The chord's physical buttons and the native ones it withholds, both 0
-    // unless Back is held in a chord.
-    std::uint32_t owned = 0;
+    // The native buttons the chord withholds from the game, 0 unless Back is held in a chord.
     unsigned native = 0;
 };
 class QuickChatChord {
@@ -46,7 +43,7 @@ public:
         back_ = back; previous_ = physical;
         if (!chording_) return sample;
         for (int slot = 0; slot < quickchat::Slots; ++slot) if (fresh & SlotDirection[slot]) sample.slots |= 1u << slot;
-        sample.owned = PhysicalChord; sample.native = NativeChord;
+        sample.native = NativeChord;
         return sample;
     }
 private:

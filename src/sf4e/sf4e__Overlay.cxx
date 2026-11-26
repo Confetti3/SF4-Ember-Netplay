@@ -325,7 +325,7 @@ static bool SubmitToRuntime(sf4e::RuntimeRequest request) {
 // sign-in on its service, keeps the room chat and follows the room. The room
 // is lent as a drawn frame lends it (copied once per change, not per match
 // frame), and only its few notices (at most RoomNoticesKept) are copied.
-static void ConcealApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snapshot) {
+static void ConcealApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snapshot, unsigned quickLines) {
     sf4e::ui::ShellView view;
     view.session = snapshot.session;
     s_roomCarry.Lend(view, snapshot.room);
@@ -340,7 +340,7 @@ static void ConcealApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& s
     view.hostPublicRoom = snapshot.hostPublicRoom;
     const sf4e::ui::ApplicationShell::Submit submit = [](sf4e::ui::ShellAction action) { auto request = sf4e::ui::ForRuntime(std::move(action)); return request && SubmitToRuntime(std::move(*request)); };
     shell.Background(view, view.room, submit);
-    for (const int slot : sf4e::overlay::TakeQuickLines()) shell.SendQuickLine(slot, view, submit);
+    shell.SendQuickLines(quickLines, view, submit);
     s_roomCarry.Return(view);
 }
 static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snapshot, const sf4e::NetplayStatus& status) {
@@ -566,6 +566,8 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     const auto frame = sf4e::NetplayFacade::GetPresentationSnapshotShared();
     const auto& snapshot = *frame->runtime;
     const auto& status = frame->netplay;
+    // Quick lines asked for since the last frame: sent below while Ember is hidden, dropped while it is shown.
+    const unsigned quickLines = sf4e::overlay::TakeQuickLines();
     // Whether the pick may change this frame, and the edition rule it plays by:
     // read once for the follow below and the save at the end of the frame.
     const bool pickEditable = snapshot.canEditSelection, pickEditionSelect = EditionSelectNow(snapshot);
@@ -684,7 +686,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         sf4e::menu_backdrop::Frame(surface, snapshot.preferences.menuArtwork, shell.Navigation().Screen(), s_selectionArt.get());
     }
     if (presentation.Visible()) DrawApplicationHome(snapshot, status);
-    else ConcealApplicationHome(snapshot);
+    else ConcealApplicationHome(snapshot, quickLines);
     if (!presentation.Visible() && assigning) {
         sf4e::NetplayFacade::SubmitRuntimeCommand(sf4e::commands::Input{snapshot.session.generation, sf4e::input::Action::Cancel});
     }

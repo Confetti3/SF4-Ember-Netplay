@@ -26,32 +26,32 @@ int main() {
     {
         // Nothing without Back, and a direction held before Back is not a press.
         QuickChatChord chord;
-        Check(chord.Update(true, Up).slots == 0 && chord.Update(true, Up).owned == 0, "A direction alone sent a line or was owned");
+        Check(chord.Update(true, Up).slots == 0 && chord.Update(true, Up).native == 0, "A direction alone sent a line or was withheld");
         const auto held = chord.Update(true, Up | Back);
-        Check(held.slots == 0 && held.owned == PhysicalChord, "A direction held before Back sent a line");
+        Check(held.slots == 0 && held.native == NativeChord, "A direction held before Back sent a line, or Back's chord was not withheld");
         Check(chord.Update(true, Up | Right | Back).slots == (1u << 1), "A second direction under the chord did not send");
     }
     {
-        // Back and the directions are owned while Back is held, and ownership ends with it.
+        // Back and the directions are withheld while Back is held, and that ends with it.
         QuickChatChord chord;
-        Check(chord.Update(true, 0).native == 0, "An idle pad owned a button");
+        Check(chord.Update(true, 0).native == 0, "An idle pad withheld a button");
         const auto down = chord.Update(true, Back);
-        Check(down.owned == PhysicalChord && down.native == NativeChord, "Back did not own the chord");
+        Check(down.native == NativeChord, "Back did not withhold the chord");
         Check((down.native & NativeDirections) == NativeDirections && (down.native & NativeSelect) == NativeSelect, "The chord left a native button");
         const auto up = chord.Update(true, 0);
-        Check(up.owned == 0 && up.native == 0 && up.slots == 0, "A released chord kept ownership");
+        Check(up.native == 0 && up.slots == 0, "A released chord kept its buttons");
     }
     {
-        // Disabled: nothing is owned or sent, and a chord held when it is disabled ends there.
+        // Disabled: nothing is withheld or sent, and a chord held when it is disabled ends there.
         QuickChatChord chord;
         const auto off = chord.Update(false, Back | Up);
-        Check(off.slots == 0 && off.owned == 0 && off.native == 0, "A disabled chord owned or sent");
+        Check(off.slots == 0 && off.native == 0, "A disabled chord withheld or sent");
         Check(chord.Update(true, Back | Up | Right).slots == 0, "A Back held since before the chord was allowed began one");
         chord.Update(true, 0);
         chord.Update(true, Back);
         Check(chord.Update(true, Back | Down).slots == (1u << 2), "A chord pressed afresh did not send");
         const auto ended = chord.Update(false, Back | Down);
-        Check(ended.slots == 0 && ended.owned == 0 && ended.native == 0, "A held chord kept ownership once disabled");
+        Check(ended.slots == 0 && ended.native == 0, "A held chord kept its buttons once disabled");
         Check(chord.Update(true, Back | Down | Left).slots == 0, "A chord that ended came back without a fresh Back");
     }
     {

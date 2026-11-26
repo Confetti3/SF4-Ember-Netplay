@@ -207,10 +207,10 @@ public:
     bool NoticeError() const { return menu_.NoticeError(); }
     // What this client keeps of the room chat (for tests).
     const ChatTranscript& Transcript() const { return transcript_; }
-    // Fight chat (ApplicationShell__FightChat.cxx): the overlay's frame sends each quick line the pad or the
-    // keys asked for (a slot, 0 to 3), and draws what room chat shows over a fight. `fighting`: a fight this
-    // PC plays or watches is on.
-    void SendQuickLine(int slot, const ShellView& view, const Submit& submit);
+    // Fight chat (ApplicationShell__FightChat.cxx): the overlay's frame sends the quick lines the pad or the
+    // keys asked for since the last frame (bit n: slot n), and draws what room chat shows over a fight.
+    // `fighting`: a fight this PC plays or watches is on.
+    void SendQuickLines(unsigned slots, const ShellView& view, const Submit& submit);
     FightChatFeedView FightFeed(const room::Snapshot& room, bool fighting);
     // The room chat's unread count, as the room screen's Chat row shows it.
     // Kept while the shell is hidden (Background), so the training HUD can say it.

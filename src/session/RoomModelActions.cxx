@@ -117,7 +117,10 @@ Result RoomAuthority::ApplyKick(MemberId member, const Action& action) {
 Result RoomAuthority::ApplyChat(MemberId member, const Action& action) {
 	if (action.text.empty() || action.text.size() > MaximumChatBytes || !IsValidUtf8(action.text) || !IsSingleLineText(action.text) ||
 		(lastChatMs_.count(member) && nowMs_ >= lastChatMs_[member] && nowMs_ - lastChatMs_[member] < 1000)) return Reject(RejectReason::InvalidChat);
-	if (action.quick != QuickLine::None && action.text != quickchat::RowOf(action.quick)->english) return Reject(RejectReason::InvalidChat);
+	if (action.quick != QuickLine::None) {
+		const auto* row = quickchat::FindRow(action.quick);
+		if (!row || action.text != row->english) return Reject(RejectReason::InvalidChat);
+	}
 	ChatMessage chat;
 	chat.sequence = nextChatSequence_++;
 	chat.sender = member;

@@ -22,6 +22,9 @@ static void TestQuickChat() {
 	EXPECT(quick(sf4e::QuickLine::Nice, "Thanks!").reason == RejectReason::InvalidChat);
 	EXPECT(quick(sf4e::QuickLine::GoodGame, "gg").reason == RejectReason::InvalidChat);
 	EXPECT(chat.size() == 1);
+	// An id outside the table, which no decoder produces, is refused and not looked up.
+	EXPECT(quick(static_cast<sf4e::QuickLine>(99), "Nice!").reason == RejectReason::InvalidChat);
+	EXPECT(chat.size() == 1);
 	// The one a second rule covers quick lines, and a quick line counts against typed text.
 	EXPECT(quick(sf4e::QuickLine::OneMore, "One more?").accepted);
 	EXPECT(quick(sf4e::QuickLine::Lag, "Lag?").reason == RejectReason::InvalidChat);

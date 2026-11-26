@@ -228,6 +228,7 @@ void FilterLogic(){
 // Room chat over a fight (FightChatFeed.hxx): only what was said since the fight began, the newest
 // three in arrival order with a repeated line folded, each for six seconds and then a second's fade;
 // never a muted member's; and with My table, only the members with a place at this player's table.
+// An expired line never comes back, and a repeat folds only into the same member's line.
 void FightChatFeedLogic(){
  using namespace sf4e;
  using Scope=netplay::FightChatPreferences::Scope;
@@ -257,9 +258,22 @@ void FightChatFeedLogic(){
  view=shown(8.5,{},Scope::Everyone);
  Check(!view.entries.empty()&&view.entries[0].alpha>.4f&&view.entries[0].alpha<.6f,"A feed line did not fade after six seconds");
  Check(shown(9.5,{},Scope::Everyone).entries.empty(),"A feed line stayed past its fade");
+ // Frame after frame past the fade, the expired lines stay gone: they are not stamped again as new.
+ for(double now=10;now<40;now+=.5)Check(shown(now,{},Scope::Everyone).entries.empty(),"An expired feed line came back");
+ // Only a line said now shows, and it alone; two members who share a name do not fold into one line.
+ for(room::MemberId id:{5,6}){room::Member m;m.id=id;m.name="Twin";s.members.push_back(m);}
+ say(4,"late");
+ view=shown(40.5,{},Scope::Everyone);
+ Check(view.entries.size()==1&&view.entries[0].text=="late","A line said after the fade did not show alone");
+ say(5,"GG",QuickLine::GoodGame);say(6,"GG",QuickLine::GoodGame);say(6,"GG",QuickLine::GoodGame);
+ view=shown(41,{},Scope::Everyone);
+ Check(view.entries.size()==3&&view.entries[0].text=="late"&&view.entries[1].sender==5&&view.entries[1].repeats==1&&view.entries[2].sender==6&&view.entries[2].repeats==2,
+  "A line folded into another member's of the same name, or one member's repeat was not folded");
+ for(double now=41.5;now<60;now+=.5)shown(now,{},Scope::Everyone);
+ Check(shown(60,{},Scope::Everyone).entries.empty(),"A feed line came back after its fade");
  // A new fight starts clean.
- feed.Update(t,false,10);feed.Update(t,true,11);
- Check(feed.View(t,{},ui::AudienceOf(s,Scope::Everyone),true,11).entries.empty(),"A new fight showed the last fight's chat");
+ feed.Update(t,false,70);feed.Update(t,true,71);
+ Check(feed.View(t,{},ui::AudienceOf(s,Scope::Everyone),true,71).entries.empty(),"A new fight showed the last fight's chat");
  // Settings: the scope steps round, quick lines switch, and each slot steps through every line.
  netplay::FightChatPreferences chat;
  Check(ui::AdjustFightChat("fight-chat",1,chat)&&chat.scope==Scope::Everyone&&ui::AdjustFightChat("fight-chat",1,chat)&&chat.scope==Scope::Off&&
@@ -269,6 +283,12 @@ void FightChatFeedLogic(){
  Check(chat.slots[2]==QuickLine::Sorry&&ui::AdjustFightChat("quick-slot-0",-1,chat)&&chat.slots[0]==QuickLine::CloseOne,"A quick slot did not step through every line");
  Check(!ui::AdjustFightChat("quick-slot-4",1,chat)&&!ui::AdjustFightChat("chat-filter",1,chat),"Another row was taken as fight chat's");
  Check(ui::FightChatRows(chat,true)[2].enabled==chat.quickLines,"The quick slots are offered while quick lines are off");
+ // The scope table steps each way round, and a scope outside it is not valid but never leaves a row empty.
+ for(const auto& row:netplay::FightChatScopes)Check(netplay::SteppedScope(row.scope,1)==row.next&&netplay::SteppedScope(row.next,-1)==row.scope&&netplay::ScopeRowOf(row.scope).scope==row.scope,"A fight chat scope did not step to its next and back");
+ netplay::FightChatPreferences odd;odd.scope=static_cast<Scope>(9);
+ Check(!odd.Valid()&&!netplay::FindScopeRow(odd.scope)&&netplay::ScopeRowOf(odd.scope).word!=nullptr,"A scope outside the table was valid or had no row");
+ odd=netplay::FightChatPreferences();odd.slots[1]=static_cast<QuickLine>(99);
+ Check(!odd.Valid()&&!quickchat::FindRow(odd.slots[1])&&quickchat::RowOf(odd.slots[1]).code!=nullptr,"A quick line outside the table was valid or had no row");
 }
 void ChatJourneys(){
  using namespace sf4e;
@@ -452,7 +472,22 @@ void ChatJourneys(){
  Check(row("compose").value=="Edited later more","A late arrival took a draft the player had changed");
  // A room fence that opens and closes every frame (a room updating over a slow link) leaves the box, the screen and the keys alone.
  sequence=0;JoinChatRoom(h,30);h.view.session.coordinated=true;h.view.session.authorityWritable=true;
- h.Screen("room");h.Frame();h.Frame(MenuInput::Chat);
+ h.Screen("room");h.Frame();
+ // Quick lines from the pad or the keys: each asked slot goes as its line, one a second.
+ {
+  const std::size_t before=h.actions.size();
+  const auto send=[&](unsigned slots){h.shell.SendQuickLines(slots,h.view,[&](ShellAction a){h.actions.push_back(a);return h.accept;});};
+  const auto sentQuick=[&](QuickLine line){return Is<sf4e::commands::RoomAction>(h.actions.back(),[&](const sf4e::commands::RoomAction& sent){return sent.roomAction.quick==line;});};
+  send(0);
+  Check(h.actions.size()==before,"No quick line asked for sent one");
+  send((1u<<1)|(1u<<2));
+  Check(h.actions.size()==before+1&&sentQuick(QuickLine::OneMore)&&ChatSaid(h.actions.back(),"One more?"),"A quick line did not go as its id and its English text");
+  send(1u<<3);
+  Check(h.actions.size()==before+1,"A second quick line inside the second was sent");
+  h.Wait(1.5f);send(1u<<3);
+  Check(h.actions.size()==before+2&&sentQuick(QuickLine::Lag),"A quick line a second later was not sent");
+ }
+ h.Frame(MenuInput::Chat);
  const auto flip=[&]{h.view.session.authorityWritable=!h.view.session.authorityWritable;};
  // Send follows the draft alone, whatever the fence does.
  const auto flicker=[&](const std::string& text){

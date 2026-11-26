@@ -9,7 +9,6 @@ namespace sf4e { namespace netplay {
 // before it has none; a field that is missing, of another type or unknown loads
 // as its default, a slot alone included, and the other fields load as saved.
 inline FightChatPreferences ReadFightChatPreferences(const nlohmann::json& saved) {
-    using Scope = FightChatPreferences::Scope;
     FightChatPreferences value;
     if (!saved.is_object()) return value;
     const auto found = saved.find("fightChat");
@@ -17,7 +16,7 @@ inline FightChatPreferences ReadFightChatPreferences(const nlohmann::json& saved
     const auto scope = found->find("scope");
     if (scope != found->end() && scope->is_string()) {
         const auto text = scope->get<std::string>();
-        value.scope = text == "everyone" ? Scope::Everyone : text == "off" ? Scope::Off : Scope::MyTable;
+        for (const auto& row : FightChatScopes) if (text == row.word) value.scope = row.scope;
     }
     const auto quick = found->find("quickLines");
     if (quick != found->end() && quick->is_boolean()) value.quickLines = quick->get<bool>();
@@ -31,11 +30,10 @@ inline FightChatPreferences ReadFightChatPreferences(const nlohmann::json& saved
     return value;
 }
 inline void WriteFightChatPreferences(const PlayerPreferences& value, nlohmann::json& saved) {
-    using Scope = FightChatPreferences::Scope;
     const auto& chat = value.fightChat;
     auto slots = nlohmann::json::array();
-    for (const QuickLine line : chat.slots) slots.push_back(quickchat::RowOf(line)->code);
-    saved["fightChat"] = {{"scope", chat.scope == Scope::Everyone ? "everyone" : chat.scope == Scope::Off ? "off" : "table"},
+    for (const QuickLine line : chat.slots) slots.push_back(quickchat::RowOf(line).code);
+    saved["fightChat"] = {{"scope", ScopeRowOf(chat.scope).word},
         {"quickLines", chat.quickLines}, {"slots", slots}};
 }
 } }

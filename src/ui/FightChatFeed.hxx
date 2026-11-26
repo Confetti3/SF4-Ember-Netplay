@@ -7,6 +7,7 @@
 // own windows.
 #include "ChatTranscript.hxx"
 #include "MenuNavigation.hxx"
+#include "Theme.hxx"
 #include "../netplay/PlayerPreferences.hxx"
 #include <cstdint>
 #include <map>
@@ -21,11 +22,11 @@ struct FightChatEntry {
     bool own = false;
     // 1 while it stands, down to 0 over its fade.
     float alpha = 1;
+    // Who said it: a repeat folds only into the same member's line.
+    room::MemberId sender = 0;
 };
 struct FightChatFeedView {
     std::vector<FightChatEntry> entries;
-    // The match strip sits at the top left (its anchor 3), so the feed takes the right.
-    bool rightSide = false;
 };
 
 // Who the feed listens to: everyone, or the members at one table (its fighters,
@@ -46,7 +47,8 @@ public:
     static constexpr double ShownSeconds = 6, FadeSeconds = 1;
     // Every frame. `fighting`: a fight this PC plays or watches is on. Each fight
     // starts after the transcript's newest message, so nothing said before it
-    // shows over it; a message's time is when this feed first saw it.
+    // shows over it; a message's time is when this feed first saw it, and each
+    // frame moves the mark to the newest message, so a line is stamped once.
     void Update(const ChatTranscript& transcript, bool fighting, double now);
     // What to draw now: none outside a fight or with Off; a muted member's lines
     // never; each message's text as the Chat screen shows it (ChatLineText).
@@ -54,11 +56,14 @@ public:
         bool filtered, double now) const;
 private:
     bool fighting_ = false;
-    std::uint64_t after_ = 0;
+    // The newest message sequence the last Update took in: only lines above it are new.
+    std::uint64_t seen_ = 0;
     std::map<std::uint64_t, double> arrived_;
 };
 
-void DrawFightChatFeed(const FightChatFeedView& view);
+// `strip`: where the match strip's panel is drawn (not valid when there is none).
+// The feed takes the left, under the life bar, unless the panel is there; then the right.
+void DrawFightChatFeed(const FightChatFeedView& view, const MatchStripBox& strip);
 
 // Settings' fight chat rows: Chat in matches, Quick lines and the line of each
 // of the four quick slots. They sit with the room chat's own settings, which a

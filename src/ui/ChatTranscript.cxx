@@ -130,7 +130,7 @@ unsigned ChatTranscript::Unread(const std::set<room::MemberId>& muted) const {
 }
 std::string ChatLineText(const ChatLine& line, bool filtered) {
     if (line.kind != ChatLine::Kind::Message) return ChatEventText(line);
-    if (const auto* row = quickchat::RowOf(line.quick)) return loc::T(row->key);
+    if (const auto* row = quickchat::FindRow(line.quick)) return loc::T(row->key);
     return filtered ? line.filtered : line.text;
 }
 // A line of what happened in the room, in the player's language now.
