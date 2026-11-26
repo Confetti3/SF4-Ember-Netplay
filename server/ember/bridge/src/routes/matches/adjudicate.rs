@@ -26,8 +26,8 @@ use crate::{
     http::{Body, GENERAL_BODY, expected_revision, idempotency_key},
     routes::{
         idempotency::ServiceCall,
-        reason,
         ledger::{Cause, Match, load, participants, scores, settle, stale, unready_before},
+        reason,
     },
 };
 
