@@ -283,12 +283,13 @@ void FightChatFeedLogic(){
  Check(chat.slots[2]==QuickLine::Sorry&&ui::AdjustFightChat("quick-slot-0",-1,chat)&&chat.slots[0]==QuickLine::CloseOne,"A quick slot did not step through every line");
  Check(!ui::AdjustFightChat("quick-slot-4",1,chat)&&!ui::AdjustFightChat("chat-filter",1,chat),"Another row was taken as fight chat's");
  Check(ui::FightChatRows(chat,true)[2].enabled==chat.quickLines,"The quick slots are offered while quick lines are off");
- // The scope table steps each way round, and a scope outside it is not valid but never leaves a row empty.
- for(const auto& row:netplay::FightChatScopes)Check(netplay::SteppedScope(row.scope,1)==row.next&&netplay::SteppedScope(row.next,-1)==row.scope&&netplay::ScopeRowOf(row.scope).scope==row.scope,"A fight chat scope did not step to its next and back");
+ // The scope table steps each way round, and a scope or quick line outside its table is not valid.
+ for(const auto& row:netplay::FightChatScopes)Check(netplay::SteppedScope(netplay::SteppedScope(row.scope,1),-1)==row.scope&&netplay::ScopeRowOf(row.scope).scope==row.scope,"A fight chat scope did not step to its next and back");
+ Check(netplay::SteppedScope(Scope::MyTable,1)==Scope::Everyone&&netplay::SteppedScope(Scope::MyTable,-1)==Scope::Off,"Fight chat scopes did not step in the table's order");
  netplay::FightChatPreferences odd;odd.scope=static_cast<Scope>(9);
- Check(!odd.Valid()&&!netplay::FindScopeRow(odd.scope)&&netplay::ScopeRowOf(odd.scope).word!=nullptr,"A scope outside the table was valid or had no row");
+ Check(!odd.Valid(),"A scope outside the table was valid");
  odd=netplay::FightChatPreferences();odd.slots[1]=static_cast<QuickLine>(99);
- Check(!odd.Valid()&&!quickchat::FindRow(odd.slots[1])&&quickchat::RowOf(odd.slots[1]).code!=nullptr,"A quick line outside the table was valid or had no row");
+ Check(!odd.Valid()&&!quickchat::FindRow(odd.slots[1]),"A quick line outside the table was valid or had a row");
 }
 void ChatJourneys(){
  using namespace sf4e;

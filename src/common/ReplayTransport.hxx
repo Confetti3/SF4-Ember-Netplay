@@ -354,6 +354,9 @@ struct View {
 	// The takeover as the last battle update left it.
 	takeover::Phase takeover = takeover::Phase::Off;
 	takeover::Plan plan;
+	// The battle plays the replay file's inputs (the lanes and the meter's
+	// inputs are the file's): not while a takeover plays something else.
+	bool FileInputs() const { return takeover == takeover::Phase::Off; }
 	// Counts that only go up: commands taken, and transport commands
 	// refused outside the fight. The overlay times the strip and the
 	// "works during the fight" chip from their changes.

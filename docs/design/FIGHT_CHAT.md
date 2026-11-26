@@ -40,8 +40,10 @@ see-through menu a watcher opens over the game they watch.
 Every peer in a room runs the same build (public rooms are listed per build, private
 rooms check the sidecar hash), so a quick line never meets a reader without the field.
 
-Chat in matches is one table (`netplay::FightChatScopes`: saved word, catalog key, next
-scope) that the saved file, the Settings row and the validity check all read.
+Chat in matches is one table (`netplay::FightChatScopes`: saved word and catalog key, in
+the enum's order, which is the order Right steps through) that the saved file, the
+Settings row and the validity check all read. Quick lines and scopes the preferences hold
+are rows of their tables, looked up by index; only `FindRow` and `Valid` take an unchecked value.
 
 ## Not done here
 

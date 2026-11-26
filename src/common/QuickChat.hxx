@@ -34,12 +34,15 @@ inline const Row* FindRow(QuickLine line) {
 	const int index = static_cast<int>(line) - 1;
 	return index >= 0 && index < Count ? &Table[index] : nullptr;
 }
-// The row of a line already checked (a saved slot, a message the room took). It cannot
-// come back empty: any other value reads as the first row.
-inline const Row& RowOf(QuickLine line) {
-	const Row* row = FindRow(line);
-	return row ? *row : Table[0];
+// The table is in the enum's order, so a line from it is its own index.
+constexpr bool InEnumOrder(int index = 0) {
+	return index == Count || (static_cast<int>(Table[index].line) == index + 1 && InEnumOrder(index + 1));
 }
+static_assert(InEnumOrder(), "the quick line table is in QuickLine's order");
+// The row of a line from the table: a saved slot (PlayerPreferences::Valid keeps None
+// and anything past the table out of them), a slot Settings stepped to, or a message
+// the room took. FindRow is for any other value.
+inline const Row& RowOf(QuickLine line) { return Table[static_cast<int>(line) - 1]; }
 // The line a wire id names; None for 0 and anything past the table.
 inline QuickLine FromWire(long long id) {
 	return id >= 1 && id <= Count ? static_cast<QuickLine>(id) : QuickLine::None;

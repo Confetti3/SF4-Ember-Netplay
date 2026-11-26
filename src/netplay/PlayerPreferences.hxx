@@ -69,8 +69,7 @@ constexpr int MaxMatchHudNameOffset = 60;
 constexpr float MinInterfaceScale = .7f, MaxInterfaceScale = 1.5f, InterfaceScaleStep = .05f;
 // `scale` as saved, or 1.00x when it is outside the range (an older or hand-edited file).
 inline float InterfaceScaleOrDefault(float scale) { return scale >= MinInterfaceScale && scale <= MaxInterfaceScale ? scale : 1.f; }
-// The match HUD positions run from 0 (bottom center) to this one (top center);
-// the top left is 3.
+// The match HUD positions run from 0 (bottom center) to this one (top center).
 constexpr int MaxMatchHudAnchor = 5;
 // The room board's layout grips (Customise.dc.html), in percent: the members
 // and chat column's share of the board's width, and the members' share of that
@@ -150,33 +149,28 @@ struct FightChatPreferences {
     bool operator!=(const FightChatPreferences& other) const { return !(*this == other); }
     bool Valid() const;
 };
-// Each scope in the order Right steps through them: the word it is saved as, its
-// catalog key and the scope after it.
-struct FightChatScopeRow { FightChatPreferences::Scope scope; const char* word; const char* key; FightChatPreferences::Scope next; };
-constexpr FightChatScopeRow FightChatScopes[3] = {
-    {FightChatPreferences::Scope::MyTable, "table", "settings.fight_chat_table", FightChatPreferences::Scope::Everyone},
-    {FightChatPreferences::Scope::Everyone, "everyone", "settings.fight_chat_everyone", FightChatPreferences::Scope::Off},
-    {FightChatPreferences::Scope::Off, "off", "common.off", FightChatPreferences::Scope::MyTable},
+// Each scope with the word it is saved as and its catalog key, in the enum's
+// order, which is the order Right steps through them: a scope is its own index.
+struct FightChatScopeRow { FightChatPreferences::Scope scope; const char* word; const char* key; };
+constexpr int FightChatScopeCount = 3;
+constexpr FightChatScopeRow FightChatScopes[FightChatScopeCount] = {
+    {FightChatPreferences::Scope::MyTable, "table", "settings.fight_chat_table"},
+    {FightChatPreferences::Scope::Everyone, "everyone", "settings.fight_chat_everyone"},
+    {FightChatPreferences::Scope::Off, "off", "common.off"},
 };
-// The row of a scope, or null for a value outside the enum (a cast from a bad file).
-inline const FightChatScopeRow* FindScopeRow(FightChatPreferences::Scope scope) {
-    for (const auto& row : FightChatScopes) if (row.scope == scope) return &row;
-    return nullptr;
-}
-// The row of a scope already checked; any other value reads as the first row.
-inline const FightChatScopeRow& ScopeRowOf(FightChatPreferences::Scope scope) {
-    const auto* row = FindScopeRow(scope);
-    return row ? *row : FightChatScopes[0];
-}
-// The scope Right (delta above 0) or Left moves to from `scope`.
+static_assert(static_cast<int>(FightChatScopes[0].scope) == 0 && static_cast<int>(FightChatScopes[1].scope) == 1 &&
+    static_cast<int>(FightChatScopes[2].scope) == 2, "the scope table is in Scope's order");
+// The row of a scope: preferences only ever hold one of the table's (Valid, and
+// the saved file is read by word).
+inline const FightChatScopeRow& ScopeRowOf(FightChatPreferences::Scope scope) { return FightChatScopes[static_cast<int>(scope)]; }
+// The scope Right (delta above 0) or Left moves to from `scope`, round the table.
 inline FightChatPreferences::Scope SteppedScope(FightChatPreferences::Scope scope, int delta) {
-    if (delta > 0) return ScopeRowOf(scope).next;
-    for (const auto& row : FightChatScopes) if (row.next == scope) return row.scope;
-    return scope;
+    const int step = delta > 0 ? 1 : FightChatScopeCount - 1;
+    return FightChatScopes[(static_cast<int>(scope) + step) % FightChatScopeCount].scope;
 }
 inline bool FightChatPreferences::Valid() const {
     for (const QuickLine line : slots) if (!quickchat::FindRow(line)) return false;
-    return FindScopeRow(scope) != nullptr;
+    return static_cast<int>(scope) >= 0 && static_cast<int>(scope) < FightChatScopeCount;
 }
 
 struct PlayerPreferences {

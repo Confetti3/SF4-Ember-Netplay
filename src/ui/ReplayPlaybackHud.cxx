@@ -37,8 +37,7 @@ void ReplayHudFeed::Fill(ReplayHudView& view, const ReplaysView& replays, bool k
     const bool held = playback.paused || playback.takeover == takeover::Phase::RoundOver;
     view.stripAlpha = CameraEditorShown() ? 0.f : replaytransport::StripAlpha(held, playback.divisor, takenAt_ < 0 ? -1 : now - takenAt_);
     view.unavailable = refusedAt_ >= 0 && now - refusedAt_ < replaytransport::kChipSeconds;
-    // The lanes are the file's, so they hide while a takeover plays something else.
-    view.lanes = keys && playback.lanes && replays.lanes && playback.takeover == takeover::Phase::Off;
+    view.lanes = keys && playback.lanes && replays.lanes && playback.FileInputs();
     std::uint32_t played = 0;
     if (view.lanes && replaylane::PlayedFrame(playback.cursor, played))
         for (int side = 0; side < 2; ++side)

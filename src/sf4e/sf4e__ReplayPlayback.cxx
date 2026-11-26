@@ -381,8 +381,7 @@ bool sf4e::replayplayback::SeekMore(Dimps::Game::Battle::System* system, int don
 bool sf4e::replayplayback::PlayedInputs(unsigned (&inputs)[2]) {
 	const auto lanes = s_lanes;
 	std::uint32_t frame = 0;
-	// The lanes are the file's: what a takeover plays is not in them.
-	if (!lanes || s_view.takeover != sf4e::takeover::Phase::Off || !replaylane::PlayedFrame(s_view.cursor, frame)) return false;
+	if (!lanes || !s_view.FileInputs() || !replaylane::PlayedFrame(s_view.cursor, frame)) return false;
 	for (int side = 0; side < 2; side++) {
 		replaylane::Row row;
 		if (!replaylane::Rows(*lanes, side, s_view.round, frame, &row, 1)) return false;
