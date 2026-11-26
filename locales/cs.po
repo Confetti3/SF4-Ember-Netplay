@@ -6562,6 +6562,36 @@ msgstr "Kolo {0}"
 msgid "replays.controls.frame"
 msgstr "Snímek {0}"
 
+msgid "replays.takeover.take"
+msgstr "Převzít"
+
+msgid "replays.takeover.retry"
+msgstr "Znovu"
+
+msgid "replays.takeover.back"
+msgstr "Zpět na záznam"
+
+msgid "replays.takeover.hold"
+msgstr "Držet {0}"
+
+msgid "replays.takeover.other_follow"
+msgstr "Druhý: záznam"
+
+msgid "replays.takeover.other_stand"
+msgstr "Druhý: stojí"
+
+msgid "replays.takeover.other_block"
+msgstr "Druhý: blokuje"
+
+msgid "replays.takeover.other_low"
+msgstr "Druhý: blokuje dole"
+
+msgid "replays.takeover.yours"
+msgstr "Ovládáte hráče {0}"
+
+msgid "replays.takeover.round_over"
+msgstr "Konec kola"
+
 msgid "replays.controls.unavailable"
 msgstr "Ovládání funguje během boje"
 

@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include "../common/ReplayInputLane.hxx"
+#include "../common/ReplayTakeover.hxx"
 
 namespace sf4e { namespace ui {
 // The passive HUD over a replay the game plays: the control strip at the
@@ -31,6 +32,10 @@ struct ReplayHudView {
     int rowCount[2] = {0, 0};
     // The frame meter over the replay; drawn during an export as well.
     bool meter = false;
+    // Replay takeover (ReplayTakeover.hxx): the strip offers it while the
+    // replay plays, and shows its own controls while the player has a fighter.
+    takeover::Phase takeover = takeover::Phase::Off;
+    takeover::Plan plan;
 };
 struct ReplaysView;
 // Fills the view from the published controls each frame, timing the strip

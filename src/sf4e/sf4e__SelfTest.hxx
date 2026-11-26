@@ -11,9 +11,9 @@
 namespace sf4e { namespace ui { class MenuNavigation; } }
 namespace sf4e { namespace selftest {
 
-enum class Test { None, Training, RoomHost, RoomGuest, RoomGameHost, RoomGameGuest, RoomLayout, Replay, TournamentHost, TournamentGuest, Menu, ComboCheck, Export };
+enum class Test { None, Training, RoomHost, RoomGuest, RoomGameHost, RoomGameGuest, RoomLayout, Replay, TournamentHost, TournamentGuest, Menu, ComboCheck, Export, Takeover };
 // The tests that play replays, so start only once the game's replay table is read.
-inline bool NeedsReplayTable(Test test) { return test == Test::Replay || test == Test::Export; }
+inline bool NeedsReplayTable(Test test) { return test == Test::Replay || test == Test::Export || test == Test::Takeover; }
 
 // The test a name names; None for a name no test has. scripts/run-selftest.ps1
 // checks its -Test against the same names.
@@ -30,6 +30,7 @@ inline Test Parse(const std::wstring& name) {
 	if (name == L"menu") return Test::Menu;
 	if (name == L"combo-check") return Test::ComboCheck;
 	if (name == L"export") return Test::Export;
+	if (name == L"takeover") return Test::Takeover;
 	return Test::None;
 }
 
@@ -42,8 +43,9 @@ Test Requested();
 // while it changes.
 void Tick(bool atMainMenu, const std::string& screen);
 // Game thread, each time the runtime reads the controller for a room's match
-// this PC fights in, after the read: a tournament test plays `side` itself,
-// and replaces the input it was given. The read is also made on a frame GGPO
+// this PC fights in, or the battle reads the player's controller for a replay
+// taken over, after the read: a test that plays `side` itself replaces the
+// input it was given. The read is also made on a frame GGPO
 // then stalls and repeats, so a test counts reads, not frames.
 void MatchInput(int side, unsigned& mapped, unsigned& raw);
 // Overlay thread, each frame before the menu reads its input: the menu test
@@ -114,10 +116,16 @@ void TickReplay(bool atMainMenu);
 // replay its job file names. It starts as the replay test does.
 bool StartExport();
 void TickExport(bool atMainMenu);
+// The takeover test (sf4e__SelfTest__Takeover.cxx). It starts as the replay
+// test does, and plays the fighter it takes from MatchInput.
+bool StartTakeover();
+void TickTakeover(bool atMainMenu);
+void TakeoverMatchInput(int side, unsigned& mapped, unsigned& raw);
 
 // The tournament test (sf4e__SelfTest__Tournament.cxx), both of its sides.
 bool StartTournament();
 void TickTournament();
+void TournamentMatchInput(int side, unsigned& mapped, unsigned& raw);
 
 // The Combo check test (sf4e__SelfTest__ComboCheck.cxx).
 bool StartComboCheck();

@@ -22,6 +22,7 @@
 #include "../Dimps/Dimps__Pad.hxx"
 #include "../Dimps/Dimps__Platform.hxx"
 #include "../Dimps/Dimps__Sound.hxx"
+#include "../sf4e/sf4e__BattleFighters.hxx"
 #include "../sf4e/sf4e__GameEvents.hxx"
 #include "../sf4e/sf4e__Game__Battle__System.hxx"
 #include "../sf4e/sf4e__InputDevices.hxx"
@@ -195,15 +196,7 @@ std::uint64_t unfedUpdates = 0, unfedNotReady = 0, unfedMultiFrame = 0;
 // The root position the engine keeps for each fighter, which a Place moves
 // (MoveFighters: only x, on the ground; add y and facing if they are ever
 // needed) and the session's facing is read from.
-FighterRoots ReadRoots(Native* system) {
-    using Actor = Dimps::Game::Battle::Chara::Actor;
-    using Unit = Dimps::Game::Battle::Chara::Unit;
-    FighterRoots roots{};
-    Unit* unit = (system->*Native::publicMethods.GetCharaUnit)();
-    for (unsigned side = 0; side < 2 && unit; ++side)
-        if (Actor* actor = (unit->*Unit::publicMethods.GetActorByIndex)(side)) roots[side] = (actor->*Actor::publicMethods.GetCurrentRootPosition)();
-    return roots;
-}
+using battle::ReadRoots;
 // Where the fighters stand (x) for the session, which turns what it plays by them.
 void FollowPositions(Native* system) {
     const FighterRoots roots = ReadRoots(system);

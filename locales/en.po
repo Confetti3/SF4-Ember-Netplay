@@ -6171,6 +6171,36 @@ msgstr "Round {0}"
 msgid "replays.controls.frame"
 msgstr "Frame {0}"
 
+msgid "replays.takeover.take"
+msgstr "Take over"
+
+msgid "replays.takeover.retry"
+msgstr "Retry"
+
+msgid "replays.takeover.back"
+msgstr "Back to the replay"
+
+msgid "replays.takeover.hold"
+msgstr "Hold {0}"
+
+msgid "replays.takeover.other_follow"
+msgstr "Other: replay"
+
+msgid "replays.takeover.other_stand"
+msgstr "Other: stands"
+
+msgid "replays.takeover.other_block"
+msgstr "Other: blocks"
+
+msgid "replays.takeover.other_low"
+msgstr "Other: blocks low"
+
+msgid "replays.takeover.yours"
+msgstr "Player {0} is yours"
+
+msgid "replays.takeover.round_over"
+msgstr "Round over"
+
 msgid "replays.controls.unavailable"
 msgstr "Controls work during the fight"
 

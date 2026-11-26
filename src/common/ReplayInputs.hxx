@@ -72,6 +72,33 @@ struct Match { Player players[2]; std::vector<Round> rounds; int roundsToWin = 2
 // 99 rounds on a 9999 second timer are 59 million.
 constexpr std::uint32_t kMostFrames = 0x7FFFFFFF;
 
+// A player's 11 recorded bits as the pad word the battle reads: the low byte
+// as it is, and 0x100, 0x200 and 0x400 back up to 0x400, 0x800 and 0x2000.
+inline unsigned PadWord(std::uint16_t bits) {
+	return (bits & 0xFFu) | (bits & 0x100 ? 0x400u : 0u) | (bits & 0x200 ? 0x800u : 0u) | (bits & 0x400 ? 0x2000u : 0u);
+}
+
+// Reads one round's stream, `size` bytes of 3-byte records, into `round`'s
+// runs and frames, counting them on from `played`. False when the match would
+// pass kMostFrames. The recorder keeps the round it plays in this same form
+// (ReplayRecorder.hxx: Stream), so replay takeover reads it from there.
+inline bool ReadStream(const std::uint8_t* bytes, std::size_t size, std::uint32_t& played, Round& round) {
+	for (std::size_t at = 0; at + 3 <= size; at += 3) {
+		const std::uint32_t record = bytes[at] | (bytes[at + 1] << 8) | (bytes[at + 2] << 16);
+		const bool repeat = (record & 0x400000) != 0;
+		const std::uint32_t frames = repeat ? record & 0x3FFFFF : 1;
+		const Run run = {frames, {static_cast<std::uint16_t>(record & 0x7FF), static_cast<std::uint16_t>((record >> 11) & 0x7FF)}};
+		if (frames > kMostFrames - played) return false;
+		round.frames += frames; played += frames;
+		// A repeat lengthens the run before it; one with nothing before it repeats no input.
+		if (repeat && !round.runs.empty()) round.runs.back().frames += frames;
+		else if (repeat) round.runs.push_back({frames, {0, 0}});
+		else if (!round.runs.empty() && round.runs.back().inputs[0] == run.inputs[0] && round.runs.back().inputs[1] == run.inputs[1]) round.runs.back().frames++;
+		else round.runs.push_back(run);
+	}
+	return true;
+}
+
 // Reads a replay file, or an .emberreplay that wraps one. False, with out
 // as it was, for anything else, another layout, or sizes that do not add up.
 inline bool Parse(const std::uint8_t* data, std::size_t size, Match& out) {
@@ -111,20 +138,9 @@ inline bool Parse(const std::uint8_t* data, std::size_t size, Match& out) {
 		Round made;
 		made.wins[0] = static_cast<int>(replayslots::ReadU32(data + 0x320 + 0x88 * round + 0x1C));
 		made.wins[1] = static_cast<int>(replayslots::ReadU32(data + 0x320 + 0x88 * round + 0x58));
-		const std::size_t end = at + replayslots::ReadU32(data + 0x320 + 0x88 * round + 0x7C);
-		for (; at < end; at += 3) {
-			const std::uint32_t record = data[at] | (data[at + 1] << 8) | (data[at + 2] << 16);
-			const bool repeat = (record & 0x400000) != 0;
-			const std::uint32_t frames = repeat ? record & 0x3FFFFF : 1;
-			const Run run = {frames, {static_cast<std::uint16_t>(record & 0x7FF), static_cast<std::uint16_t>((record >> 11) & 0x7FF)}};
-			if (frames > kMostFrames - played) return false;
-			made.frames += frames; played += frames;
-			// A repeat lengthens the run before it; one with nothing before it repeats no input.
-			if (repeat && !made.runs.empty()) made.runs.back().frames += frames;
-			else if (repeat) made.runs.push_back({frames, {0, 0}});
-			else if (!made.runs.empty() && made.runs.back().inputs[0] == run.inputs[0] && made.runs.back().inputs[1] == run.inputs[1]) made.runs.back().frames++;
-			else made.runs.push_back(run);
-		}
+		const std::size_t bytes = replayslots::ReadU32(data + 0x320 + 0x88 * round + 0x7C);
+		if (!ReadStream(data + at, bytes, played, made)) return false;
+		at += bytes;
 		match.rounds.push_back(std::move(made));
 	}
 	out = std::move(match);

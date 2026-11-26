@@ -6562,6 +6562,36 @@ msgstr "Round {0}"
 msgid "replays.controls.frame"
 msgstr "Frame {0}"
 
+msgid "replays.takeover.take"
+msgstr "Prendi il controllo"
+
+msgid "replays.takeover.retry"
+msgstr "Riprova"
+
+msgid "replays.takeover.back"
+msgstr "Torna al replay"
+
+msgid "replays.takeover.hold"
+msgstr "Tieni premuto {0}"
+
+msgid "replays.takeover.other_follow"
+msgstr "Altro: replay"
+
+msgid "replays.takeover.other_stand"
+msgstr "Altro: fermo"
+
+msgid "replays.takeover.other_block"
+msgstr "Altro: para"
+
+msgid "replays.takeover.other_low"
+msgstr "Altro: para in basso"
+
+msgid "replays.takeover.yours"
+msgstr "Controlli il giocatore {0}"
+
+msgid "replays.takeover.round_over"
+msgstr "Fine del round"
+
 msgid "replays.controls.unavailable"
 msgstr "I comandi funzionano durante l'incontro"
 

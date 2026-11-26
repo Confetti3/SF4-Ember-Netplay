@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <cfloat>
 #include <cmath>
+#include <initializer_list>
 #include <string>
 #include <vector>
 
@@ -28,10 +29,13 @@ void ReplayHudFeed::Fill(ReplayHudView& view, const ReplaysView& replays, bool k
     view.shown = keys;
     view.meter = replays.meterShown;
     view.armed = playback.armed; view.paused = playback.paused; view.divisor = playback.divisor;
+    view.takeover = playback.takeover; view.plan = playback.plan;
     view.round = playback.round; view.cursor = playback.cursor;
     view.pad = playback.device == replaytransport::Device::Pad;
     view.inputsKnown = replays.lanes != nullptr;
-    view.stripAlpha = CameraEditorShown() ? 0.f : replaytransport::StripAlpha(playback.paused, playback.divisor, takenAt_ < 0 ? -1 : now - takenAt_);
+    // A takeover's round that is over waits on the strip's Retry, so it stays.
+    const bool held = playback.paused || playback.takeover == takeover::Phase::RoundOver;
+    view.stripAlpha = CameraEditorShown() ? 0.f : replaytransport::StripAlpha(held, playback.divisor, takenAt_ < 0 ? -1 : now - takenAt_);
     view.unavailable = refusedAt_ >= 0 && now - refusedAt_ < replaytransport::kChipSeconds;
     view.lanes = keys && playback.lanes && replays.lanes;
     std::uint32_t played = 0;
@@ -67,26 +71,59 @@ void DrawDirection(ImDrawList* d, ImVec2 c, float r, unsigned held, ImU32 color,
 std::string SpeedWord(int divisor) {
     return loc::T(divisor == 4 ? "replays.controls.speed_quarter" : divisor == 2 ? "replays.controls.speed_half" : "replays.controls.speed_full");
 }
+const char* OtherWord(takeover::Other other) {
+    switch (other) {
+    case takeover::Other::Stand: return "replays.takeover.other_stand";
+    case takeover::Other::Block: return "replays.takeover.other_block";
+    case takeover::Other::LowBlock: return "replays.takeover.other_low";
+    case takeover::Other::FollowReplay: break;
+    }
+    return "replays.takeover.other_follow";
+}
+struct Control { std::string keys, label; bool lit; ImU32 ink; };
+// A pad button's name for the keys line, then the separator before the keyboard's.
+std::string PadKeys(std::initializer_list<const char*> ids) {
+    std::string keys;
+    for (const char* id : ids) {
+        const auto glyph = BrandGlyph(id, MenuPromptBrand(), MenuPromptNames());
+        keys += std::string(keys.empty() ? "" : " ") + (*glyph.name ? glyph.name : id);
+    }
+    return keys + " \xC2\xB7 ";
+}
+// The strip's controls while the replay plays: the transport's, then the takeover's.
+std::vector<Control> PlaybackControls(const ReplayHudView& view) {
+    const auto& c = v2::Colors();
+    const auto onOff = [](bool on) { return std::string(" ") + loc::T(on ? "common.on" : "common.off"); };
+    std::vector<Control> controls{
+        {PadKeys({"RB"}) + "F1", loc::T(view.paused ? "replays.controls.play" : "replays.controls.pause"), !view.paused, c.text},
+        {PadKeys({"RT"}) + "F2", loc::T("replays.controls.step"), false, c.text},
+        // The chosen speed, dimmed where the game's own pace runs (the knockout, the round's end).
+        {PadKeys({"LB"}) + "F3 F4", loc::T("replays.controls.speed") + std::string(" ") + SpeedWord(view.divisor), view.divisor != 1, view.armed ? c.text : c.muted}};
+    if (view.inputsKnown) controls.push_back({PadKeys({"LT"}) + "F9", loc::T("replays.controls.inputs") + onOff(view.lanes), view.lanes, c.text});
+    // The pad has no meter button.
+    controls.push_back({"F5", loc::T("replays.controls.meter") + onOff(view.meter), view.meter, c.text});
+    controls.push_back({PadKeys({"LS", "RS"}) + "F6 F7", loc::T("replays.takeover.take"), false, view.armed ? c.text : c.muted});
+    controls.push_back({std::string(loc::T("pad_setup.step.up")) + " \xC2\xB7 F8", loc::T(OtherWord(view.plan.other)), view.plan.other != takeover::Other::FollowReplay, c.text});
+    return controls;
+}
+// The strip's controls while the player has a fighter: every pad button but
+// Back is the fighter's (ReplayTakeover.hxx: TakeoverPad).
+std::vector<Control> TakeoverControls(const ReplayHudView& view) {
+    const auto& c = v2::Colors();
+    const auto back = BrandGlyph("View", MenuPromptBrand(), MenuPromptNames());
+    const std::string backName = *back.name ? back.name : "View";
+    return {
+        {backName + " \xC2\xB7 F6", loc::T("replays.takeover.retry"), view.takeover == takeover::Phase::RoundOver, c.text},
+        {loc::Tf("replays.takeover.hold", backName) + " \xC2\xB7 F7", loc::T("replays.takeover.back"), false, c.text},
+        {"F8", loc::T(OtherWord(view.plan.other)), view.plan.other != takeover::Other::FollowReplay, c.text}};
+}
 // The strip (the Playback board): a button per control, its pad and
 // keyboard keys over what it does, lit while that is on, then the place in
 // the round; centred, its top at `top`. The keys are the legend, so it has no hint bar.
 void DrawStrip(const ReplayHudView& view, float alpha, const std::string& place, float top) {
     const auto* vp = ImGui::GetMainViewport();
     const auto& c = v2::Colors();
-    const auto padKey = [](const char* id) {
-        const auto glyph = BrandGlyph(id, MenuPromptBrand(), MenuPromptNames());
-        return std::string(*glyph.name ? glyph.name : id) + " \xC2\xB7 ";
-    };
-    const auto onOff = [](bool on) { return std::string(" ") + loc::T(on ? "common.on" : "common.off"); };
-    struct Control { std::string keys, label; bool lit; ImU32 ink; };
-    std::vector<Control> controls{
-        {padKey("RB") + "F1", loc::T(view.paused ? "replays.controls.play" : "replays.controls.pause"), !view.paused, c.text},
-        {padKey("RT") + "F2", loc::T("replays.controls.step"), false, c.text},
-        // The chosen speed, dimmed where the game's own pace runs (the knockout, the round's end).
-        {padKey("LB") + "F3 F4", loc::T("replays.controls.speed") + std::string(" ") + SpeedWord(view.divisor), view.divisor != 1, view.armed ? c.text : c.muted}};
-    if (view.inputsKnown) controls.push_back({padKey("LT") + "F9", loc::T("replays.controls.inputs") + onOff(view.lanes), view.lanes, c.text});
-    // The pad has no meter button.
-    controls.push_back({"F5", loc::T("replays.controls.meter") + onOff(view.meter), view.meter, c.text});
+    const std::vector<Control> controls = view.takeover == takeover::Phase::Off ? PlaybackControls(view) : TakeoverControls(view);
     // The place changes every frame; the strip is measured on it with every digit as the widest, or it would
     // breathe in width (and shift, being centred) as the clock ticks.
     std::string stable = place;
@@ -160,9 +197,13 @@ void DrawReplayStrip(const ReplayHudView& view) {
     if (view.stripAlpha <= 0) return;
     const float alpha = (std::min)(1.f, view.stripAlpha);
     char clock[16]; replaytransport::FormatClock(view.cursor, clock);
-    // Paused, the frame takes the clock's place: a step moves it by one.
-    const std::string place = loc::Tf("replays.controls.round", view.round + 1) + " \xC2\xB7 " +
-        (view.paused ? loc::Tf("replays.controls.frame", view.cursor) : std::string(clock));
+    // Paused, the frame takes the clock's place: a step moves it by one. A
+    // takeover names the player's fighter first, and its round's end.
+    const std::string sep = " \xC2\xB7 ";
+    std::string place = loc::Tf("replays.controls.round", view.round + 1) + sep +
+        (view.takeover == takeover::Phase::RoundOver ? std::string(loc::T("replays.takeover.round_over")) :
+         view.paused ? loc::Tf("replays.controls.frame", view.cursor) : std::string(clock));
+    if (view.takeover != takeover::Phase::Off) place = loc::Tf("replays.takeover.yours", view.plan.side + 1) + sep + place;
     DrawStrip(view, alpha, place, stripTop);
 }
 

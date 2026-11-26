@@ -6562,6 +6562,36 @@ msgstr "Round {0}"
 msgid "replays.controls.frame"
 msgstr "Frame {0}"
 
+msgid "replays.takeover.take"
+msgstr "Assumir"
+
+msgid "replays.takeover.retry"
+msgstr "Tentar de novo"
+
+msgid "replays.takeover.back"
+msgstr "Voltar ao replay"
+
+msgid "replays.takeover.hold"
+msgstr "Segure {0}"
+
+msgid "replays.takeover.other_follow"
+msgstr "Outro: replay"
+
+msgid "replays.takeover.other_stand"
+msgstr "Outro: parado"
+
+msgid "replays.takeover.other_block"
+msgstr "Outro: defende"
+
+msgid "replays.takeover.other_low"
+msgstr "Outro: defende baixo"
+
+msgid "replays.takeover.yours"
+msgstr "Você controla o jogador {0}"
+
+msgid "replays.takeover.round_over"
+msgstr "Fim do round"
+
 msgid "replays.controls.unavailable"
 msgstr "Os controles funcionam durante a luta"
 

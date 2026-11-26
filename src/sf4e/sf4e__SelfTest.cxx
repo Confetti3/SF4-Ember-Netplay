@@ -58,6 +58,7 @@ bool StartTest() {
 	case Test::Menu: return StartMenu();
 	case Test::ComboCheck: return StartComboCheck();
 	case Test::Export: return StartExport();
+	case Test::Takeover: return StartTakeover();
 	default: return false;
 	}
 }
@@ -71,10 +72,20 @@ void TickTest(bool atMainMenu) {
 	case Test::Menu: TickMenu(atMainMenu); break;
 	case Test::ComboCheck: TickComboCheck(); break;
 	case Test::Export: TickExport(atMainMenu); break;
+	case Test::Takeover: TickTakeover(atMainMenu); break;
 	default: break;
 	}
 }
 
+}
+
+void MatchInput(int side, unsigned& mapped, unsigned& raw) {
+	switch (Requested()) {
+	case Test::RoomGameHost: case Test::RoomGameGuest: RoomMatchInput(side, mapped, raw); break;
+	case Test::TournamentHost: case Test::TournamentGuest: TournamentMatchInput(side, mapped, raw); break;
+	case Test::Takeover: TakeoverMatchInput(side, mapped, raw); break;
+	default: break;
+	}
 }
 
 std::wstring Environment(const wchar_t* name) {

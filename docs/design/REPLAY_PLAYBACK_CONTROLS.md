@@ -1,6 +1,6 @@
 # Replay playback controls
 
-Pause, frame step and slower speeds while the game's Battle Log plays a replay, with the frame meter and live input lanes over it. This is version one of the plan in `REPLAY_PLAYBACK_CONTROLS_DESIGN_2026-10-09.md`, kept outside the repository (work packages 1 to 6). Seek and rewind are not part of it. The player's side is in `docs/guides/USER_NETPLAY.md`, under "Replay controls".
+Pause, frame step and slower speeds while the game's Battle Log plays a replay, with the frame meter and live input lanes over it. This is version one of the plan in `REPLAY_PLAYBACK_CONTROLS_DESIGN_2026-10-09.md`, kept outside the repository (work packages 1 to 6). Seek and rewind came later, with the camera timeline's snapshots (`ReplaySnapshotRing.hxx`); taking a fighter over is in `REPLAY_TAKEOVER.md`. The player's side is in `docs/guides/USER_NETPLAY.md`, under "Replay controls".
 
 Nothing here has been run in the game yet. The mechanism is read from the code; the checks that need the game are listed at the end.
 
@@ -12,10 +12,11 @@ Ember detours `0x5D7750` (`sf4e__ReplayPlayback.cxx`). During playback in the fi
 
 ## When Ember acts
 
-`replaytransport::Decide` (`common/ReplayTransport.hxx`) picks one of three routes on each call:
+`replaytransport::Decide` (`common/ReplayTransport.hxx`) picks one of four routes on each call:
 
 - **Original:** the game's function, unchanged. Taken with a GGPO session, when the recorder is not playing back (`ReplaySystem+0x708` is not 1), in Training, outside the fight, and while the pause menu is open (bit `0x1`). With the slow-motion flag set the game's function toggles the freeze bit rather than clearing it, so during playback Ember first takes back a half speed it wrote itself (`replaytransport::Relinquish`) and the game's function then clears the bit: the introduction, the knockout, the round's end and the pause menu run at 1x, and the transport keeps the speed the player chose for when its own cadence resumes. A half speed the player set with Select there is the game's and stays.
 - **FullSpeed:** a video export (`replaystore::Exporting()` or the capture recording). The slow-motion flag is cleared, then the game's function runs, so an export always plays at 1x.
+- **Takeover:** the player has a fighter (`REPLAY_TAKEOVER.md`): always 1x, held once the takeover's round is over.
 - **Transport:** everything else, which is a replay in the fight with the pause menu closed.
 
 With netplay, the detour reads only the GGPO pointer before it calls the game's function. Versus, Arcade and Training add one read of the recorder's mode. None of them writes anything.
@@ -44,9 +45,9 @@ When a Watch request plays, `replaystore::PlayingFile()` names the archived file
 
 ## Input
 
-- **Keyboard:** F1 to F5 and F9, read with `ImGui::IsKeyPressed` as the training keys are. F2 repeats with `GetKeyPressedAmount` (300 ms, then 10 a second). The window procedure keeps those keys from the game during playback, plain presses only, so Alt+F4 still reaches it. Training's own keys and their swallowing are off during playback. Text input and Alt suppress the keys.
-- **Pad:** the game thread reads the player's XInput pad's physical buttons once a tick (`Dimps::Pad::ReadController`) and turns RB, RT, LB and LT edges into commands (`replaytransport::PadControls`). Start and View stay the game's. DirectInput pads are not read.
-- Commands go through one bounded queue and act at the next cadence call. Transport commands outside the fight are refused and counted, which shows the "Controls work during the fight" chip. Under the pause menu and during exports, every command is dropped.
+- **Keyboard:** F1 to F5 and F9, and takeover's F6 to F8, read with `ImGui::IsKeyPressed` as the training keys are. F2 repeats with `GetKeyPressedAmount` (300 ms, then 10 a second). The window procedure keeps those keys from the game during playback, plain presses only, so Alt+F4 still reaches it. Training's own keys and their swallowing are off during playback. Text input and Alt suppress the keys.
+- **Pad:** the game thread reads the player's XInput pad's physical buttons once a tick (`Dimps::Pad::ReadController`) and turns RB, RT, LB and LT edges into commands (`replaytransport::PadControls`), and L3, R3 and Up into takeover's (`takeover::TakeoverPad`). Start and View stay the game's, except that View retries or goes back while the player has a fighter. DirectInput pads are not read.
+- Commands go through one bounded queue and act at the next cadence call (`replaytransport::FateOf`). Transport and takeover commands outside the fight are refused and counted, which shows the "Controls work during the fight" chip. Under the pause menu and during exports, every command is dropped, and so are the transport's while the player has a fighter.
 
 ## Drawing
 

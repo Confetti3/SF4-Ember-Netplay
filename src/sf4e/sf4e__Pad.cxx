@@ -10,6 +10,7 @@
 #include "sf4e__Overlay.hxx"
 #include "sf4e__QuickLines.hxx"
 #include "sf4e__ReplayStore.hxx"
+#include "sf4e__ReplayTakeover.hxx"
 #include "sf4e__SelfTest.hxx"
 #include "sf4e__UserApp.hxx"
 #include "../training/TrainingRuntime.hxx"
@@ -249,7 +250,23 @@ unsigned int fSystem::ReadButtons(int pindex, bool raw) {
     }
     sf4e::training::Input trainingInput;
     if (sf4e::training::ReadOverride(pindex, trainingInput)) return raw ? trainingInput.raw : trainingInput.mapped;
+    // A replay taken over (sf4e__ReplayTakeover.hxx): the fighter taken reads
+    // the player's own controller, player 1's, read as a match reads it so the
+    // self-test may play it (MatchInput); the other reads the takeover's word.
+    unsigned other = 0;
+    switch (sf4e::replaytakeover::SourceOf(pindex, other)) {
+    case sf4e::replaytakeover::Source::Other: return other;
+    case sf4e::replaytakeover::Source::Player: {
+        unsigned mapped = NativeButtons(0, false), rawOn = NativeButtons(0, true);
+        sf4e::selftest::MatchInput(pindex, mapped, rawOn);
+        return raw ? rawOn : mapped;
+    }
+    case sf4e::replaytakeover::Source::Native: break;
+    }
+    return NativeButtons(pindex, raw);
+}
 
+unsigned int fSystem::NativeButtons(int pindex, bool raw) {
     const auto buttons = raw
         ? (this->*rSystem::publicMethods.GetButtons_RawOn)(pindex)
         : (this->*rSystem::publicMethods.GetButtons_MappedOn)(pindex);

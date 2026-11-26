@@ -7,6 +7,7 @@
 #include "../common/ReplayTransport.hxx"
 
 namespace Dimps { namespace Game { namespace Battle { struct System; } } }
+namespace sf4e { namespace replay { struct Recorder; } }
 
 // Pause, frame step and speed while the game's Battle Log plays a replay,
 // with the frame meter and the input lanes that go with them
@@ -56,6 +57,9 @@ bool PlayedInputs(unsigned (&inputs)[2]);
 void Tick(int deviceType, int deviceIndex, bool connected);
 
 const replaytransport::View& GetView();
+// The replay recorder of an offline battle; null with a GGPO session, whose
+// battles never play a replay.
+sf4e::replay::Recorder* OfflineRecorder();
 // The lanes of the replay Ember is playing, or null: a replay the player
 // started from the game's own list, or one still being read. Built by the
 // worker that reads replay details, never on the game thread.

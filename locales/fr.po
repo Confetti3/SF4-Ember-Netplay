@@ -6562,6 +6562,36 @@ msgstr "Round {0}"
 msgid "replays.controls.frame"
 msgstr "Frame {0}"
 
+msgid "replays.takeover.take"
+msgstr "Prendre la main"
+
+msgid "replays.takeover.retry"
+msgstr "Réessayer"
+
+msgid "replays.takeover.back"
+msgstr "Retour au replay"
+
+msgid "replays.takeover.hold"
+msgstr "Maintenir {0}"
+
+msgid "replays.takeover.other_follow"
+msgstr "Autre : replay"
+
+msgid "replays.takeover.other_stand"
+msgstr "Autre : immobile"
+
+msgid "replays.takeover.other_block"
+msgstr "Autre : garde"
+
+msgid "replays.takeover.other_low"
+msgstr "Autre : garde basse"
+
+msgid "replays.takeover.yours"
+msgstr "Joueur {0} pris en main"
+
+msgid "replays.takeover.round_over"
+msgstr "Fin du round"
+
 msgid "replays.controls.unavailable"
 msgstr "Les commandes marchent pendant le combat"
 

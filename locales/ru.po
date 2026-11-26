@@ -6562,6 +6562,36 @@ msgstr "Раунд {0}"
 msgid "replays.controls.frame"
 msgstr "Кадр {0}"
 
+msgid "replays.takeover.take"
+msgstr "Взять управление"
+
+msgid "replays.takeover.retry"
+msgstr "Повторить"
+
+msgid "replays.takeover.back"
+msgstr "Вернуться к записи"
+
+msgid "replays.takeover.hold"
+msgstr "Удерживать {0}"
+
+msgid "replays.takeover.other_follow"
+msgstr "Другой: запись"
+
+msgid "replays.takeover.other_stand"
+msgstr "Другой: стоит"
+
+msgid "replays.takeover.other_block"
+msgstr "Другой: блок"
+
+msgid "replays.takeover.other_low"
+msgstr "Другой: нижний блок"
+
+msgid "replays.takeover.yours"
+msgstr "Игрок {0} под вашим управлением"
+
+msgid "replays.takeover.round_over"
+msgstr "Раунд окончен"
+
 msgid "replays.controls.unavailable"
 msgstr "Управление работает во время боя"
 

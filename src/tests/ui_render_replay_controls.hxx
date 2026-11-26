@@ -65,6 +65,14 @@ void ShootReplayControls(sf4e::training::View& training,sf4e::ui::OverlayLayersV
             "The replay controls chip left the screen");
     }
     replay.unavailable=false;
+    // Replay takeover: the strip above offers it; while the player has a fighter
+    // it shows the takeover's own controls, with Retry lit once the round is over.
+    replay.meter=false;training.watching=false;
+    replay.takeover=takeover::Phase::Playing;replay.plan.side=0;replay.plan.other=takeover::Other::Block;
+    draw("replay-strip-takeover");checkStrip("Replay strip missing during a takeover");
+    replay.takeover=takeover::Phase::RoundOver;replay.plan.side=1;replay.plan.other=takeover::Other::FollowReplay;replay.pad=true;
+    draw("replay-strip-takeover-round-over-pad");checkStrip("Replay strip missing at a takeover's round end");
+    replay.takeover=takeover::Phase::Off;replay.plan={};replay.pad=false;
     // The lanes: a few rows with presses and held buttons, both sides.
     replay.meter=false;training.watching=false;replay.lanes=true;
     const unsigned held[][3]={{Down|Right,LP|MP,LP},{Down|Right,LP,LP},{Down,0,0},{Left,HK,HK},{0,0,0},{Down|Left,MK|LK,MK},{Up|Right,0,0}};

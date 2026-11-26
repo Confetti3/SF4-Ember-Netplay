@@ -5,6 +5,7 @@
 #include "../Dimps/Dimps__GameEvents.hxx"
 #include "../platform/ReplayFiles.hxx"
 #include "sf4e__ReplayPlayback.hxx"
+#include "sf4e__ReplayTakeover.hxx"
 #include "sf4e__BattleLoad.hxx"
 #include "sf4e__InputLag.hxx"
 #include "../common/SpectatorCatchUp.hxx"
@@ -441,6 +442,7 @@ void fSystem::BattleUpdate() {
         int updates = 0;
         do {
             sf4e::replayplayback::BeforeUpdate(_this);
+            sf4e::replaytakeover::BeforeUpdate(_this);
             sf4e::training::BeforeUpdate(_this, ggpo != nullptr);
             // The stress harness owns the memento keys while it runs. This branch
             // is also taken with a live session during initial bootstrap, so it

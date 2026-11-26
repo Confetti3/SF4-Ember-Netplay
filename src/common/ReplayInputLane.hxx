@@ -52,13 +52,6 @@ inline Lanes Build(const replayinputs::Match& match) {
 	return lanes;
 }
 
-// A lane's input in the game's pad bits: the file's directions and light and
-// medium buttons are the pad's own; its heavy punch and kick, at 0x100 and
-// 0x200, are the pad's 0x400 and 0x800.
-inline unsigned PadBits(std::uint16_t held) {
-	return (held & 0xFFu) | (held & replayinputs::HP ? 0x400u : 0u) | (held & replayinputs::HK ? 0x800u : 0u);
-}
-
 // The frame the recorder just played: its cursor names the next one. False
 // before the round's first frame.
 inline bool PlayedFrame(std::uint32_t cursor, std::uint32_t& frame) {

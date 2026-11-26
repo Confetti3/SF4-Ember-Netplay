@@ -6562,6 +6562,36 @@ msgstr "Ronde {0}"
 msgid "replays.controls.frame"
 msgstr "Frame {0}"
 
+msgid "replays.takeover.take"
+msgstr "Overnemen"
+
+msgid "replays.takeover.retry"
+msgstr "Opnieuw"
+
+msgid "replays.takeover.back"
+msgstr "Terug naar de replay"
+
+msgid "replays.takeover.hold"
+msgstr "{0} ingedrukt houden"
+
+msgid "replays.takeover.other_follow"
+msgstr "Ander: replay"
+
+msgid "replays.takeover.other_stand"
+msgstr "Ander: staat stil"
+
+msgid "replays.takeover.other_block"
+msgstr "Ander: blokt"
+
+msgid "replays.takeover.other_low"
+msgstr "Ander: blokt laag"
+
+msgid "replays.takeover.yours"
+msgstr "Speler {0} is van jou"
+
+msgid "replays.takeover.round_over"
+msgstr "Ronde voorbij"
+
 msgid "replays.controls.unavailable"
 msgstr "Bediening werkt tijdens het gevecht"
 

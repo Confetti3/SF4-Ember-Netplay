@@ -7,7 +7,7 @@ using namespace sf4e::input;
 static void Check(bool pass, const char* why) {
     if (!pass) { std::fprintf(stderr, "FAIL: %s\n", why); std::exit(1); }
 }
-constexpr std::uint32_t Back = PhysicalBack, Up = PhysicalUp, Right = PhysicalRight, Down = PhysicalDown, Left = PhysicalLeft;
+constexpr std::uint32_t Back = PhysicalBack, Up = xinput::Up, Right = xinput::Right, Down = xinput::Down, Left = xinput::Left;
 
 int main() {
     {

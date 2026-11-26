@@ -77,8 +77,9 @@ void TestPauseAndStep() {
 	// Meter and Inputs leave the transport alone.
 	playing.Apply(Command::Meter); playing.Apply(Command::Inputs);
 	CHECK(playing.Paused() && playing.Divisor() == 1);
-	CHECK(MovesTransport(Command::TogglePause) && MovesTransport(Command::Step) && MovesTransport(Command::CycleSpeed) &&
-		!MovesTransport(Command::Meter) && !MovesTransport(Command::Inputs));
+	for (Command command : {Command::TogglePause, Command::Step, Command::Slower, Command::Faster, Command::CycleSpeed}) CHECK(KindOf(command) == Kind::Transport);
+	CHECK(KindOf(Command::Meter) == Kind::Layer && KindOf(Command::Inputs) == Kind::Layer);
+	for (Command command : {Command::TakeoverPrimary, Command::TakeoverSecondary, Command::TakeoverOther}) CHECK(KindOf(command) == Kind::Takeover);
 }
 
 void TestNativeSelectFolds() {
@@ -160,6 +161,54 @@ void TestGuard() {
 	// An export flag never touches netplay.
 	c.netplay = true;
 	CHECK(Decide(c) == Route::Original);
+	// A takeover: its own route in the fight and after its round, and still a
+	// playback though the recorder is stopped; an export is never taken over.
+	c = Replay(); c.recorderMode = 0; c.takeover = sf4e::takeover::Phase::Playing;
+	CHECK(Decide(c) == Route::Takeover && Playback(c));
+	c.takeover = sf4e::takeover::Phase::RoundOver; c.fight = false;
+	CHECK(Decide(c) == Route::Takeover);
+	c.pauseMenu = true;
+	CHECK(Decide(c) == Route::Takeover);
+	c.netplay = true;
+	CHECK(Decide(c) == Route::Original && !Playback(c));
+}
+
+void TestFate() {
+	const Command transport[] = {Command::TogglePause, Command::Step, Command::Slower, Command::Faster, Command::CycleSpeed};
+	const Command takeovers[] = {Command::TakeoverPrimary, Command::TakeoverSecondary, Command::TakeoverOther};
+	const Context replay = Replay();
+	for (Command command : transport) {
+		CHECK(FateOf(command, Route::Transport, replay) == Fate::Take);
+		CHECK(FateOf(command, Route::Original, replay) == Fate::Refuse);
+		// Taking over, the transport stands down without a word.
+		CHECK(FateOf(command, Route::Takeover, replay) == Fate::Drop);
+	}
+	for (Command command : takeovers) {
+		CHECK(FateOf(command, Route::Transport, replay) == Fate::Take);
+		CHECK(FateOf(command, Route::Takeover, replay) == Fate::Take);
+		CHECK(FateOf(command, Route::Original, replay) == Fate::Refuse);
+	}
+	// The layers show or hide anywhere in the playback.
+	for (Command command : {Command::Meter, Command::Inputs})
+		for (Route route : {Route::Transport, Route::Takeover, Route::Original}) CHECK(FateOf(command, route, replay) == Fate::Take);
+	// An export and the pause menu keep every key.
+	Context busy = replay; busy.exporting = true;
+	CHECK(FateOf(Command::TakeoverPrimary, Route::FullSpeed, busy) == Fate::Drop && FateOf(Command::Meter, Route::FullSpeed, busy) == Fate::Drop);
+	busy = replay; busy.pauseMenu = true;
+	CHECK(FateOf(Command::TakeoverPrimary, Route::Takeover, busy) == Fate::Drop);
+}
+
+void TestTakeoverSteps() {
+	using sf4e::takeover::Phase;
+	using sf4e::takeover::Step;
+	CHECK(StepOf(Command::TakeoverPrimary, Phase::Off) == Step::TakePlayer1);
+	CHECK(StepOf(Command::TakeoverSecondary, Phase::Off) == Step::TakePlayer2);
+	// Taking over, the same commands retry and go back, in the fight and after it.
+	for (Phase phase : {Phase::Playing, Phase::RoundOver}) {
+		CHECK(StepOf(Command::TakeoverPrimary, phase) == Step::Retry);
+		CHECK(StepOf(Command::TakeoverSecondary, phase) == Step::BackToReplay);
+	}
+	for (Phase phase : {Phase::Off, Phase::Playing, Phase::RoundOver}) CHECK(StepOf(Command::TakeoverOther, phase) == Step::CycleOther);
 }
 
 void TestAdvanceGate() {
@@ -304,10 +353,10 @@ void TestSessionQueue() {
 	// from under it included.
 	{
 		PadControls paused;
-		Command made[4];
+		Command made[kMostPadCommands];
 		paused.Reset(0);
-		CHECK(paused.Sample(xinput::RT, made, true) == 0 && paused.Sample(xinput::RT | xinput::RB, made, true) == 0);
-		for (unsigned i = 0; i < kRepeatDelay * 2; i++) CHECK(paused.Sample(xinput::RT | xinput::RB, made, true) == 0);
+		CHECK(paused.Sample(xinput::RT, made, PadMode::Blocked) == 0 && paused.Sample(xinput::RT | xinput::RB, made, PadMode::Blocked) == 0);
+		for (unsigned i = 0; i < kRepeatDelay * 2; i++) CHECK(paused.Sample(xinput::RT | xinput::RB, made, PadMode::Blocked) == 0);
 		// The menu closes with RT and RB still down: nothing.
 		for (unsigned i = 0; i < kRepeatDelay * 2; i++) CHECK(paused.Sample(xinput::RT | xinput::RB, made) == 0);
 		// Let go and pressed again: the press acts.
@@ -315,7 +364,7 @@ void TestSessionQueue() {
 	}
 	// A held RT does not repeat into the next session: the pad starts over.
 	PadControls pad;
-	Command out[4];
+	Command out[kMostPadCommands];
 	pad.Reset(0);
 	pad.Sample(xinput::RT, out);
 	for (unsigned i = 0; i < kRepeatDelay - 1; i++) pad.Sample(xinput::RT, out);
@@ -325,7 +374,7 @@ void TestSessionQueue() {
 
 void TestPad() {
 	PadControls pad;
-	Command out[4];
+	Command out[kMostPadCommands];
 	// Start, View (the game's Select), A, B, X and Y ask for nothing.
 	CHECK(pad.Sample(xinput::Start | xinput::View | xinput::A | xinput::B | xinput::X | xinput::Y, out) == 0);
 	CHECK(pad.Sample(0, out) == 0);
@@ -356,18 +405,57 @@ void TestPad() {
 	pad.Reset(xinput::RB | xinput::LT);
 	CHECK(pad.Sample(xinput::RB | xinput::LT, out) == 0);
 	CHECK(pad.Sample(0, out) == 0 && pad.Sample(xinput::RB, out) == 1);
+	// L3, R3 and Up ask for a takeover, each once a press.
+	pad.Reset();
+	CHECK(pad.Sample(xinput::LS, out) == 1 && out[0] == Command::TakeoverPrimary);
+	CHECK(pad.Sample(xinput::LS, out) == 0);
+	CHECK(pad.Sample(xinput::RS, out) == 1 && out[0] == Command::TakeoverSecondary);
+	CHECK(pad.Sample(xinput::Up, out) == 1 && out[0] == Command::TakeoverOther);
+	CHECK(pad.Sample(0, out) == 0);
+	// Every control at once fits.
+	CHECK(pad.Sample(xinput::RB | xinput::RT | xinput::LB | xinput::LT | xinput::LS | xinput::RS | xinput::Up, out) == kMostPadCommands);
+	// Under the pause menu nothing, and what is held there is no press after.
+	CHECK(pad.Sample(0, out, PadMode::Blocked) == 0 && pad.Sample(xinput::RB, out, PadMode::Blocked) == 0);
+	CHECK(pad.Sample(xinput::RB, out) == 0);
+}
+
+void TestTakeoverPad() {
+	PadControls pad;
+	Command out[kMostPadCommands];
+	const auto taking = [&](std::uint32_t physical) { return pad.Sample(physical, out, PadMode::Takeover); };
+	// Taking over, the fight's buttons are the fighter's.
+	for (std::uint32_t button : {xinput::RB, xinput::RT, xinput::LB, xinput::LT, xinput::LS, xinput::RS, xinput::Up, xinput::A}) {
+		CHECK(taking(button) == 0);
+		CHECK(taking(0) == 0);
+	}
+	// A tap of Back retries as it is let go.
+	CHECK(taking(xinput::View) == 0);
+	CHECK(taking(0) == 1 && out[0] == Command::TakeoverPrimary);
+	// Held, it goes back to the replay once, kBackHold ticks after the press, and its release does nothing.
+	CHECK(taking(xinput::View) == 0);
+	int asked = 0;
+	for (unsigned tick = 1; tick <= kBackHold + 20; ++tick) {
+		const int count = taking(xinput::View);
+		if (count) { CHECK(tick == kBackHold && out[0] == Command::TakeoverSecondary); asked += count; }
+	}
+	CHECK(asked == 1 && taking(0) == 0);
+	// A Back already down when the takeover begins is no tap and no hold.
+	CHECK(pad.Sample(xinput::View, out, PadMode::Transport) == 0);
+	for (unsigned tick = 0; tick <= kBackHold; ++tick) CHECK(taking(xinput::View) == 0);
+	CHECK(taking(0) == 0);
 }
 
 void TestKeys() {
-	for (unsigned key : {kKeyF1, kKeyF2, kKeyF3, kKeyF4, kKeyF5, kKeyF9}) {
+	for (unsigned key : {kKeyF1, kKeyF2, kKeyF3, kKeyF4, kKeyF5, kKeyF6, kKeyF7, kKeyF8, kKeyF9}) {
 		CHECK(KeepsKey(true, kKeyDown, key) && KeepsKey(true, kKeyUp, key));
 		// Only while a replay plays.
 		CHECK(!KeepsKey(false, kKeyDown, key));
 		// With Alt they are system keys and reach the game: Alt+F4 closes it.
 		CHECK(!KeepsKey(true, 0x104, key) && !KeepsKey(true, 0x105, key));
 	}
-	// F6 to F8 are Training's, F10 the shell's, F11 and F12 nobody's here.
-	for (unsigned key : {0x75u, 0x76u, 0x77u, 0x79u, 0x7Au, 0x7Bu, 0x41u, 0x0Du}) CHECK(!KeepsKey(true, kKeyDown, key));
+	// F6 to F8 are takeover's here (Training's are off in a replay), F10 the
+	// shell's, F11 and F12 nobody's.
+	for (unsigned key : {0x79u, 0x7Au, 0x7Bu, 0x41u, 0x0Du}) CHECK(!KeepsKey(true, kKeyDown, key));
 }
 
 void TestStrip() {
@@ -393,12 +481,15 @@ int main() {
 	TestNativeSelectFolds();
 	TestRoundReset();
 	TestGuard();
+	TestFate();
+	TestTakeoverSteps();
 	TestAdvanceGate();
 	TestMeterFedOnlyOnAdvance();
 	TestObservedAfterUpdate();
 	TestPauseMenuReleasesFreeze();
 	TestSessionQueue();
 	TestPad();
+	TestTakeoverPad();
 	TestKeys();
 	TestStrip();
 	return 0;

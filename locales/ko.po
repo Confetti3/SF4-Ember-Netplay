@@ -6562,6 +6562,36 @@ msgstr "라운드 {0}"
 msgid "replays.controls.frame"
 msgstr "{0}프레임"
 
+msgid "replays.takeover.take"
+msgstr "조작 넘겨받기"
+
+msgid "replays.takeover.retry"
+msgstr "다시 하기"
+
+msgid "replays.takeover.back"
+msgstr "리플레이로 돌아가기"
+
+msgid "replays.takeover.hold"
+msgstr "{0} 길게 누르기"
+
+msgid "replays.takeover.other_follow"
+msgstr "상대: 리플레이"
+
+msgid "replays.takeover.other_stand"
+msgstr "상대: 서 있기"
+
+msgid "replays.takeover.other_block"
+msgstr "상대: 가드"
+
+msgid "replays.takeover.other_low"
+msgstr "상대: 앉아 가드"
+
+msgid "replays.takeover.yours"
+msgstr "플레이어 {0} 조작 중"
+
+msgid "replays.takeover.round_over"
+msgstr "라운드 종료"
+
 msgid "replays.controls.unavailable"
 msgstr "조작은 대전 중에만 가능"
 

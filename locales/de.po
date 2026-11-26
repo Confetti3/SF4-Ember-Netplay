@@ -6562,6 +6562,36 @@ msgstr "Runde {0}"
 msgid "replays.controls.frame"
 msgstr "Frame {0}"
 
+msgid "replays.takeover.take"
+msgstr "Übernehmen"
+
+msgid "replays.takeover.retry"
+msgstr "Wiederholen"
+
+msgid "replays.takeover.back"
+msgstr "Zurück zum Replay"
+
+msgid "replays.takeover.hold"
+msgstr "{0} halten"
+
+msgid "replays.takeover.other_follow"
+msgstr "Anderer: Replay"
+
+msgid "replays.takeover.other_stand"
+msgstr "Anderer: steht"
+
+msgid "replays.takeover.other_block"
+msgstr "Anderer: blockt"
+
+msgid "replays.takeover.other_low"
+msgstr "Anderer: blockt tief"
+
+msgid "replays.takeover.yours"
+msgstr "Spieler {0} übernommen"
+
+msgid "replays.takeover.round_over"
+msgstr "Runde vorbei"
+
 msgid "replays.controls.unavailable"
 msgstr "Steuerung wirkt nur im Kampf"
 

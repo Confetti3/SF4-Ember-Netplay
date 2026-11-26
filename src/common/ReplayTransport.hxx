@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "PadKind.hxx"
+#include "ReplayTakeover.hxx"
 
 namespace sf4e { namespace replaytransport {
 
@@ -34,11 +35,29 @@ constexpr int kFlowReady = 1, kFlowFight = 2, kFlowRoundStart = 14;
 // cadence drives (System::SystemSimulationFlags).
 constexpr unsigned kPauseOrHold = 0x1, kReplayFreeze = 0x8;
 
-// What the player can ask for. The first five act on the transport and
-// only in the fight; Meter and Inputs show or hide a layer at any point
-// of the playback.
-enum class Command : std::uint8_t { TogglePause, Step, Slower, Faster, CycleSpeed, Meter, Inputs };
-inline bool MovesTransport(Command command) { return command != Command::Meter && command != Command::Inputs; }
+// What the player can ask for.
+enum class Command : std::uint8_t { TogglePause, Step, Slower, Faster, CycleSpeed, Meter, Inputs, TakeoverPrimary, TakeoverSecondary, TakeoverOther };
+// What a command acts on: the transport, only in the fight; a layer shown or
+// hidden (the meter, the input lanes) at any point of the playback; or replay
+// takeover (sf4e__ReplayTakeover), in the fight and while the player has a fighter.
+enum class Kind { Transport, Layer, Takeover };
+inline Kind KindOf(Command command) {
+	switch (command) {
+	case Command::Meter: case Command::Inputs: return Kind::Layer;
+	case Command::TakeoverPrimary: case Command::TakeoverSecondary: case Command::TakeoverOther: return Kind::Takeover;
+	default: return Kind::Transport;
+	}
+}
+// What a takeover command does in each phase: Primary takes Player 1, or
+// retries a takeover; Secondary takes Player 2, or goes back to the replay;
+// Other changes what the other fighter does. Taken in the phase it acts in.
+inline takeover::Step StepOf(Command command, takeover::Phase phase) {
+	using takeover::Step;
+	if (command == Command::TakeoverOther) return Step::CycleOther;
+	const bool primary = command == Command::TakeoverPrimary;
+	if (phase == takeover::Phase::Off) return primary ? Step::TakePlayer1 : Step::TakePlayer2;
+	return primary ? Step::Retry : Step::BackToReplay;
+}
 // Where a command came from, for the glyphs the strip shows.
 enum class Device : std::uint8_t { Keyboard, Pad };
 
@@ -49,6 +68,9 @@ struct Context {
 	int recorderMode = 0;     // ReplaySystem +0x708
 	bool training = false;    // the battle is Training
 	bool exporting = false;   // the playback is being made into a video
+	// A takeover is on (ReplayTakeover.hxx: Phase): the recorder is stopped while
+	// the player has a fighter, and the battle is held once its round is over.
+	takeover::Phase takeover = takeover::Phase::Off;
 	bool fight = false;       // IsFight (0x5D9F60)
 	bool pauseMenu = false;   // kPauseOrHold is set
 };
@@ -56,7 +78,7 @@ struct Context {
 // A replay is playing back: the game reports it and nothing else owns the
 // battle. Netplay, Versus and Training never are.
 inline bool Playback(const Context& context) {
-	return !context.netplay && context.recorderMode == kRecorderPlaying && !context.training;
+	return !context.netplay && (context.recorderMode == kRecorderPlaying || context.takeover != takeover::Phase::Off) && !context.training;
 }
 
 // What the cadence call does.
@@ -67,12 +89,30 @@ inline bool Playback(const Context& context) {
 // Ember's cadence only runs in the fight with the pause menu closed. The
 // game's own drives the knockout, the round's end and the pause menu, after
 // Ember hands it back (Relinquish), so all of those play at 1x.
-enum class Route { Original, FullSpeed, Transport };
+//   Takeover: a takeover's cadence, always 1x, held once its round is over;
+//             the transport's own controls stand down.
+enum class Route { Original, FullSpeed, Transport, Takeover };
 inline Route Decide(const Context& context) {
 	if (!Playback(context)) return Route::Original;
 	if (context.exporting) return Route::FullSpeed;
+	if (context.takeover != takeover::Phase::Off) return Route::Takeover;
 	if (!context.fight || context.pauseMenu) return Route::Original;
 	return Route::Transport;
+}
+
+// What the cadence call does with a command: acts on it, refuses it (a
+// control asked for outside the fight, which the strip's chip answers), or
+// drops it unseen: an export plays untouched, under the pause menu the keys
+// are its own, and while the player has a fighter the transport stands down.
+enum class Fate { Take, Refuse, Drop };
+inline Fate FateOf(Command command, Route route, const Context& context) {
+	if (context.exporting || context.pauseMenu) return Fate::Drop;
+	switch (KindOf(command)) {
+	case Kind::Layer: return Fate::Take;
+	case Kind::Takeover: return route == Route::Transport || route == Route::Takeover ? Fate::Take : Fate::Refuse;
+	case Kind::Transport: break;
+	}
+	return route == Route::Transport ? Fate::Take : route == Route::Takeover ? Fate::Drop : Fate::Refuse;
 }
 
 // A new round is being set up: the transport starts it playing at 1x, so a
@@ -216,45 +256,66 @@ inline Observation ObserveUpdate(AdvanceGate& gate, int round, std::uint32_t cur
 }
 
 // The pad's controls, from its physical XInput buttons sampled once a game
-// tick: RB pause or play, RT step (held, again after kRepeatDelay ticks and
-// every kRepeatEvery after), LB the next speed, LT the input lanes. Start and
-// Select stay the game's.
+// tick, in three modes:
+//   Transport: RB pause or play, RT step (held, again after kRepeatDelay ticks
+//     and every kRepeatEvery after), LB the next speed, LT the input lanes; L3
+//     takes Player 1 over, R3 Player 2, and Up changes what the other fighter
+//     would do (directions do nothing in a replay). Start and Back stay the game's.
+//   Takeover: the player has a fighter, whose buttons they all are but Back: a
+//     tap retries, and a hold of kBackHold ticks goes back to the replay, as
+//     Training's Back resets and holds. Only a Back pressed in this mode counts.
+//   Blocked: the game's pause menu is open, whose input the buttons are. They
+//     ask for nothing then, and what is held when it closes counts as already
+//     pressed, so neither a press made under the menu nor a held RT acts once
+//     it is gone: each needs a fresh press.
 constexpr unsigned kRepeatDelay = 18, kRepeatEvery = 6; // 300 ms, then 10 a second
+constexpr unsigned kBackHold = 30;                      // half a second
+enum class PadMode { Transport, Takeover, Blocked };
+constexpr int kMostPadCommands = 7;
 class PadControls {
 public:
-	// Writes what this sample asks for to `out` (room for 4); the count.
-	// blocked: the game's pause menu is open, whose input the buttons are.
-	// They ask for nothing then, and what is held when it closes counts as
-	// already pressed, so neither a press made under the menu nor a held RT
-	// acts once it is gone: each needs a fresh press.
-	int Sample(std::uint32_t physical, Command* out, bool blocked = false) {
-		if (blocked) { Reset(physical); return 0; }
+	// Writes what this sample asks for to `out` (room for kMostPadCommands); the count.
+	int Sample(std::uint32_t physical, Command* out, PadMode mode = PadMode::Transport) {
+		if (mode == PadMode::Blocked) { Reset(physical); return 0; }
+		namespace xinput = input::xinput;
 		const std::uint32_t down = physical & ~previous_;
 		previous_ = physical;
 		int count = 0;
-		if (down & input::xinput::RB) out[count++] = Command::TogglePause;
-		if (physical & input::xinput::RT) {
-			if (down & input::xinput::RT) { held_ = 0; repeating_ = true; out[count++] = Command::Step; }
+		if (mode == PadMode::Takeover) {
+			repeating_ = false;
+			if (down & xinput::View) { back_ = true; backHeld_ = 0; }
+			else if (back_ && (physical & xinput::View)) { if (++backHeld_ == kBackHold) out[count++] = Command::TakeoverSecondary; }
+			else if (back_) { if (backHeld_ < kBackHold) out[count++] = Command::TakeoverPrimary; back_ = false; }
+			return count;
+		}
+		back_ = false;
+		if (down & xinput::RB) out[count++] = Command::TogglePause;
+		if (physical & xinput::RT) {
+			if (down & xinput::RT) { held_ = 0; repeating_ = true; out[count++] = Command::Step; }
 			else if (repeating_ && ++held_ >= kRepeatDelay && (held_ - kRepeatDelay) % kRepeatEvery == 0) out[count++] = Command::Step;
 		}
-		if (down & input::xinput::LB) out[count++] = Command::CycleSpeed;
-		if (down & input::xinput::LT) out[count++] = Command::Inputs;
+		if (down & xinput::LB) out[count++] = Command::CycleSpeed;
+		if (down & xinput::LT) out[count++] = Command::Inputs;
+		if (down & xinput::LS) out[count++] = Command::TakeoverPrimary;
+		if (down & xinput::RS) out[count++] = Command::TakeoverSecondary;
+		if (down & xinput::Up) out[count++] = Command::TakeoverOther;
 		return count;
 	}
 	// The buttons held now count as already pressed, and a held RT does not
 	// repeat until it is pressed again.
-	void Reset(std::uint32_t held = 0) { previous_ = held; held_ = 0; repeating_ = false; }
+	void Reset(std::uint32_t held = 0) { previous_ = held; held_ = 0; repeating_ = false; back_ = false; backHeld_ = 0; }
 private:
 	std::uint32_t previous_ = 0;
-	unsigned held_ = 0;
-	// RT went down since the last Reset, so holding it steps again.
-	bool repeating_ = false;
+	unsigned held_ = 0, backHeld_ = 0;
+	// RT went down since the last Reset, so holding it steps again; Back went down while taking over.
+	bool repeating_ = false, back_ = false;
 };
 
 // The keyboard's controls during playback: F1 pause or play, F2 step, F3
 // slower, F4 faster, F5 the frame meter, F9 the input lanes. Virtual key codes.
-constexpr unsigned kKeyF1 = 0x70, kKeyF2 = 0x71, kKeyF3 = 0x72, kKeyF4 = 0x73, kKeyF5 = 0x74, kKeyF9 = 0x78;
-inline bool PlaybackKey(unsigned key) { return (key >= kKeyF1 && key <= kKeyF5) || key == kKeyF9; }
+constexpr unsigned kKeyF1 = 0x70, kKeyF2 = 0x71, kKeyF3 = 0x72, kKeyF4 = 0x73, kKeyF5 = 0x74, kKeyF6 = 0x75, kKeyF7 = 0x76, kKeyF8 = 0x77, kKeyF9 = 0x78;
+// F1 to F5 and F9 the transport's, F6 to F8 takeover's.
+inline bool PlaybackKey(unsigned key) { return (key >= kKeyF1 && key <= kKeyF8) || key == kKeyF9; }
 // Whether the window procedure keeps a key message from the game: the
 // playback keys as plain key presses and releases while a replay plays.
 // With Alt they are system keys and reach the game, so Alt+F4 still closes it.
@@ -283,6 +344,9 @@ struct View {
 	bool meter = false;      // the frame meter is shown (the request, or F5)
 	bool lanes = false;      // the input lanes are asked for (F9, LT)
 	Device device = Device::Keyboard;  // where the last command came from
+	// The takeover as the last battle update left it.
+	takeover::Phase takeover = takeover::Phase::Off;
+	takeover::Plan plan;
 	// Counts that only go up: commands taken, and transport commands
 	// refused outside the fight. The overlay times the strip and the
 	// "works during the fight" chip from their changes.

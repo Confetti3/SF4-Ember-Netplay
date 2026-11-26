@@ -6562,6 +6562,36 @@ msgstr "第 {0} 回合"
 msgid "replays.controls.frame"
 msgstr "第 {0} 帧"
 
+msgid "replays.takeover.take"
+msgstr "接管"
+
+msgid "replays.takeover.retry"
+msgstr "重试"
+
+msgid "replays.takeover.back"
+msgstr "返回回放"
+
+msgid "replays.takeover.hold"
+msgstr "长按{0}"
+
+msgid "replays.takeover.other_follow"
+msgstr "对手：回放"
+
+msgid "replays.takeover.other_stand"
+msgstr "对手：站立"
+
+msgid "replays.takeover.other_block"
+msgstr "对手：防御"
+
+msgid "replays.takeover.other_low"
+msgstr "对手：下蹲防御"
+
+msgid "replays.takeover.yours"
+msgstr "正在操作玩家 {0}"
+
+msgid "replays.takeover.round_over"
+msgstr "回合结束"
+
 msgid "replays.controls.unavailable"
 msgstr "仅在对战中可用"
 

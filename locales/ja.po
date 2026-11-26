@@ -6562,6 +6562,36 @@ msgstr "ラウンド{0}"
 msgid "replays.controls.frame"
 msgstr "{0}フレーム"
 
+msgid "replays.takeover.take"
+msgstr "操作を引き継ぐ"
+
+msgid "replays.takeover.retry"
+msgstr "リトライ"
+
+msgid "replays.takeover.back"
+msgstr "リプレイに戻る"
+
+msgid "replays.takeover.hold"
+msgstr "{0}長押し"
+
+msgid "replays.takeover.other_follow"
+msgstr "相手: リプレイ"
+
+msgid "replays.takeover.other_stand"
+msgstr "相手: 立ち"
+
+msgid "replays.takeover.other_block"
+msgstr "相手: ガード"
+
+msgid "replays.takeover.other_low"
+msgstr "相手: しゃがみガード"
+
+msgid "replays.takeover.yours"
+msgstr "プレイヤー{0}を操作中"
+
+msgid "replays.takeover.round_over"
+msgstr "ラウンド終了"
+
 msgid "replays.controls.unavailable"
 msgstr "操作はファイト中のみ有効"
 

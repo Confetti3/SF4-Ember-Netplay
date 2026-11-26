@@ -33,8 +33,10 @@ namespace sf4e {
 			unsigned int GetButtons_RawOn(int pindex);
 			unsigned int GetButtons_MappedOn(int pindex);
 			// Both hooks above read through this: GGPO playback, then the
-			// training override, then the native pad behind the menu capture.
+			// training override, then a replay taken over, then the native pad.
 			unsigned int ReadButtons(int pindex, bool raw);
+			// The native pad behind the menu capture.
+			unsigned int NativeButtons(int pindex, bool raw);
 		};
 
 		// The game's keyboard scan, kept to the keyboards its object has room for.

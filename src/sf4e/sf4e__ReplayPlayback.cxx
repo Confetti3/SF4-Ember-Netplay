@@ -20,6 +20,7 @@
 #include "sf4e__MementoGuards.hxx"
 #include "sf4e__ReplayCapture.hxx"
 #include "sf4e__ReplayStore.hxx"
+#include "sf4e__ReplayTakeover.hxx"
 #include "../training/CameraControl.hxx"
 
 namespace {
@@ -49,9 +50,10 @@ transport::PadControls s_pad;
 bool s_padActive = false, s_deviceKnown = false;
 // F5 turns the replay's own meter choice the other way.
 bool s_meterFlipped = false;
-// The round the transport was last reset for, and whether the fight was
-// reached in this battle (the strip then shows itself once).
+// The round and the takeover phase the transport was last reset for, and
+// whether the fight was reached in this battle (the strip then shows itself once).
 int s_round = -1;
+sf4e::takeover::Phase s_takeoverSeen = sf4e::takeover::Phase::Off;
 bool s_reachedFight = false;
 // The ways the detour went this battle, each logged the first time (in-game check 7).
 unsigned s_loggedRoutes = 0;
@@ -111,12 +113,19 @@ void BeginSession() {
 	s_transport.Reset();
 	s_meterGate.Reset();
 	s_pad.Reset(); s_padActive = false; s_deviceKnown = false;
-	s_meterFlipped = false; s_round = -1; s_reachedFight = false; s_loggedRoutes = 0;
+	sf4e::replaytakeover::End(false);
+	s_meterFlipped = false; s_round = -1; s_takeoverSeen = sf4e::takeover::Phase::Off; s_reachedFight = false; s_loggedRoutes = 0;
 	Leave();
 }
 
 const char* RouteName(transport::Route route) {
-	return route == transport::Route::Transport ? "Ember's controls" : route == transport::Route::FullSpeed ? "the game's, at 1x for an export" : "the game's";
+	switch (route) {
+	case transport::Route::Transport: return "Ember's controls";
+	case transport::Route::FullSpeed: return "the game's, at 1x for an export";
+	case transport::Route::Takeover: return "a takeover's";
+	case transport::Route::Original: break;
+	}
+	return "the game's";
 }
 
 void NoteRoute(int route, const char* what) {
@@ -139,8 +148,9 @@ void Cadence::Run() {
 	rSystem* system = this;
 	transport::Context context;
 	context.netplay = sf4e::Game::Battle::System::ggpo != nullptr;
-	const sf4e::replay::Recorder* recorder = context.netplay ? nullptr : ReplaySystem::staticMethods.GetSingleton();
+	const sf4e::replay::Recorder* recorder = sf4e::replayplayback::OfflineRecorder();
 	context.recorderMode = recorder ? recorder->mode : sf4e::replay::RecorderStopped;
+	context.takeover = sf4e::replaytakeover::GetPhase();
 	if (!context.netplay && context.recorderMode == transport::kRecorderPlaying)
 		context.training = (system->*rSystem::publicMethods.GetGameMode)() == Dimps::Game::Battle::GAMEMODE_TRAINING;
 	if (!transport::Playback(context)) {
@@ -161,10 +171,11 @@ void Cadence::Run() {
 	NoteRoute(static_cast<int>(route), RouteName(route));
 
 	// Each round starts playing at 1x, the game's half speed flag cleared,
-	// so its legend reads normal speed when the round is introduced.
-	if (transport::RoundBoundary(static_cast<int>(*rSystem::staticVars.CurrentBattleFlow)) || recorder->round != s_round) {
+	// so its legend reads normal speed when the round is introduced; so does
+	// each takeover, its Retry and the replay it goes back to.
+	if (transport::RoundBoundary(static_cast<int>(*rSystem::staticVars.CurrentBattleFlow)) || recorder->round != s_round || context.takeover != s_takeoverSeen) {
 		if (recorder->round != s_round) s_snaps.DropOtherRounds(recorder->round, FreeSnap);
-		s_round = recorder->round;
+		s_round = recorder->round; s_takeoverSeen = context.takeover;
 		s_transport.Reset();
 		*slow = 0; s_transport.Wrote(false);
 	}
@@ -173,20 +184,24 @@ void Cadence::Run() {
 	const auto pending = s_queue.Take(s_view.session);
 	if (route == transport::Route::Transport) s_transport.FoldNative(*slow != 0);
 	for (const auto& queued : pending) {
-		// An export plays untouched, and under the pause menu the keys are its.
-		if (context.exporting || context.pauseMenu) continue;
-		if (transport::MovesTransport(queued.command)) {
-			if (route != transport::Route::Transport) { ++s_view.refused; continue; }
-			s_transport.Apply(queued.command);
+		const transport::Fate fate = transport::FateOf(queued.command, route, context);
+		if (fate == transport::Fate::Drop) continue;
+		if (fate == transport::Fate::Refuse) { ++s_view.refused; continue; }
+		switch (transport::KindOf(queued.command)) {
+		case transport::Kind::Takeover: sf4e::replaytakeover::Ask(queued.command); break;
+		case transport::Kind::Transport: s_transport.Apply(queued.command); break;
+		case transport::Kind::Layer:
+			if (queued.command == Command::Meter) s_meterFlipped = !s_meterFlipped; else s_lanesOn = !s_lanesOn;
+			break;
 		}
-		else if (queued.command == Command::Meter) s_meterFlipped = !s_meterFlipped;
-		else s_lanesOn = !s_lanesOn;
 		++s_view.taken; s_view.device = queued.device;
 	}
 	// The timeline's jump (training/CameraControl.hxx: Seek): a frame ahead is played to at speed; a frame behind
 	// is a restart of the replay, then played to. SeekMore (below) does the playing.
 	camera::Control& phone = camera::Phone();
 	phone.SetTotal(recorder ? static_cast<int>(recorder->streams[recorder->round].frames) : 0);
+	// A takeover owns the battle: a jump asked for during one is dropped, and one under way or waiting to load ends.
+	if (route == transport::Route::Takeover) { int dropped = 0; phone.TakeSeek(dropped); phone.ClearGoal(); s_loadWaiting = false; }
 	// A loop plays the span from the picked key to the next over and over: at its end the playback jumps to its start.
 	if (route == transport::Route::Transport && !context.exporting && recorder && phone.GetSeek() == camera::Seek::None && !s_transport.Paused()) {
 		const camera::Settings now = phone.Get();
@@ -226,6 +241,12 @@ void Cadence::Run() {
 		transport::Relinquish(s_transport, *slow);
 		(this->*rSystem::publicMethods.ReplayCadence)();
 		break;
+	case transport::Route::Takeover:
+		// Always 1x; held once the takeover's round is over, until Retry or Back to the replay.
+		*slow = 0; s_transport.Wrote(false);
+		if (context.takeover == sf4e::takeover::Phase::RoundOver) *flags |= transport::kReplayFreeze;
+		else *flags &= ~static_cast<DWORD>(transport::kReplayFreeze);
+		break;
 	case transport::Route::Transport:
 		if (s_transport.Hold() && phone.GetSeek() != camera::Seek::Forward) *flags |= transport::kReplayFreeze;
 		else *flags &= ~static_cast<DWORD>(transport::kReplayFreeze);
@@ -240,6 +261,8 @@ void Cadence::Run() {
 	s_view.divisor = s_transport.Divisor();
 	s_view.meter = sf4e::replaystore::MeterWanted() != s_meterFlipped;
 	s_view.lanes = s_lanesOn;
+	s_view.takeover = context.takeover;
+	s_view.plan = sf4e::replaytakeover::GetPlan();
 }
 
 }
@@ -257,7 +280,7 @@ void sf4e::replayplayback::StartBattle(Dimps::Game::Battle::System* system) {
 	BeginSession();
 	// "Play again" may start a battle without closing the last one; a half
 	// speed Ember left in the game's flag must not carry over.
-	const sf4e::replay::Recorder* recorder = Game::Battle::System::ggpo ? nullptr : ReplaySystem::staticMethods.GetSingleton();
+	const sf4e::replay::Recorder* recorder = sf4e::replayplayback::OfflineRecorder();
 	if (system && recorder && recorder->mode == transport::kRecorderPlaying &&
 		(system->*rSystem::publicMethods.GetGameMode)() != Dimps::Game::Battle::GAMEMODE_TRAINING) {
 		*rSystem::GetSlowMotion(system) = 0;
@@ -267,20 +290,26 @@ void sf4e::replayplayback::StartBattle(Dimps::Game::Battle::System* system) {
 
 void sf4e::replayplayback::CloseBattle() {
 	FreeSnaps(true);
+	sf4e::replaytakeover::End(true);
 	if (s_view.playback || s_reachedFight) spdlog::info("Replay controls: the battle closed ({} commands taken, {} refused outside the fight)", s_view.taken, s_view.refused);
 	BeginSession();
 	// The game zeroes its half speed flag as it closes (0x5DA5F0).
 	s_transport.Wrote(false);
 }
 
+sf4e::replay::Recorder* sf4e::replayplayback::OfflineRecorder() {
+	return Game::Battle::System::ggpo ? nullptr : ReplaySystem::staticMethods.GetSingleton();
+}
+
 bool sf4e::replayplayback::AfterUpdate(Dimps::Game::Battle::System* system) {
 	if (!s_view.playback) { s_meterGate.Reset(); return false; }
-	const sf4e::replay::Recorder* recorder = Game::Battle::System::ggpo ? nullptr : ReplaySystem::staticMethods.GetSingleton();
+	const sf4e::replay::Recorder* recorder = sf4e::replayplayback::OfflineRecorder();
 	if (!recorder) return false;
 	std::uint32_t frames[transport::kRounds];
 	for (int round = 0; round < transport::kRounds; round++) frames[round] = recorder->streams[round].frames;
-	const auto seen = transport::ObserveUpdate(s_meterGate, recorder->round, recorder->cursor, frames,
-		static_cast<std::uint16_t>(rSystem::GetNumFramesSimulated_FixedPoint(system)->integral));
+	const int simulated = rSystem::GetNumFramesSimulated_FixedPoint(system)->integral;
+	const auto seen = transport::ObserveUpdate(s_meterGate, recorder->round, sf4e::replaytakeover::Cursor(*recorder, simulated), frames,
+		static_cast<std::uint16_t>(simulated));
 	s_view.round = seen.round; s_view.cursor = seen.cursor;
 	for (int round = 0; round < transport::kRounds; round++) s_view.roundFrames[round] = seen.roundFrames[round];
 	// A meter turned off starts over when it is turned on again.
@@ -289,7 +318,7 @@ bool sf4e::replayplayback::AfterUpdate(Dimps::Game::Battle::System* system) {
 }
 
 void sf4e::replayplayback::BeforeUpdate(Dimps::Game::Battle::System* system) {
-	const sf4e::replay::Recorder* recorder = Game::Battle::System::ggpo ? nullptr : ReplaySystem::staticMethods.GetSingleton();
+	const sf4e::replay::Recorder* recorder = sf4e::replayplayback::OfflineRecorder();
 	if (!recorder || recorder->mode != transport::kRecorderPlaying || !s_view.playback || s_view.exporting) return;
 	if (s_loadWaiting) {
 		s_loadWaiting = false;
@@ -332,7 +361,7 @@ bool sf4e::replayplayback::SeekMore(Dimps::Game::Battle::System* system, int don
 	camera::Control& phone = camera::Phone();
 	if (phone.GetSeek() != camera::Seek::Forward) return false;
 	int round = 0, frame = 0;
-	const sf4e::replay::Recorder* recorder = Game::Battle::System::ggpo ? nullptr : ReplaySystem::staticMethods.GetSingleton();
+	const sf4e::replay::Recorder* recorder = sf4e::replayplayback::OfflineRecorder();
 	if (!phone.Goal(round, frame) || !recorder || recorder->mode != transport::kRecorderPlaying) return false;
 	const int at = rSystem::GetNumFramesSimulated_FixedPoint(system)->integral;
 	if (recorder->round > round || (recorder->round == round && at >= frame)) {
@@ -353,7 +382,7 @@ bool sf4e::replayplayback::PlayedInputs(unsigned (&inputs)[2]) {
 	for (int side = 0; side < 2; side++) {
 		replaylane::Row row;
 		if (!replaylane::Rows(*lanes, side, s_view.round, frame, &row, 1)) return false;
-		inputs[side] = replaylane::PadBits(row.held);
+		inputs[side] = replayinputs::PadWord(row.held);
 	}
 	return true;
 }
@@ -375,10 +404,13 @@ void sf4e::replayplayback::Tick(int deviceType, int deviceIndex, bool connected)
 		s_padActive = true; s_pad.Reset(physical);
 	}
 	else {
-		Command commands[4];
+		Command commands[transport::kMostPadCommands];
 		// Under the game's pause menu the pad asks for nothing, so no press
-		// made there waits to act once the menu closes.
-		const int count = s_pad.Sample(physical, commands, battlePause.Paused());
+		// made there waits to act once the menu closes. While the player has a
+		// fighter its buttons are the fighter's, all but Back.
+		const transport::PadMode mode = battlePause.Paused() ? transport::PadMode::Blocked :
+			sf4e::replaytakeover::GetPhase() == sf4e::takeover::Phase::Off ? transport::PadMode::Transport : transport::PadMode::Takeover;
+		const int count = s_pad.Sample(physical, commands, mode);
 		for (int i = 0; i < count; i++) Submit(commands[i], Device::Pad, s_view.session);
 	}
 

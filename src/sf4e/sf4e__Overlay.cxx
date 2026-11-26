@@ -726,17 +726,8 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     const bool replayKeys = playback.playback && !playback.exporting;
     replayPlayback = replayKeys;
     watchingStream = snapshot.watchedGame.Active();
-    if (focused && replayKeys && !presentation.Visible() && !nativePaused && !ImGui::GetIO().WantTextInput && !ImGui::GetIO().KeyAlt) {
-        using sf4e::replaytransport::Command;
-        const auto send = [&playback](Command command) { sf4e::replayplayback::Submit(command, sf4e::replaytransport::Device::Keyboard, playback.session); };
-        if (ImGui::IsKeyPressed(ImGuiKey_F1, false)) send(Command::TogglePause);
-        // Held, F2 steps again after 300 ms, ten times a second.
-        for (int steps = ImGui::GetKeyPressedAmount(ImGuiKey_F2, .3f, .1f); steps > 0; --steps) send(Command::Step);
-        if (ImGui::IsKeyPressed(ImGuiKey_F3, false)) send(Command::Slower);
-        if (ImGui::IsKeyPressed(ImGuiKey_F4, false)) send(Command::Faster);
-        if (ImGui::IsKeyPressed(ImGuiKey_F5, false)) send(Command::Meter);
-        if (ImGui::IsKeyPressed(ImGuiKey_F9, false)) send(Command::Inputs);
-    }
+    if (focused && replayKeys && !presentation.Visible() && !nativePaused && !ImGui::GetIO().WantTextInput && !ImGui::GetIO().KeyAlt)
+        sf4e::overlay::SendReplayKeys(playback.session);
     if (!training.available || !focused) s_trainingControls.Close();
     // Taken every frame, in the order the pad asked, so a press from before
     // the lab was shown never acts later.

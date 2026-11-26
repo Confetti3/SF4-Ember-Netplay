@@ -6562,6 +6562,36 @@ msgstr "Asalto {0}"
 msgid "replays.controls.frame"
 msgstr "Frame {0}"
 
+msgid "replays.takeover.take"
+msgstr "Tomar el control"
+
+msgid "replays.takeover.retry"
+msgstr "Reintentar"
+
+msgid "replays.takeover.back"
+msgstr "Volver a la repetición"
+
+msgid "replays.takeover.hold"
+msgstr "Mantén {0}"
+
+msgid "replays.takeover.other_follow"
+msgstr "Rival: repetición"
+
+msgid "replays.takeover.other_stand"
+msgstr "Rival: quieto"
+
+msgid "replays.takeover.other_block"
+msgstr "Rival: bloquea"
+
+msgid "replays.takeover.other_low"
+msgstr "Rival: bloquea abajo"
+
+msgid "replays.takeover.yours"
+msgstr "Controlas al jugador {0}"
+
+msgid "replays.takeover.round_over"
+msgstr "Fin del asalto"
+
 msgid "replays.controls.unavailable"
 msgstr "Los controles funcionan durante el combate"
 

@@ -10,17 +10,14 @@
 // until it is pressed again, and a chord held when it is no longer allowed
 // ends there.
 #include <cstdint>
+#include "PadKind.hxx"
 #include "QuickChat.hxx"
 #include "TrainingPad.hxx"
 
 namespace sf4e { namespace input {
-// The pad's physical direction bits: bits 0 to 7 of the physical word are
-// directions (MenuButtons.hxx), and the first four are the pad's, the same
-// bits as the fight map's directions (ControllerButtons, ReplayInputs.hxx).
-constexpr std::uint32_t PhysicalUp = 0x1, PhysicalDown = 0x2, PhysicalLeft = 0x4, PhysicalRight = 0x8;
 // The slot of each direction: Up, Right, Down, Left.
-constexpr std::uint32_t SlotDirection[quickchat::Slots] = {PhysicalUp, PhysicalRight, PhysicalDown, PhysicalLeft};
-constexpr std::uint32_t PhysicalChord = PhysicalBack | PhysicalUp | PhysicalDown | PhysicalLeft | PhysicalRight;
+constexpr std::uint32_t SlotDirection[quickchat::Slots] = {xinput::Up, xinput::Right, xinput::Down, xinput::Left};
+constexpr std::uint32_t PhysicalChord = PhysicalBack | xinput::Up | xinput::Down | xinput::Left | xinput::Right;
 // What the chord withholds from the game's native caches (WithholdNativeInputs):
 // the fight map's directions (ReplayInputs.hxx: Up, Down, Left, Right) and its
 // Select, the function of the pad's Back (ReplayInputs.hxx: the pad word's 0x2000).

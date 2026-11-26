@@ -6562,6 +6562,36 @@ msgstr "Runda {0}"
 msgid "replays.controls.frame"
 msgstr "Klatka {0}"
 
+msgid "replays.takeover.take"
+msgstr "Przejmij"
+
+msgid "replays.takeover.retry"
+msgstr "Ponów"
+
+msgid "replays.takeover.back"
+msgstr "Wróć do powtórki"
+
+msgid "replays.takeover.hold"
+msgstr "Przytrzymaj {0}"
+
+msgid "replays.takeover.other_follow"
+msgstr "Drugi: powtórka"
+
+msgid "replays.takeover.other_stand"
+msgstr "Drugi: stoi"
+
+msgid "replays.takeover.other_block"
+msgstr "Drugi: blokuje"
+
+msgid "replays.takeover.other_low"
+msgstr "Drugi: blokuje nisko"
+
+msgid "replays.takeover.yours"
+msgstr "Sterujesz graczem {0}"
+
+msgid "replays.takeover.round_over"
+msgstr "Koniec rundy"
+
 msgid "replays.controls.unavailable"
 msgstr "Sterowanie działa w trakcie walki"
 
