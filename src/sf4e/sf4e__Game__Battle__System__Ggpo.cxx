@@ -8,6 +8,7 @@
 #include "../common/SpectatorCatchUp.hxx"
 #include "../common/BattleStep.hxx"
 #include "../Dimps/Dimps.hxx"
+#include <winsock2.h>
 #include <atomic>
 #include <map>
 
@@ -301,6 +302,13 @@ void fSystem::BeginSession(const char* label, bool spectator) {
     fVsBattle::bTerminateOnNextLeftBattle = true;
 }
 
+// Called straight after ggpo_start_session or ggpo_start_spectating failed: the
+// send-errors port patch leaves the bind error in WSAGetLastError.
+static void LogStartFailure(GGPOErrorCode result, int port) {
+    const int winsock = WSAGetLastError();
+    spdlog::error("GGPO session could not start: {} (port {}, Winsock error {})", (int)result, port, winsock);
+}
+
 bool fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int frameDelay, std::uint64_t spectatorSyncDeadlineMs,
     const char*& failure) {
     if (!inPlayers || numPlayers < 2 || numPlayers > static_cast<int>(sf4e::room::MaxMatchParticipants)) {
@@ -325,7 +333,7 @@ bool fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
         port
     );
     if (result != GGPO_OK) {
-        spdlog::error("GGPO session could not start: {}", (int)result);
+        LogStartFailure(result, port);
         ggpo = nullptr;
         failure = sf4e::loc::T("runtime.ggpo_start_failed");
         return false;
@@ -395,7 +403,7 @@ bool fSystem::StartSpectating(unsigned short localport, int num_players, char* h
         host_port
     );
     if (result != GGPO_OK) {
-        spdlog::error("GGPO session could not start: {}", (int)result);
+        LogStartFailure(result, localport);
         if (sf4e::NetplayFacade::IsDevOverlayEnabled()) {
             MessageBoxA(NULL, "GGPO could not start, check logs", NULL, MB_OK);
         }

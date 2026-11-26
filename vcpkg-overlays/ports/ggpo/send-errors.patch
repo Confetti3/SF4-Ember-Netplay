@@ -1,0 +1,320 @@
+diff --git a/src/include/ggponet.h b/src/include/ggponet.h
+--- a/src/include/ggponet.h
++++ b/src/include/ggponet.h
+@@ -318,6 +318,9 @@ typedef struct GGPONetworkStats {
+  * input_size - The size of the game inputs which will be passsed to ggpo_add_local_input.
+  *
+  * local_port - The port GGPO should bind to for UDP traffic.
++ *
++ * When the UDP socket cannot bind, returns GGPO_ERRORCODE_GENERAL_FAILURE with
++ * no session, and WSAGetLastError then names why.
+  */
+ GGPO_API GGPOErrorCode __cdecl ggpo_start_session(GGPOSession **session,
+                                                   GGPOSessionCallbacks *cb,
+@@ -398,6 +401,8 @@ GGPO_API GGPOErrorCode __cdecl ggpo_start_synctest(GGPOSession **session,
+  * player partcipating in the session can serve as a host.
+  *
+  * host_port - The port of the session on the host
++ *
++ * A socket that cannot bind fails as in ggpo_start_session.
+  */
+ GGPO_API GGPOErrorCode __cdecl ggpo_start_spectating(GGPOSession **session,
+                                                      GGPOSessionCallbacks *cb,
+@@ -518,6 +523,18 @@ GGPO_API GGPOErrorCode __cdecl ggpo_get_last_confirmed_frame(GGPOSession *,
+ GGPO_API GGPOErrorCode __cdecl ggpo_get_spectator_backlog(GGPOSession *,
+                                                         int *frames);
+ 
++/*
++ * The Winsock error a send to this player's endpoint failed with for good, or
++ * 0. Such a send disconnects only that endpoint, instead of asserting, so a
++ * DISCONNECTED_FROM_PEER with an error here means this PC could not send to
++ * the player, not that the player left. A spectator session's one endpoint is
++ * its host, whatever the handle. The synctest backend returns UNSUPPORTED.
++ * This call does not poll or advance.
++ */
++GGPO_API GGPOErrorCode __cdecl ggpo_get_send_error(GGPOSession *,
++                                                GGPOPlayerHandle player,
++                                                int *error);
++
+ /*
+  * ggpo_get_network_stats --
+  *
+diff --git a/src/lib/ggpo/backends/backend.h b/src/lib/ggpo/backends/backend.h
+--- a/src/lib/ggpo/backends/backend.h
++++ b/src/lib/ggpo/backends/backend.h
+@@ -25,6 +25,8 @@ struct GGPOSession {
+ 
+    virtual GGPOErrorCode GetLastConfirmedFrame(int *frame) { return GGPO_ERRORCODE_UNSUPPORTED; }
+    virtual GGPOErrorCode GetSpectatorBacklog(int *frames) { return GGPO_ERRORCODE_UNSUPPORTED; }
++   virtual GGPOErrorCode GetSendError(GGPOPlayerHandle player, int *error) { return GGPO_ERRORCODE_UNSUPPORTED; }
++   virtual int BindError() { return 0; }
+    virtual GGPOErrorCode SetFrameDelay(GGPOPlayerHandle player, int delay) { return GGPO_ERRORCODE_UNSUPPORTED; }
+    virtual GGPOErrorCode SetDisconnectTimeout(int timeout) { return GGPO_ERRORCODE_UNSUPPORTED; }
+    virtual GGPOErrorCode SetDisconnectNotifyStart(int timeout) { return GGPO_ERRORCODE_UNSUPPORTED; }
+diff --git a/src/lib/ggpo/backends/p2p.cpp b/src/lib/ggpo/backends/p2p.cpp
+--- a/src/lib/ggpo/backends/p2p.cpp
++++ b/src/lib/ggpo/backends/p2p.cpp
+@@ -457,6 +457,22 @@ Peer2PeerBackend::OnUdpProtocolEvent(UdpProtocol::Event &evt, GGPOPlayerHandle h
+    }
+ }
+ 
++GGPOErrorCode
++Peer2PeerBackend::GetSendError(GGPOPlayerHandle player, int *error)
++{
++   int queue;
++   if (SpectatorHandleToQueue(player, &queue)) {
++      *error = _spectators[queue].SendError();
++      return GGPO_OK;
++   }
++   GGPOErrorCode result = PlayerHandleToQueue(player, &queue);
++   if (!GGPO_SUCCEEDED(result)) {
++      return result;
++   }
++   *error = _endpoints[queue].SendError();
++   return GGPO_OK;
++}
++
+ /*
+  * Called only as the result of a local decision to disconnect.  The remote
+  * decisions to disconnect are a result of us parsing the peer_connect_settings
+diff --git a/src/lib/ggpo/backends/p2p.h b/src/lib/ggpo/backends/p2p.h
+--- a/src/lib/ggpo/backends/p2p.h
++++ b/src/lib/ggpo/backends/p2p.h
+@@ -30,6 +30,8 @@ public:
+    virtual GGPOErrorCode DisconnectPlayer(GGPOPlayerHandle handle);
+    virtual GGPOErrorCode GetNetworkStats(GGPONetworkStats *stats, GGPOPlayerHandle handle);
+    virtual GGPOErrorCode GetLastConfirmedFrame(int *frame) { *frame = _sync.GetLastConfirmedFrame(); return GGPO_OK; }
++   virtual GGPOErrorCode GetSendError(GGPOPlayerHandle player, int *error);
++   virtual int BindError() { return _udp.BindError(); }
+    virtual GGPOErrorCode SetFrameDelay(GGPOPlayerHandle player, int delay);
+    virtual GGPOErrorCode SetDisconnectTimeout(int timeout);
+    virtual GGPOErrorCode SetDisconnectNotifyStart(int timeout);
+diff --git a/src/lib/ggpo/backends/spectator.h b/src/lib/ggpo/backends/spectator.h
+--- a/src/lib/ggpo/backends/spectator.h
++++ b/src/lib/ggpo/backends/spectator.h
+@@ -39,6 +39,9 @@ public:
+    virtual GGPOErrorCode GetNetworkStats(GGPONetworkStats *stats, GGPOPlayerHandle handle) { return GGPO_ERRORCODE_UNSUPPORTED; }
+    // Spectators consume only the source fighter's confirmed input stream.
+    virtual GGPOErrorCode GetLastConfirmedFrame(int *frame) { *frame = _next_input_to_send - 1; return GGPO_OK; }
++   // The host is the one endpoint, whatever handle names it.
++   virtual GGPOErrorCode GetSendError(GGPOPlayerHandle player, int *error) { *error = _host.SendError(); return GGPO_OK; }
++   virtual int BindError() { return _udp.BindError(); }
+    virtual GGPOErrorCode GetSpectatorBacklog(int *frames);
+    virtual GGPOErrorCode SetFrameDelay(GGPOPlayerHandle player, int delay) { return GGPO_ERRORCODE_UNSUPPORTED; }
+    virtual GGPOErrorCode SetDisconnectTimeout(int timeout) { return GGPO_ERRORCODE_UNSUPPORTED; }
+diff --git a/src/lib/ggpo/main.cpp b/src/lib/ggpo/main.cpp
+--- a/src/lib/ggpo/main.cpp
++++ b/src/lib/ggpo/main.cpp
+@@ -35,6 +35,23 @@ ggpo_logv(GGPOSession *ggpo, const char *fmt, va_list args)
+    }
+ }
+ 
++/*
++ * A session whose socket could not bind never works: it is deleted, and the
++ * Winsock error is left for WSAGetLastError.
++ */
++static GGPOErrorCode
++CheckSocket(GGPOSession **session)
++{
++   int error = (*session)->BindError();
++   if (!error) {
++      return GGPO_OK;
++   }
++   delete *session;
++   *session = NULL;
++   WSASetLastError(error);
++   return GGPO_ERRORCODE_GENERAL_FAILURE;
++}
++
+ GGPOErrorCode
+ ggpo_start_session(GGPOSession **session,
+                    GGPOSessionCallbacks *cb,
+@@ -48,7 +65,7 @@ ggpo_start_session(GGPOSession **session,
+                                                  localport,
+                                                  num_players,
+                                                  input_size);
+-   return GGPO_OK;
++   return CheckSocket(session);
+ }
+ 
+ GGPOErrorCode
+@@ -176,6 +193,14 @@ ggpo_get_spectator_backlog(GGPOSession *ggpo, int *frames)
+    return ggpo->GetSpectatorBacklog(frames);
+ }
+ 
++GGPOErrorCode
++ggpo_get_send_error(GGPOSession *ggpo, GGPOPlayerHandle player, int *error)
++{
++   if (!ggpo) { return GGPO_ERRORCODE_INVALID_SESSION; }
++   if (!error) { return GGPO_ERRORCODE_INVALID_REQUEST; }
++   *error = 0;
++   return ggpo->GetSendError(player, error);
++}
+ 
+ GGPOErrorCode
+ ggpo_close_session(GGPOSession *ggpo)
+@@ -221,7 +246,7 @@ GGPOErrorCode ggpo_start_spectating(GGPOSession **session,
+                                                  input_size,
+                                                  host_ip,
+                                                  host_port);
+-   return GGPO_OK;
++   return CheckSocket(session);
+ }
+ 
+ void
+diff --git a/src/lib/ggpo/network/udp.cpp b/src/lib/ggpo/network/udp.cpp
+--- a/src/lib/ggpo/network/udp.cpp
++++ b/src/lib/ggpo/network/udp.cpp
+@@ -9,7 +9,7 @@
+ #include "udp.h"
+ 
+ SOCKET
+-CreateSocket(uint16 bind_port, int retries)
++CreateSocket(uint16 bind_port, int retries, int *error)
+ {
+    SOCKET s;
+    sockaddr_in sin;
+@@ -17,6 +17,10 @@ CreateSocket(uint16 bind_port, int retries)
+    int optval = 1;
+ 
+    s = socket(AF_INET, SOCK_DGRAM, 0);
++   if (s == INVALID_SOCKET) {
++      *error = WSAGetLastError();
++      return INVALID_SOCKET;
++   }
+    setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (const char *)&optval, sizeof optval);
+    setsockopt(s, SOL_SOCKET, SO_DONTLINGER, (const char *)&optval, sizeof optval);
+ 
+@@ -33,12 +37,14 @@ CreateSocket(uint16 bind_port, int retries)
+          return s;
+       }
+    }
++   *error = WSAGetLastError();
+    closesocket(s);
+    return INVALID_SOCKET;
+ }
+ 
+ Udp::Udp() :
+    _socket(INVALID_SOCKET),
++   _bind_error(0),
+    _callbacks(NULL)
+ {
+ }
+@@ -60,22 +66,31 @@ Udp::Init(uint16 port, Poll *poll, Callbacks *callbacks)
+    _poll->RegisterLoop(this);
+ 
+    Log("binding udp socket to port %d.\n", port);
+-   _socket = CreateSocket(port, 0);
++   _socket = CreateSocket(port, 0, &_bind_error);
++   if (_socket == INVALID_SOCKET) {
++      Log("could not bind udp port %d (wsaerr: %d).\n", port, _bind_error);
++   }
+ }
+ 
+-void
++int
+ Udp::SendTo(char *buffer, int len, int flags, struct sockaddr *dst, int destlen)
+ {
+    struct sockaddr_in *to = (struct sockaddr_in *)dst;
+ 
+    int res = sendto(_socket, buffer, len, flags, dst, destlen);
++   int err = res == SOCKET_ERROR ? WSAGetLastError() : 0;
++   char dst_ip[1024];
++   inet_ntop(AF_INET, (void *)&to->sin_addr, dst_ip, ARRAY_SIZE(dst_ip));
+    if (res == SOCKET_ERROR) {
+-      DWORD err = WSAGetLastError();
+-      Log("unknown error in sendto (erro: %d  wsaerr: %d).\n", res, err);
+-      ASSERT(FALSE && "Unknown error in sendto");
++      if (sf4e::netplay::ClassifySendError(err) == sf4e::netplay::SendError::Transient) {
++         Log("lost packet length %d to %s:%d (wsaerr: %d).\n", len, dst_ip, ntohs(to->sin_port), err);
++         return 0;
++      }
++      Log("could not send packet length %d to %s:%d (wsaerr: %d).\n", len, dst_ip, ntohs(to->sin_port), err);
++      return err;
+    }
+-   char dst_ip[1024];
+-   Log("sent packet length %d to %s:%d (ret:%d).\n", len, inet_ntop(AF_INET, (void *)&to->sin_addr, dst_ip, ARRAY_SIZE(dst_ip)), ntohs(to->sin_port), res);
++   Log("sent packet length %d to %s:%d (ret:%d).\n", len, dst_ip, ntohs(to->sin_port), res);
++   return 0;
+ }
+ 
+ bool
+diff --git a/src/lib/ggpo/network/udp.h b/src/lib/ggpo/network/udp.h
+--- a/src/lib/ggpo/network/udp.h
++++ b/src/lib/ggpo/network/udp.h
+@@ -12,6 +12,7 @@
+ #include "udp_msg.h"
+ #include "ggponet.h"
+ #include "ring_buffer.h"
++#include "send-errors.h"
+ 
+ #define MAX_UDP_ENDPOINTS     16
+ 
+@@ -40,7 +41,10 @@ public:
+ 
+    void Init(uint16 port, Poll *p, Callbacks *callbacks);
+    
+-   void SendTo(char *buffer, int len, int flags, struct sockaddr *dst, int destlen);
++   // The Lasting Winsock error this destination cannot be sent to for, else 0.
++   int SendTo(char *buffer, int len, int flags, struct sockaddr *dst, int destlen);
++   // The Winsock error the socket could not bind for, else 0.
++   int BindError() const { return _bind_error; }
+ 
+    virtual bool OnLoopPoll(void *cookie);
+ 
+@@ -50,6 +54,7 @@ public:
+ protected:
+    // Network transmission information
+    SOCKET         _socket;
++   int            _bind_error;
+ 
+    // state management
+    Callbacks      *_callbacks;
+diff --git a/src/lib/ggpo/network/udp_proto.cpp b/src/lib/ggpo/network/udp_proto.cpp
+--- a/src/lib/ggpo/network/udp_proto.cpp
++++ b/src/lib/ggpo/network/udp_proto.cpp
+@@ -90,6 +90,7 @@ UdpProtocol::UdpProtocol() :
+    _disconnect_notify_start(0),
+    _disconnect_notify_sent(false),
+    _disconnect_event_sent(false),
++   _send_error(0),
+    _connected(false),
+    _next_send_seq(0),
+    _next_recv_seq(0),
+@@ -910,8 +911,14 @@ UdpProtocol::PumpSendQueue()
+       } else {
+          ASSERT(entry.dest_addr.sin_addr.s_addr);
+ 
+-         _udp->SendTo((char *)entry.msg, entry.msg->PacketSize(), 0,
+-                      (struct sockaddr *)&entry.dest_addr, sizeof entry.dest_addr);
++         int error = _udp->SendTo((char *)entry.msg, entry.msg->PacketSize(), 0,
++                                  (struct sockaddr *)&entry.dest_addr, sizeof entry.dest_addr);
++         if (error && !_disconnect_event_sent) {
++            /* This endpoint cannot be sent to: end it like a receive timeout. */
++            _send_error = error;
++            QueueEvent(Event(Event::Disconnected));
++            _disconnect_event_sent = true;
++         }
+ 
+          delete entry.msg;
+       }
+diff --git a/src/lib/ggpo/network/udp_proto.h b/src/lib/ggpo/network/udp_proto.h
+--- a/src/lib/ggpo/network/udp_proto.h
++++ b/src/lib/ggpo/network/udp_proto.h
+@@ -79,6 +79,8 @@ public:
+    void Synchronize();
+    bool GetPeerConnectStatus(int id, int *frame);
+    bool IsInitialized() { return _udp != NULL; }
++   // The Lasting send error that disconnected this endpoint, else 0.
++   int SendError() const { return _send_error; }
+    bool IsSynchronized() { return _current_state == Running; }
+    bool IsRunning() { return _current_state == Running; }
+    bool IsDisconnected() { return _current_state == Disconnected; }
+@@ -205,6 +207,7 @@ protected:
+    unsigned int               _last_recv_time;
+    unsigned int               _shutdown_timeout;
+    unsigned int               _disconnect_event_sent;
++   int                        _send_error;
+    unsigned int               _disconnect_timeout;
+    unsigned int               _disconnect_notify_start;
+    bool                       _disconnect_notify_sent;
