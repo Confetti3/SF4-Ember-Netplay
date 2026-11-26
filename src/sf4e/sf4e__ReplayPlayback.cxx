@@ -335,7 +335,8 @@ bool sf4e::replayplayback::SeekMore(Dimps::Game::Battle::System* system, int don
 	const sf4e::replay::Recorder* recorder = Game::Battle::System::ggpo ? nullptr : ReplaySystem::staticMethods.GetSingleton();
 	if (!phone.Goal(round, frame) || !recorder || recorder->mode != transport::kRecorderPlaying) return false;
 	const int at = rSystem::GetNumFramesSimulated_FixedPoint(system)->integral;
-	if (recorder->round > round || (recorder->round == round && at >= frame)) {
+	// A jump back's snapshot loads in the next update (BeforeUpdate): play it, and on from there.
+	if (transport::JumpLanded(s_loadWaiting, recorder->round, at, round, frame)) {
 		// Landed: the replay waits here.
 		const bool play = phone.GoalPlay();
 		phone.ClearGoal();

@@ -162,6 +162,15 @@ void TestGuard() {
 	CHECK(Decide(c) == Route::Original);
 }
 
+// A jump lands at its frame or past it, in its round or a later one; a jump
+// back waiting for its snapshot has not landed although the battle is past it.
+void TestJumpLanded() {
+	CHECK(JumpLanded(false, 0, 1080, 0, 1080) && JumpLanded(false, 0, 1081, 0, 1080) && JumpLanded(false, 1, 10, 0, 1080));
+	CHECK(!JumpLanded(false, 0, 1079, 0, 1080));
+	// Asked at 1140 for 1080: the snapshot at 1067 has not loaded yet.
+	CHECK(!JumpLanded(true, 0, 1140, 0, 1080));
+}
+
 void TestAdvanceGate() {
 	AdvanceGate gate;
 	CHECK(gate.Advanced(100));
@@ -394,6 +403,7 @@ int main() {
 	TestRoundReset();
 	TestGuard();
 	TestAdvanceGate();
+	TestJumpLanded();
 	TestMeterFedOnlyOnAdvance();
 	TestObservedAfterUpdate();
 	TestPauseMenuReleasesFreeze();

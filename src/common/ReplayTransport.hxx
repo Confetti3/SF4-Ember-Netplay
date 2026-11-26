@@ -80,6 +80,15 @@ inline Route Decide(const Context& context) {
 // first frame of the fight.
 inline bool RoundBoundary(int flow) { return flow == kFlowRoundStart || flow == kFlowReady; }
 
+// Whether a jump along the replay (training/CameraControl.hxx: Seek) has
+// reached its frame: `at` in round `round` is the goal's or past it. A jump
+// back first waits for its snapshot to load (before the next battle update),
+// and until then the battle still stands where the jump left from, past the
+// goal, which is not the goal reached.
+inline bool JumpLanded(bool loadWaiting, int round, int at, int goalRound, int goalFrame) {
+	return !loadWaiting && (round > goalRound || (round == goalRound && at >= goalFrame));
+}
+
 // The most single frames that can wait to be stepped.
 constexpr unsigned kMostSteps = 30;
 
