@@ -1,7 +1,8 @@
 //! Who is in a room, for Quick join: the classes of its members and the
 //! players waiting to be met. They reach a player's detailed listing only,
 //! are read from every poll (so a room whose report did not change keeps
-//! them), are read field by field, and follow whether classes are shown.
+//! them), are read field by field, and follow whether classes are shown. The
+//! poll stores both with the room's other details, and a listing reads the row.
 mod common;
 
 use common::{
@@ -49,6 +50,80 @@ async fn a_detailed_listing_carries_the_classes_sorted_and_the_waiting_players_i
     );
     let list: RoomList = serde_json::from_value(detailed).unwrap();
     list.rooms[0].check().unwrap();
+}
+
+/// The stored `classes` and `waiting` of a room, as bytes.
+async fn stored(bridge: &Bridge, room_id: &str) -> (Option<Vec<u8>>, Option<Vec<u8>>) {
+    let room_id = room_id.to_owned();
+    bridge
+        .state()
+        .db
+        .read(move |tx| {
+            Ok(tx.query_row(
+                "SELECT classes, waiting FROM rooms WHERE room_id = ?1",
+                [room_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )?)
+        })
+        .await
+        .unwrap()
+}
+
+#[tokio::test]
+async fn a_listing_reads_what_a_poll_stored_in_the_rooms_row() {
+    let (bridge, fake) = start_showing_classes().await;
+    let room_id = room_saying(&bridge, &fake, quick_details()).await;
+    // One byte per member, ascending; per waiting player their class, the
+    // length of their area and the area.
+    assert_eq!(
+        stored(&bridge, &room_id).await,
+        (
+            Some(vec![0, 3, 5]),
+            Some(vec![6, 3, b'n', b'a', b'e', 0, 0, 9, 3, b'e', b'u', b'w'])
+        )
+    );
+    // No poll runs between this write and the listings: they read the row.
+    let id = room_id.clone();
+    bridge
+        .state()
+        .db
+        .write(move |tx| {
+            tx.execute(
+                "UPDATE rooms SET classes = x'0102', waiting = x'0403736173' WHERE room_id = ?1",
+                [id],
+            )?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+    let sam = player(&bridge, 2).await;
+    let room = &raw_listing(&bridge, &sam, "?detail=1").await["rooms"][0];
+    assert_eq!(room["classes"], json!([1, 2]));
+    assert_eq!(room["waiting"], json!([{ "class": 4, "area": "sas" }]));
+    // A row the poll wrote nothing into lists neither.
+    let id = room_id.clone();
+    bridge
+        .state()
+        .db
+        .write(move |tx| {
+            tx.execute(
+                "UPDATE rooms SET classes = NULL, waiting = NULL WHERE room_id = ?1",
+                [id],
+            )?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+    let room = &raw_listing(&bridge, &sam, "?detail=1").await["rooms"][0];
+    assert!(
+        room.get("classes").is_none() && room.get("waiting").is_none(),
+        "{room}"
+    );
+    // The host's next report writes them again.
+    report_details(&fake, &room_id, quick_details());
+    ember_bridge::poll_rooms(bridge.state()).await;
+    let room = &raw_listing(&bridge, &sam, "?detail=1").await["rooms"][0];
+    assert_eq!(room["classes"], json!([0, 3, 5]));
 }
 
 #[tokio::test]

@@ -147,8 +147,8 @@ fn waiting_players_are_held_to_the_members_the_limit_and_the_class_and_area_rule
 /// so in a line that names this constant, which this reads.
 #[test]
 fn the_waiting_limit_agrees_with_the_room_host() {
-    let host = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../roomhost/RoomHostStatus.hxx");
+    let host =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../roomhost/RoomHostStatus.hxx");
     let text = std::fs::read_to_string(&host).unwrap_or_else(|error| panic!("{host:?}: {error}"));
     assert!(text.contains(&format!(
         "static_assert(room::MaximumWaiting == {MAX_WAITING},"

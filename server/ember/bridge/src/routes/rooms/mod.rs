@@ -24,10 +24,7 @@ use std::{
     collections::HashMap,
     convert::Infallible,
     net::{IpAddr, SocketAddr},
-    sync::{
-        Arc, RwLock,
-        atomic::{AtomicBool, AtomicU64},
-    },
+    sync::atomic::{AtomicBool, AtomicU64},
 };
 
 use axum::{
@@ -49,7 +46,7 @@ use rusqlite::{OptionalExtension, Row, Transaction, params};
 
 use self::{
     create::{Owner, open},
-    details::{QuickJoin, QuickJoins},
+    details::QuickJoin,
     supervisor::Supervisor,
 };
 pub use self::{
@@ -91,22 +88,6 @@ pub struct Shared {
     /// it, by room id. Only the poll reads or writes it, while it holds
     /// `poll`.
     applied: std::sync::Mutex<HashMap<String, u64>>,
-    /// Who the room hosts said is in each room, as the last committed poll
-    /// read it. A poll replaces the whole map, so a listing clones the `Arc`
-    /// and reads one poll's answer.
-    quick_joins: RwLock<Arc<QuickJoins>>,
-}
-
-impl Shared {
-    /// What the last committed poll read.
-    fn quick_joins(&self) -> Arc<QuickJoins> {
-        Arc::clone(
-            &self
-                .quick_joins
-                .read()
-                .unwrap_or_else(|poisoned| poisoned.into_inner()),
-        )
-    }
 }
 
 impl Default for Shared {
@@ -116,7 +97,6 @@ impl Default for Shared {
             down: AtomicBool::new(false),
             polls: AtomicU64::new(0),
             applied: Default::default(),
-            quick_joins: Default::default(),
         }
     }
 }
@@ -304,11 +284,15 @@ struct Room {
     /// Only players not on Wi-Fi take a seat, as the room host last reported
     /// (`details`); false until it has said.
     wired_only: bool,
+    /// Who is in the room as the room host last reported (`details`); each
+    /// list NULL until it has said, and for one the bridge found invalid.
+    quick_join: QuickJoin,
 }
 
 const COLUMNS: &str = "room_id, name, build_id, capacity, members, tables_playing, created_at, region, invitation_sealed,
     creator_ember_id, opened_at, closed_at, connection_id, host_name, fighters, locked, set_format, rotation,
-    creator_region, own_delay, room_type, creator_in, wired_only, creator_area";
+    creator_region, own_delay, room_type, creator_in, wired_only, creator_area,
+    classes, waiting";
 
 fn room_of(row: &Row<'_>) -> rusqlite::Result<Room> {
     Ok(Room {
@@ -336,6 +320,7 @@ fn room_of(row: &Row<'_>) -> rusqlite::Result<Room> {
         creator_in: row.get(21)?,
         wired_only: row.get(22)?,
         creator_area: row.get(23)?,
+        quick_join: QuickJoin::from_columns(row.get(24)?, row.get(25)?),
     })
 }
 
@@ -391,10 +376,9 @@ impl Room {
     /// The listing form a player asks for with `detail=1`: the summary and
     /// whatever the room host reported. A report that does not hold together
     /// is left out whole, and the room is listed as it would be without one.
-    /// Who is in the room is held to the members stored, so a report the
-    /// room's capacity cut loses only that.
+    /// `quick_join` is the part of who is in the room that this listing shows;
+    /// the poll held both lists to the members it stored.
     fn listing(&self, quick_join: QuickJoin) -> Result<RoomSummary> {
-        let quick_join = quick_join.within(self.members);
         let mut summary = self.summary()?;
         let detailed = RoomSummary {
             host_name: self.host_name.clone(),
@@ -509,7 +493,6 @@ pub async fn list(
     let detailed = query.detail == Some(1);
     let listing = if detailed {
         Listing::Players {
-            quick_joins: state.rooms.quick_joins(),
             classes_shown: classes_shown(&state),
         }
     } else {
@@ -551,10 +534,9 @@ enum Listing {
     /// Also what the room host reported, but not who is in the room: the web
     /// page's listing, which needs no account.
     Reported,
-    /// Also who is in the room, as the last poll read it, for a player's
+    /// Also who is in the room, as the room's row holds it, for a player's
     /// detailed listing.
     Players {
-        quick_joins: Arc<QuickJoins>,
         /// Whether classes are shown (`classes_shown`).
         classes_shown: bool,
     },
@@ -565,15 +547,7 @@ impl Listing {
         match self {
             Self::Plain => room.summary(),
             Self::Reported => room.listing(QuickJoin::default()),
-            Self::Players {
-                quick_joins,
-                classes_shown,
-            } => room.listing(
-                quick_joins
-                    .get(&room.room_id)
-                    .map(|joins| joins.shown(*classes_shown))
-                    .unwrap_or_default(),
-            ),
+            Self::Players { classes_shown } => room.listing(room.quick_join.shown(*classes_shown)),
         }
     }
 }

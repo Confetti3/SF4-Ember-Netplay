@@ -80,6 +80,8 @@ async fn details_are_listed_with_detail_one_and_absent_without() {
         "set_format",
         "rotation",
         "room_type",
+        "classes",
+        "waiting",
     ] {
         assert!(quiet_room.get(key).is_none(), "{key}");
     }
@@ -114,6 +116,23 @@ async fn stored(bridge: &Bridge, room_id: &str) -> Json_ {
         .unwrap()
 }
 
+/// The stored `classes` and `waiting` of a room, as bytes.
+async fn stored_quick_join(bridge: &Bridge, room_id: &str) -> (Option<Vec<u8>>, Option<Vec<u8>>) {
+    let room_id = room_id.to_owned();
+    bridge
+        .state()
+        .db
+        .read(move |tx| {
+            Ok(tx.query_row(
+                "SELECT classes, waiting FROM rooms WHERE room_id = ?1",
+                [room_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )?)
+        })
+        .await
+        .unwrap()
+}
+
 #[tokio::test]
 async fn invalid_details_are_stored_as_nothing_and_the_list_stays_valid() {
     let (bridge, fake) = start().await;
@@ -126,8 +145,9 @@ async fn invalid_details_are_stored_as_nothing_and_the_list_stays_valid() {
     // poll and the listing still work.
     for bad in [
         json!({ "name": "two\nlines", "capacity": 1, "locked": "yes", "host_name": "",
-            "fighters": [1, 2, 3], "set_format": 11, "rotation": 9 }),
-        json!({ "capacity": 1, "fighters": [64] }),
+            "fighters": [1, 2, 3], "set_format": 11, "rotation": 9,
+            "classes": [1, 2, 3], "waiting": [{ "class": 1 }, { "class": 2 }, { "class": 3 }] }),
+        json!({ "capacity": 1, "fighters": [64], "classes": [11], "waiting": [{ "class": 11 }] }),
         json!("not an object"),
         json!([1, 2]),
         json!(null),
@@ -142,6 +162,11 @@ async fn invalid_details_are_stored_as_nothing_and_the_list_stays_valid() {
         let listed = raw_listing(&bridge, &sam, "?detail=1").await;
         assert_eq!(listed["rooms"][0]["members"], 2);
         assert!(listed["rooms"][0].get("fighters").is_none(), "{bad}");
+        assert_eq!(
+            stored_quick_join(&bridge, &room_id).await,
+            (None, None),
+            "{bad}"
+        );
     }
 
     // One bad field costs only that field.
@@ -179,6 +204,8 @@ async fn invalid_details_are_stored_as_nothing_and_the_list_stays_valid() {
         "set_format",
         "rotation",
         "room_type",
+        "classes",
+        "waiting",
     ] {
         assert!(room.get(key).is_none(), "{key}");
     }

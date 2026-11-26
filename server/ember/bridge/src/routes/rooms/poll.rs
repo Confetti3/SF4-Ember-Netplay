@@ -5,23 +5,15 @@
 //! stream.
 use std::{
     collections::{BTreeSet, HashMap},
-    sync::{Arc, atomic::Ordering},
+    sync::atomic::Ordering,
     time::Duration,
 };
 
-use ember_protocol::{
-    EmberId,
-    event::Kind,
-    play::MAX_INVITATION,
-    rooms::{ENDED, MAX_CAPACITY},
-};
+use ember_protocol::{EmberId, event::Kind, play::MAX_INVITATION, rooms::ENDED};
 use rusqlite::{Transaction, params};
 
 use super::{
-    PENDING_SECS, Room, announce,
-    details::{Details, QuickJoin, QuickJoins},
-    load,
-    supervisor::Reported,
+    PENDING_SECS, Room, announce, details::Details, load, supervisor::Reported,
     supervisor::Supervisor,
 };
 use crate::{AppState, Keys, config::Config, error::Result, skill};
@@ -37,30 +29,6 @@ fn applied_revs(state: &AppState) -> Revs {
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner())
         .clone()
-}
-
-/// What one committed poll leaves for the next.
-struct Applied {
-    /// The `rev` of each room the poll applied.
-    revs: Revs,
-    /// What the report said about who is in each room it listed, rooms
-    /// skipped by their `rev` included.
-    quick_joins: QuickJoins,
-}
-
-/// Remembers what `state`'s last poll applied and read. Called only after the
-/// write that applied it committed.
-fn remember(state: &AppState, applied: Applied) {
-    *state
-        .rooms
-        .applied
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner()) = applied.revs;
-    *state
-        .rooms
-        .quick_joins
-        .write()
-        .unwrap_or_else(|poisoned| poisoned.into_inner()) = Arc::new(applied.quick_joins);
 }
 
 /// How often the supervisor is asked which rooms are alive.
@@ -137,12 +105,16 @@ async fn poll_once(state: &AppState, supervisor: &Supervisor<'_>) {
     let before = applied_revs(state);
     // A failed write changes nothing; the next poll tries again. What a
     // committed one applied is remembered, and only then.
-    if let Ok(applied) = state
+    if let Ok(revs) = state
         .db
         .write(move |tx| apply(tx, &keys, &config, &reported, &published, &before, now))
         .await
     {
-        remember(state, applied);
+        *state
+            .rooms
+            .applied
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = revs;
     }
 }
 
@@ -176,8 +148,7 @@ async fn published_rooms(state: &AppState) -> BTreeSet<String> {
 /// the rooms this report carried a `rev` for and that were open and published
 /// when it was applied (so a room whose creation had not stored its
 /// invitation yet is applied again at the next poll, whatever its `rev`), and
-/// no room the report leaves out. Who is in each room is read from every room
-/// the report lists, skipped or not: it is not stored, so it is not skipped.
+/// no room the report leaves out.
 fn apply(
     tx: &Transaction<'_>,
     keys: &Keys,
@@ -186,15 +157,11 @@ fn apply(
     published: &BTreeSet<String>,
     seen: &Revs,
     now: u64,
-) -> Result<Applied> {
+) -> Result<Revs> {
     let mut alive = BTreeSet::new();
     let mut applied = Revs::new();
-    let mut quick_joins = QuickJoins::new();
     for room in rooms {
         alive.insert(room.room_id.as_str());
-        if let Some(joins) = quick_join_of(room) {
-            quick_joins.insert(room.room_id.clone(), joins);
-        }
         if let Some(rev) = room.rev
             && seen.get(&room.room_id) == Some(&rev)
         {
@@ -300,21 +267,7 @@ fn apply(
         [cutoff],
     )?;
     tx.execute("DELETE FROM rooms WHERE closed_at <= ?1", [cutoff])?;
-    Ok(Applied {
-        revs: applied,
-        quick_joins,
-    })
-}
-
-/// Who the report says is in the room, when it says anything usable.
-fn quick_join_of(room: &Reported) -> Option<QuickJoin> {
-    let members = u8::try_from(room.members)
-        .unwrap_or(u8::MAX)
-        .min(MAX_CAPACITY);
-    room.details
-        .as_ref()
-        .map(|details| QuickJoin::from_value(details, members))
-        .filter(|joins| *joins != QuickJoin::default())
+    Ok(applied)
 }
 
 /// The room as one report leaves it: what the room's record would hold after
@@ -371,10 +324,11 @@ struct Report {
 }
 
 /// `before` with `report` applied. A field the report does not say keeps its
-/// value, except the moderator's name, the fighters and the input delay mode,
-/// which a report with an object replaces even when it leaves them out; the
-/// lock changes only with such a report. The room opens once, at the first
-/// report that says it has had a member.
+/// value, except the moderator's name, the fighters, who is in the room
+/// (`quick_join`) and the input delay mode, which a report with an object
+/// replaces even when it leaves them out; the lock changes only with such a
+/// report. The room opens once, at the first report that says it has had a
+/// member.
 fn with_report(before: &Room, report: Report, now: u64) -> Room {
     let Report {
         details,
@@ -396,6 +350,7 @@ fn with_report(before: &Room, report: Report, now: u64) -> Room {
         after.locked = details.locked.or(before.locked);
         after.host_name = details.host_name;
         after.fighters = details.fighters;
+        after.quick_join = details.quick_join;
         after.own_delay = details.own_delay;
         after.wired_only = details.wired_only;
     }
@@ -417,7 +372,7 @@ fn store(tx: &Transaction<'_>, room: &Room) -> Result<bool> {
         "UPDATE rooms SET name = ?2, capacity = ?3, members = ?4, tables_playing = ?5, locked = ?6,
              host_name = ?7, fighters = ?8, set_format = ?9, rotation = ?10, own_delay = ?11,
              invitation_sealed = ?12, opened_at = ?13, room_type = ?14,
-             creator_in = ?15, wired_only = ?16
+             creator_in = ?15, wired_only = ?16, classes = ?17, waiting = ?18
          WHERE room_id = ?1 AND closed_at IS NULL AND invitation_sealed IS NOT NULL",
         params![
             room.room_id,
@@ -436,15 +391,18 @@ fn store(tx: &Transaction<'_>, room: &Room) -> Result<bool> {
             room.room_type,
             room.creator_in,
             room.wired_only,
+            room.quick_join.classes,
+            room.quick_join.waiting_blob(),
         ],
     )? == 1)
 }
 
 #[cfg(test)]
 mod tests {
+    use ember_protocol::rooms::WaitingPlayer;
     use serde_json::json;
 
-    use super::*;
+    use super::{super::details::QuickJoin, *};
 
     fn room() -> Room {
         Room {
@@ -472,6 +430,13 @@ mod tests {
             creator_in: Some(true),
             own_delay: true,
             wired_only: false,
+            quick_join: QuickJoin {
+                classes: Some(vec![2, 5]),
+                waiting: Some(vec![WaitingPlayer {
+                    class: 5,
+                    area: Some("nae".into()),
+                }]),
+            },
         }
     }
 
@@ -492,7 +457,8 @@ mod tests {
         let details = Details::from_value(
             &json!({ "name": "Fight Night", "capacity": 4, "locked": true, "host_name": "Player 1",
                 "fighters": [3, 4], "set_format": 3, "rotation": 1, "room_type": 1,
-                "creator_in": true, "own_delay": true }),
+                "creator_in": true, "own_delay": true, "classes": [5, 2],
+                "waiting": [{ "class": 5, "area": "nae" }] }),
             2,
             4,
         );
@@ -505,7 +471,7 @@ mod tests {
     }
 
     #[test]
-    fn an_object_replaces_the_moderator_fighters_and_delay_and_keeps_the_rest() {
+    fn an_object_replaces_the_moderator_fighters_who_is_in_and_delay_and_keeps_the_rest() {
         let before = room();
         let after = with_report(
             &before,
@@ -516,6 +482,7 @@ mod tests {
             (after.host_name, after.fighters, after.own_delay),
             (None, None, false)
         );
+        assert_eq!(after.quick_join, QuickJoin::default());
         assert_eq!(
             (
                 after.name,
@@ -541,6 +508,33 @@ mod tests {
             (Some("Player 1"), true)
         );
         assert_eq!(after.tables_playing, 3);
+        assert_eq!(after.quick_join, before.quick_join);
+    }
+
+    #[test]
+    fn a_change_of_who_is_in_the_room_is_a_change_of_the_room() {
+        let before = room();
+        let said = |value: serde_json::Value| {
+            let details = Details::from_value(&value, 2, 4);
+            with_report(&before, report(Some(details), 1, true), 99)
+        };
+        let after = said(json!({ "classes": [1, 9], "waiting": [] }));
+        assert_ne!(after, before);
+        assert_eq!(
+            after.quick_join,
+            QuickJoin {
+                classes: Some(vec![1, 9]),
+                waiting: Some(Vec::new()),
+            }
+        );
+        // Each list is replaced alone: one that is not valid clears only itself.
+        let after = said(json!({ "classes": [1, 9], "waiting": [{ "class": 11 }] }));
+        assert_eq!(after.quick_join.waiting, None);
+        assert_eq!(after.quick_join.classes, Some(vec![1, 9]));
+        // The one waiting player, as the room held them, is a report that
+        // changes nothing.
+        let same = said(json!({ "classes": [2, 5], "waiting": [{ "class": 5, "area": "nae" }] }));
+        assert_eq!(same.quick_join, before.quick_join);
     }
 
     #[test]

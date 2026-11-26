@@ -3,8 +3,6 @@
 //! supervisor passes the host's `details` object on untouched (an opaque JSON
 //! value under a size limit), so each field is judged here and one that does
 //! not hold is dropped by itself; a bad value never costs the room its poll.
-use std::collections::HashMap;
-
 use ember_protocol::{
     rooms::{
         FIGHTER_LIMIT, MAX_CAPACITY, MAX_ROOM_TYPE, MAX_ROTATION, MAX_WAITING, MIN_CAPACITY,
@@ -27,8 +25,12 @@ pub struct Details {
     pub host_name: Option<String>,
     /// One byte per member, moderator first. `None` clears the stored list.
     pub fighters: Option<Vec<u8>>,
+    /// Who is in the room. Each list is judged alone, and `None` clears the
+    /// stored one, as for `fighters`.
+    pub quick_join: QuickJoin,
     /// The member count to store: the report's, bounded by `MAX_CAPACITY` and
-    /// by the capacity the room ends up with. `fighters` was judged against it.
+    /// by the capacity the room ends up with. `fighters` and `quick_join` were
+    /// judged against it.
     pub members: u8,
     pub set_format: Option<u8>,
     pub rotation: Option<u8>,
@@ -57,8 +59,8 @@ fn small(value: &Value, limit: u64) -> Option<u8> {
         .and_then(|number| u8::try_from(number).ok())
 }
 
-/// Who is in a room, as its host last reported: what Quick join weighs. Kept
-/// in memory only, so a restarted bridge lists none until its first poll.
+/// Who is in a room, as its host last reported: what Quick join weighs. It is
+/// stored in the room's `classes` and `waiting` columns (migration 067).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct QuickJoin {
     /// One band per member, ascending (`RoomSummary::classes`). `None` when
@@ -68,9 +70,6 @@ pub struct QuickJoin {
     /// when not said or when any entry has no valid class.
     pub waiting: Option<Vec<WaitingPlayer>>,
 }
-
-/// The `QuickJoin` of each room the last committed poll read, by room id.
-pub type QuickJoins = HashMap<String, QuickJoin>;
 
 impl QuickJoin {
     /// Reads `value`, a report's `details`, for a room of `members` members.
@@ -102,13 +101,29 @@ impl QuickJoin {
         Self { classes, waiting }
     }
 
-    /// The lists that fit a room of `members` members: a longer one is left
-    /// out, as for a report whose member count the room's capacity cut.
-    pub fn within(self, members: u8) -> Self {
-        let fits = |len: usize| len <= usize::from(members);
+    /// The stored form of `waiting`: for each player their class, the length
+    /// of their area code (0 for none) and the code's bytes.
+    pub fn waiting_blob(&self) -> Option<Vec<u8>> {
+        self.waiting.as_ref().map(|list| {
+            list.iter()
+                .flat_map(|player| {
+                    let area = player.area.as_deref().filter(|area| is_listed_code(area));
+                    let area = area.unwrap_or_default().as_bytes();
+                    let length = u8::try_from(area.len()).unwrap_or_default();
+                    [player.class, length]
+                        .into_iter()
+                        .chain(area.iter().copied())
+                })
+                .collect()
+        })
+    }
+
+    /// Reads the columns back. A `waiting` blob that is not what
+    /// `waiting_blob` writes reads as none.
+    pub fn from_columns(classes: Option<Vec<u8>>, waiting: Option<Vec<u8>>) -> Self {
         Self {
-            classes: self.classes.filter(|classes| fits(classes.len())),
-            waiting: self.waiting.filter(|waiting| fits(waiting.len())),
+            classes,
+            waiting: waiting.and_then(|blob| waiting_of(&blob)),
         }
     }
 
@@ -130,6 +145,30 @@ impl QuickJoin {
             }),
         }
     }
+}
+
+fn waiting_of(mut blob: &[u8]) -> Option<Vec<WaitingPlayer>> {
+    let mut list = Vec::new();
+    while let [class, length, rest @ ..] = blob {
+        let (area, rest) = rest.split_at_checked(usize::from(*length))?;
+        let area = match area {
+            [] => None,
+            code => Some(
+                std::str::from_utf8(code)
+                    .ok()
+                    .filter(|code| is_listed_code(code))?,
+            ),
+        };
+        if *class > SKILL_BANDS {
+            return None;
+        }
+        list.push(WaitingPlayer {
+            class: *class,
+            area: area.map(str::to_owned),
+        });
+        blob = rest;
+    }
+    blob.is_empty().then_some(list)
 }
 
 fn waiting_player(entry: &Value) -> Option<WaitingPlayer> {
@@ -159,7 +198,8 @@ impl Details {
     /// gave and `held` the capacity the room has now. A capacity below the
     /// reported members cannot be right and is not taken (the room keeps
     /// `held`); the member count to store is then worked out once, from the
-    /// capacity the room ends up with, and the fighters must fit it.
+    /// capacity the room ends up with, and the fighters and the lists of who
+    /// is in the room must fit it.
     pub fn from_value(value: &Value, reported: u8, held: u8) -> Self {
         let reported = reported.min(MAX_CAPACITY);
         let name = value
@@ -196,6 +236,7 @@ impl Details {
             locked: value.get("locked").and_then(Value::as_bool),
             host_name,
             fighters,
+            quick_join: QuickJoin::from_value(value, members),
             members,
             set_format: value
                 .get("set_format")
@@ -234,6 +275,7 @@ mod tests {
                 locked: Some(true),
                 host_name: Some("Kate".into()),
                 fighters: Some(vec![3, 255, 0]),
+                quick_join: QuickJoin::default(),
                 members: 3,
                 set_format: Some(3),
                 rotation: Some(2),
@@ -454,19 +496,75 @@ mod tests {
     }
 
     #[test]
-    fn a_list_longer_than_the_room_holds_is_left_out_alone() {
-        let read = QuickJoin {
-            classes: Some(vec![1, 2, 3]),
-            waiting: Some(vec![waiting(4, None)]),
-        };
-        assert_eq!(read.clone().within(3), read);
+    fn the_lists_are_held_once_to_the_members_the_room_ends_with() {
+        // Three classes and one waiting player, in a report of three members.
+        let value = json!({ "classes": [1, 2, 3], "waiting": [{ "class": 4 }] });
+        let read = Details::from_value(&value, 3, 4).quick_join;
         assert_eq!(
-            read.within(2),
+            (read.classes.as_deref(), read.waiting.as_deref()),
+            (Some(&[1, 2, 3][..]), Some(&[waiting(4, None)][..]))
+        );
+        // A capacity of 2 below the reported members is refused: the room
+        // holds the old capacity, so its members and both lists are cut to
+        // it, each list left out alone.
+        let value = json!({ "capacity": 2, "classes": [1, 2, 3], "waiting": [{ "class": 4 }] });
+        let read = Details::from_value(&value, 3, 2);
+        assert_eq!(read.members, 2);
+        assert_eq!(
+            read.quick_join,
             QuickJoin {
                 classes: None,
                 waiting: Some(vec![waiting(4, None)]),
             }
         );
+        assert_eq!(Details::absent(3, 2).quick_join, QuickJoin::default());
+    }
+
+    #[test]
+    fn the_waiting_blob_is_a_class_an_area_length_and_the_area_for_each_player() {
+        let read = QuickJoin {
+            classes: Some(vec![0, 3]),
+            waiting: Some(vec![
+                waiting(6, Some("nae")),
+                waiting(0, None),
+                waiting(10, Some("a1")),
+            ]),
+        };
+        assert_eq!(
+            read.waiting_blob().as_deref(),
+            Some(&[6, 3, b'n', b'a', b'e', 0, 0, 10, 2, b'a', b'1'][..])
+        );
+        assert_eq!(
+            QuickJoin::from_columns(read.classes.clone(), read.waiting_blob()),
+            read
+        );
+        // An empty list is not no list.
+        let empty = QuickJoin {
+            classes: Some(Vec::new()),
+            waiting: Some(Vec::new()),
+        };
+        assert_eq!(
+            QuickJoin::from_columns(Some(Vec::new()), Some(Vec::new())),
+            empty
+        );
+        assert_eq!(empty.waiting_blob(), Some(Vec::new()));
+        assert_eq!(QuickJoin::default().waiting_blob(), None);
+    }
+
+    #[test]
+    fn a_waiting_blob_that_does_not_hold_reads_as_none() {
+        let read = |blob: &[u8]| QuickJoin::from_columns(None, Some(blob.to_vec())).waiting;
+        for refused in [
+            &[6][..],            // a class and no length
+            &[6, 3, b'n', b'a'], // an area cut short
+            &[11, 0],            // a class above the bands
+            &[1, 2, b'N', b'A'], // an area that is not a listed code
+            &[1, 2, 0xff, 0xfe], // an area that is not text
+            &[1, 0, 2],          // a stray byte after the players
+        ] {
+            assert_eq!(read(refused), None, "{refused:?}");
+        }
+        assert_eq!(read(&[1, 0]), Some(vec![waiting(1, None)]));
     }
 
     #[test]
