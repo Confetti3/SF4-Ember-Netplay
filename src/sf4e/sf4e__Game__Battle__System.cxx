@@ -6,6 +6,7 @@
 #include "../platform/ReplayFiles.hxx"
 #include "sf4e__ReplayPlayback.hxx"
 #include "sf4e__BattleLoad.hxx"
+#include "sf4e__RenderStream.hxx"
 #include "sf4e__InputLag.hxx"
 #include "../common/SpectatorCatchUp.hxx"
 #include "sf4e__MementoGuards.hxx"
@@ -544,6 +545,7 @@ void fSystem::CloseBattle() {
     bool summaryEmitted = false;
     LogSaveSlotOccupancy("battle_close_entry");
     sf4e::battleload::Closed();
+    sf4e::RenderStream::BattleClosed();
     sf4e::crash::NoteMatchBoundary("battle_close");
     if (ggpo) NoteHeapParticleNames(_this);
     if (ggpo) {

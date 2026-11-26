@@ -17,7 +17,7 @@ namespace sf4e {
 
 			void Destroy();
 			DWORD Reset();
-			void RunScene_Render(void* sceneCommandList);
+			void RunScene_Render(Dimps::Platform::CommandBuffer* sceneCommandList);
 			int LimitFrame(float frameDelta);
 			int LimitPacedFrame(float frameDelta);
 			void BuildPresentParameters();

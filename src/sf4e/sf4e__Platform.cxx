@@ -27,6 +27,7 @@
 #include "sf4e__Borderless.hxx"
 #include "sf4e__StartupLog.hxx"
 #include "../platform/ModulePin.hxx"
+#include "sf4e__RenderStream.hxx"
 #include "sf4e__ReplayCapture.hxx"
 #include "sf4e__UserApp.hxx"
 #include "sf4e__Overlay.hxx"
@@ -76,7 +77,7 @@ void fPlatform::Install() {
 void fD3D::Install() {
     void (fD3D:: * _fDestroy)() = &fD3D::Destroy;
     DWORD(fD3D:: * _fReset)() = &fD3D::Reset;
-    void(fD3D:: * _fRunScene_Render)(void*) = &fD3D::RunScene_Render;
+    void(fD3D:: * _fRunScene_Render)(rPlatform::CommandBuffer*) = &fD3D::RunScene_Render;
     int(fD3D:: * _fLimitFrame)(float) = &fD3D::LimitFrame;
     void(fD3D:: * _fBuildPresentParameters)() = &fD3D::BuildPresentParameters;
     DetourAttach((PVOID*)&rD3D::privateMethods.Destroy, *(PVOID*)&_fDestroy);
@@ -333,8 +334,8 @@ void fD3D::BuildPresentParameters() {
     }
 }
 
-void fD3D::RunScene_Render(void* sceneCommandList) {
-    (this->*rD3D::privateMethods.RunScene_Render)(sceneCommandList);
+void fD3D::RunScene_Render(rPlatform::CommandBuffer* sceneCommandList) {
+    if (sf4e::RenderStream::Check(sceneCommandList)) (this->*rD3D::privateMethods.RunScene_Render)(sceneCommandList);
     // An export is the game's picture with only the layers Ember draws for
     // its video, its caption and the frame meter: the overlay draws those,
     // the picture is taken, and then the rest of Ember, so its menu and HUD

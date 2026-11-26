@@ -91,12 +91,46 @@ namespace Dimps {
 		};
 		static_assert(sizeof(DisplayBlock) == 0x34, "13 dwords");
 
+		// The frame's render commands as the graphics device replays them: one
+		// allocation holding the command stream and its range table right
+		// after it (alloc 0x773B30). Framework::run merges the frame's buffers
+		// into a new one of exactly their summed size (0x8EC840); the writers
+		// check no capacity (0x773AD0, 0x773C40, 0x773CC0).
+		struct CommandBuffer {
+			uint32_t capacityBytes;
+			uint32_t tableCapacityBytes;
+			uint32_t* base;
+			// End of the written dwords.
+			uint32_t* cursor;
+			// Equal to base + capacityBytes.
+			void* tableBase;
+			// End of the written ranges, 8 bytes each. executeFrame puts it back
+			// at tableBase once the frame is drawn (0x77275F).
+			void* tableCursor;
+		};
+		static_assert(sizeof(CommandBuffer) == 0x18, "6 dwords (ctor 0x773A00)");
+
+		// The battle's own command buffer, where the fighters, stage and
+		// effects are recorded. EvaApp::onInit (0x405210) makes it once at
+		// startup with the sizes it pushes, and only the allocator reads them
+		// (0x6B8DD0, 0x773B30); nothing rebuilds it. Each frame's merge sizes
+		// the merged buffer to what its sources wrote.
+		struct BattleCommandBuffer {
+			static CommandBuffer* instance;  // 0xAAD778, the device's +0x9D8
+			static BYTE* rangesPush;         // 0x40524B: push 0xC00
+			static BYTE* dwordsPush;         // 0x405250: push 0x50000
+			static void Locate(HMODULE peRoot);
+		};
+
 		struct D3D
 		{
 			typedef struct __privateMethods {
 				void(D3D::* Destroy)();
 				DWORD (D3D::* Reset)();
-				void (D3D::* RunScene_Render)(void* pList);
+				// executeRanges: replays the frame's ranges between the BeginScene
+				// and EndScene of executeFrame (0x7726D0), which then resets the
+				// buffer.
+				void (D3D::* RunScene_Render)(CommandBuffer* pList);
 				// The FIXED frame-rate limiter, run after Present: spins until
 				// periodSeconds after lastLimiterExit, then records the exit.
 				int (D3D::* LimitFrame)(float frameDelta);

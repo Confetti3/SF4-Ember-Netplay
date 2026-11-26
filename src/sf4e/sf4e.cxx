@@ -18,6 +18,7 @@
 #include "sf4e__GameEvents.hxx"
 #include "sf4e__GameThemes.hxx"
 #include "sf4e__InputLag.hxx"
+#include "sf4e__RenderStream.hxx"
 #include "sf4e__Pad.hxx"
 #include "sf4e__Gamepads.hxx"
 #include "sf4e__Platform.hxx"
@@ -251,6 +252,7 @@ void sf4e::Install(HINSTANCE hinstDll, const sf4e::Payload* const payload) {
 	replaycapture::SetSoundSource({&exportsound::Hold, &exportsound::Render, &exportsound::Release});
 	InputLag::Install();
 	Platform::Install();
+	RenderStream::Install();
 	UserApp::Install();
 	custom::Install();
 	GameThemes::Install();
