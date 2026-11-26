@@ -62,8 +62,12 @@ struct Recorder {
 	std::uint8_t unknown0[0x708 - 0xC8];
 	// RecorderMode above.
 	std::int32_t mode;
-	// The argument playback was started with; its meaning is not known.
-	std::int32_t playArgument;
+	// The sides playback plays, bit 0 Player 1 and bit 1 Player 2: start
+	// (0x5D5CA0) stores its argument here, 3 for a replay's round
+	// (0x5DE760). CMD POST (0x59AA20) puts the recorded input on a side
+	// only while its bit is set (0x5D5A2F); a clear side plays from its pad
+	// slot. Replay takeover (ReplayTakeover.hxx) clears the player's side.
+	std::int32_t playingSides;
 	// The round being played: playback reads stream +4 + 0x1C * round.
 	std::int32_t round;
 	// The next record of the round to play or record. 0x5D5D20 moves it
@@ -75,7 +79,7 @@ struct Recorder {
 	std::uint8_t rest[kRecorderBytes - 0x71C];
 };
 static_assert(sizeof(Recorder) == kRecorderBytes && offsetof(Recorder, streams) == 4, "recorder layout");
-static_assert(offsetof(Recorder, mode) == 0x708 && offsetof(Recorder, playArgument) == 0x70C && offsetof(Recorder, round) == 0x710 &&
+static_assert(offsetof(Recorder, mode) == 0x708 && offsetof(Recorder, playingSides) == 0x70C && offsetof(Recorder, round) == 0x710 &&
 	offsetof(Recorder, cursor) == 0x714 && offsetof(Recorder, loop) == 0x718, "recorder playback fields");
 
 // Append (0x7831C0) checks only cursor < base + capacity, then writes a

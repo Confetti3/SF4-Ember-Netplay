@@ -231,6 +231,10 @@ namespace Dimps {
                 // copies it over the played one, so writing the Action alone
                 // changes no control. Neither copy is in the battle's memento.
                 static int* GetPlayerControl(System* s, int side);
+                // The pad slot a side reads in the battle's command input
+                // (+0x20 beside the control, 0x5D99F0 reads slots 0 and 1): a
+                // replay sets each side to its own (0x41B36D). Not in the memento.
+                static int* GetPlayerPadSlot(System* s, int side);
                 // The same side's control in the menu's copy.
                 static int* GetMenuPlayerControl(System* s, int side) {
                     return (int*)((unsigned int)s + 0x6d8 + side * 0x2b8 + 0x1c);

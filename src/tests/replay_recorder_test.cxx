@@ -168,7 +168,7 @@ void TestPlaybackFields() {
 	auto* bytes = reinterpret_cast<std::uint8_t*>(&live);
 	const auto put = [&](std::size_t at, std::int32_t value) { std::memcpy(bytes + at, &value, sizeof(value)); };
 	put(0x708, rp::RecorderPlaying); put(0x70C, 5); put(0x710, 2); put(0x714, 2477); put(0x718, 1);
-	CHECK(live.mode == rp::RecorderPlaying && live.playArgument == 5 && live.round == 2 && live.cursor == 2477u && live.loop == 1);
+	CHECK(live.mode == rp::RecorderPlaying && live.playingSides == 5 && live.round == 2 && live.cursor == 2477u && live.loop == 1);
 	rp::Snapshot saved{};
 	rp::Capture(live, saved);
 	live.round = 3; live.cursor = 9;

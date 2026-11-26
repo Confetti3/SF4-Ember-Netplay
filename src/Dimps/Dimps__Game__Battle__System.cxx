@@ -60,7 +60,10 @@ void System::Locate(HMODULE peRoot) {
     staticVars.CurrentBattleFlowSubstateFrame = (FixedPoint*)(peRootOffset + 0x6a9268);
 }
 
-int* System::GetPlayerControl(System* s, int side) {
+// A side's field in the player requests the battle plays (+0x9C, 0x2B8 bytes a side).
+static int* PlayerField(System* s, int side, unsigned offset) {
     BYTE* players = *(BYTE**)((unsigned int)s + 0x9c);
-    return players ? (int*)(players + side * 0x2b8 + 0x1c) : nullptr;
+    return players ? (int*)(players + side * 0x2b8 + offset) : nullptr;
 }
+int* System::GetPlayerControl(System* s, int side) { return PlayerField(s, side, 0x1c); }
+int* System::GetPlayerPadSlot(System* s, int side) { return PlayerField(s, side, 0x20); }
