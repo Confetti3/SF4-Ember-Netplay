@@ -6,6 +6,9 @@
     "client_id": "1546980049692135514"
   },
   "integration_secrets": "integrations.json",
+  "website": {
+    "origin": "https://embernetplay.link"
+  },
   "archive": {
     "endpoint": "http://127.0.0.1:9400",
     "bucket": "replays-live",

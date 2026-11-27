@@ -199,8 +199,8 @@ signed out gets 401. 120 calls in 10 minutes for an account.
 
 Needs `discord` and `rooms`. Deploying: add
 `https://embernetplay.link/account/discord/callback` to the Discord
-application's redirects, then the bridge with `website` added to its
-`bridge.json` by hand (the deploy script keeps what is there), then the site
+application's redirects, then the bridge, whose deployed settings
+(`deploy/tenants.json`, production's alone) carry `website`, then the site
 and its nginx file. Without `website` the signed-in routes answer 404 and the
 pages say the service does not offer them yet; the boards need only the new
 bridge.
