@@ -352,9 +352,15 @@ std::vector<MenuEntry> RankingsPanel::BoardRows(const ShellView& v) const {
     return rows;
 }
 
+// The points board on show: this service's, for the fighter chosen now, not one asked for before.
+const netplay::rankings::PointsBoard* RankingsPanel::ShownPoints(const ShellView& v) const {
+    const auto& points = v.rankings.points;
+    return v.rankings.bridge == bridge_ && points.loaded && points.value && points.value->fighter == pointsFighter_ ? points.value.get() : nullptr;
+}
+
 std::vector<MenuEntry> RankingsPanel::PointsRows(const ShellView& v) const {
     const auto& status = v.rankings;
-    const auto* board = status.bridge == bridge_ && status.points.loaded && status.points.value && status.points.value->fighter == pointsFighter_ ? status.points.value.get() : nullptr;
+    const auto* board = ShownPoints(v);
     std::string fighterName;
     if (pointsFighter_ < 0) fighterName = loc::T("rankings.points_all");
     else if (const auto* f = selection::FindFighter(pointsFighter_)) fighterName = f->name;
@@ -415,8 +421,8 @@ bool RankingsPanel::Activate(const MenuAction& a, const ShellView& v, MenuNaviga
 
 std::optional<player_opening::Opening> RankingsPanel::PlayerOf(const ShellView& v, const MenuAction& a) const {
     const auto atPoints = RowKey<std::size_t>(a.id, "rkp-p:");
-    const auto* pboard = v.rankings.bridge == bridge_ && v.rankings.points.loaded && v.rankings.points.value && v.rankings.points.value->fighter == pointsFighter_ ? v.rankings.points.value.get() : nullptr;
-    if (atPoints && pboard && *atPoints < pboard->lines.size()) return player_opening::OpeningOf(pboard->lines[*atPoints]);
+    const auto* points = ShownPoints(v);
+    if (atPoints && points && *atPoints < points->lines.size()) return player_opening::OpeningOf(points->lines[*atPoints]);
     const auto at = RowKey<std::size_t>(a.id, "rkb-p:");
     const auto* board = v.rankings.bridge == bridge_ && v.rankings.board.loaded ? v.rankings.board.value.get() : nullptr;
     if (!at || !board || *at >= board->size()) return std::nullopt;

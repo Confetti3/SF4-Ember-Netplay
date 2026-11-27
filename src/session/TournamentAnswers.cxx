@@ -466,15 +466,9 @@ std::optional<netplay::rankings::PointsBoard> DecodePointsBoard(const json& data
 				json named = {{"name", object.at("name")}};
 				if (const auto country = object.find("country"); country != object.end()) named["country"] = *country;
 				line.listing = DecodeListing(named);
-				if (const auto found = object.find("band"); found != object.end()) {
-					if (!found->is_number_unsigned()) throw std::invalid_argument("band");
-					line.band = static_cast<std::uint8_t>((std::min)(found->get<std::uint64_t>(), static_cast<std::uint64_t>(SkillBadge::Classes)));
-				}
+				line.band = static_cast<std::uint8_t>(CappedCount(object, "band", SkillBadge::Classes));
 				line.points = Count(object, "points");
-				if (const auto found = object.find("tier"); found != object.end()) {
-					if (!found->is_number_unsigned()) throw std::invalid_argument("tier");
-					line.tier = static_cast<std::uint8_t>((std::min)(found->get<std::uint64_t>(), static_cast<std::uint64_t>(netplay::levels::TierCount - 1)));
-				}
+				line.tier = static_cast<std::uint8_t>(CappedCount(object, "tier", netplay::levels::TierCount - 1));
 				if (const auto found = object.find("card"); found != object.end()) {
 					if (!found->is_string()) throw std::invalid_argument("card");
 					if (CardToken::Parsed(found->get<std::string>()).Present()) line.card = found->get<std::string>();
@@ -490,78 +484,46 @@ std::optional<netplay::rankings::PointsBoard> DecodePointsBoard(const json& data
 	}
 }
 
-// Rating details: the bridge sends a "rating" object and "rules" beside it;
-// rules are an object whose members are not read. Every number must be finite
-// or the answer is refused, and an example whose weight is not in (0,1] is
-// dropped, never a failed answer. At most eight examples.
+// Rating details: the bridge sends a "rating" object, left out before a rated
+// game, and the rules beside it, which Ember does not show. Every number must
+// be finite or the answer is refused; an example whose weight is not in
+// (0,1] is dropped, never a failed answer. At most eight examples.
 std::optional<netplay::rankings::RatingDetails> DecodeRatingDetails(const json& data) {
 	try {
 		Strict(data, {"rating", "rules"});
-		if (data.find("rules") == data.end() || !data.at("rules").is_object()) return std::nullopt;
 		netplay::rankings::RatingDetails details;
 		const auto found = data.find("rating");
 		if (found == data.end()) return details;
-		const auto& rating = *found;
-		if (!rating.is_object()) return std::nullopt;
+		const auto& rating = Strict(*found, {"takes_part", "rating", "deviation", "volatility", "band", "settled",
+			"up_at", "down_below", "faint_in_days", "played_at", "examples"});
 		details.known = true;
-		auto finite = [](const json& object, const char* key) -> double {
-			const auto& value = object.at(key);
-			if (!value.is_number()) throw std::invalid_argument(key);
-			const auto number = value.get<double>();
-			if (!std::isfinite(number)) throw std::invalid_argument(key);
-			return number;
-		};
-		auto optionalFinite = [&](const json& object, const char* key) -> std::optional<double> {
-			const auto at = object.find(key);
-			if (at == object.end()) return std::nullopt;
-			if (!at->is_number()) throw std::invalid_argument(key);
-			const auto number = at->get<double>();
-			if (!std::isfinite(number)) throw std::invalid_argument(key);
-			return number;
-		};
-		details.takesPart = rating.at("takes_part").is_boolean() && rating.at("takes_part").get<bool>();
-		details.settled = rating.at("settled").is_boolean() && rating.at("settled").get<bool>();
-		details.rating = finite(rating, "rating");
-		details.deviation = finite(rating, "deviation");
-		details.volatility = finite(rating, "volatility");
-		const auto band = rating.at("band");
-		if (!band.is_number_unsigned()) throw std::invalid_argument("band");
-		details.band = static_cast<std::uint8_t>((std::min)(band.get<std::uint64_t>(), static_cast<std::uint64_t>(SkillBadge::Classes)));
-		details.upAt = optionalFinite(rating, "up_at");
-		details.downBelow = optionalFinite(rating, "down_below");
-		if (rating.find("faint_in_days") != rating.end()) {
-			const auto days = rating.at("faint_in_days");
-			if (!days.is_number_unsigned()) throw std::invalid_argument("faint_in_days");
-			details.faintInDays = days.get<std::uint64_t>();
-		}
-		if (!rating.at("played_at").is_number_unsigned()) throw std::invalid_argument("played_at");
-		details.playedAt = rating.at("played_at").get<std::uint64_t>();
+		details.takesPart = rating.at("takes_part").get<bool>();
+		details.settled = rating.at("settled").get<bool>();
+		details.rating = Finite(rating, "rating");
+		details.deviation = Finite(rating, "deviation");
+		details.volatility = Finite(rating, "volatility");
+		details.band = static_cast<std::uint8_t>((std::min)(Count(rating, "band"), static_cast<std::uint64_t>(SkillBadge::Classes)));
+		details.upAt = OptionalFinite(rating, "up_at");
+		details.downBelow = OptionalFinite(rating, "down_below");
+		if (rating.find("faint_in_days") != rating.end()) details.faintInDays = Count(rating, "faint_in_days");
+		details.playedAt = Count(rating, "played_at");
 		const auto& examples = rating.at("examples");
 		if (!examples.is_array() || examples.size() > 8) return std::nullopt;
+		const auto outcome = [](const json& value) {
+			const auto& object = Strict(value, {"weight", "change"});
+			const netplay::rankings::RatingOutcome read{Finite(object, "weight"), Finite(object, "change")};
+			if (read.weight <= 0.0 || read.weight > 1.0) throw std::invalid_argument("weight");
+			return read;
+		};
 		for (const auto& example : examples) {
 			try {
 				const auto& object = Strict(example, {"opponent", "band", "win", "loss"});
 				netplay::rankings::RatingExample entry;
-				entry.opponent = finite(object, "opponent");
-				const auto eband = object.find("band");
-				if (eband != object.end() && eband->is_number_unsigned())
-					entry.band = static_cast<std::uint8_t>((std::min)(eband->get<std::uint64_t>(), static_cast<std::uint64_t>(SkillBadge::Classes)));
-				auto outcome = [&](const char* key) {
-					const auto& value = object.at(key);
-					const auto& outcomeObject = Strict(value, {"weight", "change"});
-					const auto& weight = outcomeObject.at("weight");
-					if (!weight.is_number()) throw std::invalid_argument("weight");
-					const auto w = weight.get<double>();
-					if (!std::isfinite(w) || w <= 0.0 || w > 1.0) throw std::invalid_argument("weight");
-					const auto& change = outcomeObject.at("change");
-					if (!change.is_number()) throw std::invalid_argument("change");
-					const auto c = change.get<double>();
-					if (!std::isfinite(c)) throw std::invalid_argument("change");
-					return netplay::rankings::RatingOutcome{w, c};
-				};
-				entry.win = outcome("win");
-				entry.loss = outcome("loss");
-				details.examples.push_back(std::move(entry));
+				entry.opponent = Finite(object, "opponent");
+				entry.band = static_cast<std::uint8_t>(CappedCount(object, "band", SkillBadge::Classes));
+				entry.win = outcome(object.at("win"));
+				entry.loss = outcome(object.at("loss"));
+				details.examples.push_back(entry);
 			} catch (const std::exception&) {
 				// One example that cannot be read is dropped, never a failed answer.
 			}

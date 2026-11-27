@@ -78,6 +78,7 @@ private:
     std::vector<MenuEntry> StandingRows(const ShellView& view, bool identityPending) const;
     std::vector<MenuEntry> BoardRows(const ShellView& view) const;
     std::vector<MenuEntry> PointsRows(const ShellView& view) const;
+    const netplay::rankings::PointsBoard* ShownPoints(const ShellView& view) const;
     std::optional<MenuEntry> RatingRow(const ShellView& view) const;
     void Choose(bool ranked);
     void TakeAnswers(const ShellView& view, bool owned);
