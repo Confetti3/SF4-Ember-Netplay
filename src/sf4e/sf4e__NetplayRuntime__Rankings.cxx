@@ -79,10 +79,10 @@ void DispatchRankings(const Command& command, bool helperReady) {
 			Send({{"op", "ranking_board"}, {"bridge_id", command.bridgeId}}, helperReady, requests.BeginBoard(), TakeBoard);
 		return;
 	case Command::Op::PointsBoard:
-		if (requests.MayReadPoints(command.fighter)) {
+		if (requests.MayReadPoints()) {
 			json request = {{"op", "points_board"}, {"bridge_id", command.bridgeId}};
 			if (command.fighter >= 0) request["fighter"] = command.fighter;
-			Send(request, helperReady, requests.BeginPoints(command.fighter), TakePoints);
+			Send(request, helperReady, requests.BeginPoints(), TakePoints);
 		}
 		return;
 	case Command::Op::RankingRating:

@@ -60,25 +60,18 @@ public:
 		fresh.choiceFailure = status_.choiceFailure;
 		status_ = std::move(fresh);
 		standing_ = board_ = points_ = choice_ = rating_ = 0;
-		askedFighter_ = -1;
 	}
 
 	bool MayReadStanding() const { return !standing_ && !choice_; }
 	bool MayReadBoard() const { return !board_; }
-	// Asking for another fighter replaces the board shown, so the same read is always allowed then.
-	bool MayReadPoints(int fighter) const { return !points_ || askedFighter_ != fighter; }
+	bool MayReadPoints() const { return !points_; }
 	bool MayReadRating() const { return !rating_; }
 
 	// A request is going to the helper: returns the flight its answer comes back under (the Finish of its kind).
 	std::uint64_t BeginStanding() { return Start(status_.standing, standing_); }
 	std::uint64_t BeginBoard() { return Start(status_.board, board_); }
 	std::uint64_t BeginRating() { return Start(status_.rating, rating_); }
-	// A request for `fighter` is going to the helper: an answer for another
-	// fighter that had been asked is dropped by FinishPoints.
-	std::uint64_t BeginPoints(int fighter) {
-		askedFighter_ = fighter;
-		return Start(status_.points, points_);
-	}
+	std::uint64_t BeginPoints() { return Start(status_.points, points_); }
 	// The interface's choice identified as `request`. A newer one supersedes one
 	// in flight, whose answer then names no request.
 	std::uint64_t BeginChoice(std::uint64_t request) {
@@ -116,9 +109,6 @@ public:
 	}
 	void FinishPoints(std::uint64_t flight, const std::string& failure, std::optional<netplay::rankings::PointsBoard> board, std::uint64_t nowMs) {
 		if (Awaiting(flight) != Kind::Points) return;
-		// An answer for a fighter no longer asked is dropped: the flight is
-		// retired, the old board stays as it was.
-		if (board && board->fighter != askedFighter_) { End(status_.points, points_, "bridge_invalid_response"); return; }
 		if (board) {
 			status_.points.value = std::make_shared<const netplay::rankings::PointsBoard>(std::move(*board));
 			status_.points.loaded = true;
@@ -171,8 +161,6 @@ private:
 	Status status_;
 	// The requests on their way (0: none), and how many have begun.
 	std::uint64_t standing_ = 0, board_ = 0, choice_ = 0, points_ = 0, rating_ = 0, flights_ = 0;
-	// The fighter in flight for this request (-1: the account board).
-	int askedFighter_ = -1;
 };
 
 } } }

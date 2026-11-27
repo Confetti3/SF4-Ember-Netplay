@@ -71,7 +71,7 @@ pub async fn rating(State(state): State<AppState>, headers: HeaderMap) -> Result
         .await?;
     Ok(ok(&RatingDetails {
         rating,
-        rules: explain::RULES.clone(),
+        rules: explain::RULES,
     }))
 }
 

@@ -97,21 +97,43 @@ static std::uint64_t ChangeWait(const netplay::rankings::Status& status) {
     return left > 0 ? static_cast<std::uint64_t>(std::ceil(left)) : 0;
 }
 
+int RankingsPanel::PageOf(const std::string& screen) {
+    for (std::size_t i = 0; i < sizeof(Pages) / sizeof(Pages[0]); ++i)
+        if (screen == Pages[i].screen) return static_cast<int>(i);
+    return -1;
+}
+
+RankingsPanel::Read RankingsPanel::ReadOf(int page) {
+    switch (page) {
+    case 1: return Read::Board;
+    case 2: return Read::Points;
+    default: return Read::Standing;
+    }
+}
+
+std::optional<RankingsPanel::Read> RankingsPanel::NextRead(const ShellView& v, const std::string& screen) const {
+    const auto& status = v.rankings;
+    if (wanted_[static_cast<std::size_t>(Read::Standing)] && !status.standing.loading && !status.choosing) return Read::Standing;
+    if (wanted_[static_cast<std::size_t>(Read::Board)] && screen == BoardScreen && !status.board.loading) return Read::Board;
+    if (wanted_[static_cast<std::size_t>(Read::Points)] && screen == PointsScreen && !status.points.loading) return Read::Points;
+    if (wanted_[static_cast<std::size_t>(Read::Rating)] && !status.standing.loading && !status.rating.loading) return Read::Rating;
+    return std::nullopt;
+}
+
 void RankingsPanel::Update(const ShellView& v, const std::string& screen, const std::string& bridge,
     const netplay::rankings::Listing& own, const Submit& submit) {
     const auto& status = v.rankings;
     const bool owned = Owns(screen);
     // Rankings and its board are one visit: coming back from the board reads nothing again.
-    if (owned && !Owns(lastScreen_)) { wantStanding_ = true; listingSent_ = false; }
-    if (screen == BoardScreen && lastScreen_ != BoardScreen) wantBoard_ = true;
-    if (screen == PointsScreen && lastScreen_ != PointsScreen) wantPoints_ = true;
+    if (owned && !Owns(lastScreen_)) { Want(Read::Standing); listingSent_ = false; }
+    if (const int page = PageOf(screen); page > 0 && screen != lastScreen_) Want(ReadOf(page));
     // A profile opened from a row is a step aside, not leaving: Back is the visit again, which reads nothing.
     const bool aside = Owns(lastScreen_) && PlayerPage::Owns(screen);
     if (!aside) lastScreen_ = screen;
     if (owned) { bridge_ = bridge; own_ = own; }
     // Leaving drops what was not asked yet; a choice already on its way is
     // still answered, and said, wherever the player is.
-    else if (!aside) { wantStanding_ = wantBoard_ = wantPoints_ = wantRating_ = false; if (pending_ && !pending_->sent) pending_.reset(); }
+    else if (!aside) { wanted_ = {}; if (pending_ && !pending_->sent) pending_.reset(); }
     TakeAnswers(v, owned);
     if (aside) return;
     if (!owned) { ReadForProfile(v, bridge, submit); return; }
@@ -127,17 +149,18 @@ void RankingsPanel::Update(const ShellView& v, const std::string& screen, const 
         return;
     }
     // A read waits for the choice in flight, whose answer is the standing after it.
-    const bool standing = wantStanding_ && !status.standing.loading && !status.choosing,
-        board = wantBoard_ && screen == BoardScreen && !status.board.loading,
-        points = wantPoints_ && screen == PointsScreen && !status.points.loading,
-        rating = wantRating_ && !standing && !status.standing.loading && !status.rating.loading;
-    if (!standing && !board && !points && !rating) return;
-    if (standing) { wantStanding_ = false; wantRating_ = true; }
-    else if (board) wantBoard_ = false; else if (points) wantPoints_ = false; else wantRating_ = false;
-    action.tournament.op = standing ? Command::Op::RankingStanding : board ? Command::Op::RankingBoard
-        : points ? Command::Op::PointsBoard : Command::Op::RankingRating;
+    const auto next = NextRead(v, screen);
+    if (!next) return;
+    wanted_[static_cast<std::size_t>(*next)] = false;
+    if (*next == Read::Standing) Want(Read::Rating);
+    switch (*next) {
+    case Read::Standing: action.tournament.op = Command::Op::RankingStanding; break;
+    case Read::Board: action.tournament.op = Command::Op::RankingBoard; break;
+    case Read::Points: action.tournament.op = Command::Op::PointsBoard; break;
+    case Read::Rating: action.tournament.op = Command::Op::RankingRating; break;
+    }
     action.tournament.bridgeId = bridge_;
-    if (points) action.tournament.fighter = pointsFighter_;
+    if (*next == Read::Points) action.tournament.fighter = pointsFighter_;
     if (!submit(std::move(action))) Say(loc::T("error.queue_failed"));
 }
 
@@ -192,8 +215,8 @@ void RankingsPanel::TakeAnswers(const ShellView& v, bool owned) {
         if (!failure.empty()) Say(FailureText(failure));
         // A refused change names no wait and no account: the standing does. A
         // choice that went through answered with the standing after it.
-        if (failure == "choice_too_soon" || failure == "no_discord_account") wantStanding_ = true;
-        else if (failure.empty()) wantStanding_ = false;
+        if (failure == "choice_too_soon" || failure == "no_discord_account") Want(Read::Standing);
+        else if (failure.empty()) wanted_[static_cast<std::size_t>(Read::Standing)] = false;
         pending_.reset();
     }
 }
@@ -212,7 +235,7 @@ void RankingsPanel::Choose(bool ranked) {
 }
 
 std::vector<MenuEntry> RankingsPanel::Rows(const ShellView& v, const std::string& screen, bool identityPending, std::string& title) const {
-    title = loc::T(screen == BoardScreen ? "rankings.board_title" : screen == PointsScreen ? "rankings.points_title" : "rankings.title");
+    title = loc::T(Pages[std::max(PageOf(screen), 0)].title);
     if (bridge_.empty()) {
         // Rankings come from public room games: their setup makes the service usable.
         if (!v.identity.known || identityPending)
@@ -220,7 +243,11 @@ std::vector<MenuEntry> RankingsPanel::Rows(const ShellView& v, const std::string
         return {Card("rk-needs-setup", loc::T("rankings.needs_setup"), {}, StateCardHeight),
             Row("rk-setup", loc::T("screen.public_rooms"), loc::T("online.public_detail"))};
     }
-    return screen == BoardScreen ? BoardRows(v) : screen == PointsScreen ? PointsRows(v) : StandingRows(v, identityPending);
+    switch (PageOf(screen)) {
+    case 1: return BoardRows(v);
+    case 2: return PointsRows(v);
+    default: return StandingRows(v, identityPending);
+    }
 }
 
 std::vector<MenuEntry> RankingsPanel::StandingRows(const ShellView& v, bool identityPending) const {
@@ -284,8 +311,8 @@ std::vector<MenuEntry> RankingsPanel::StandingRows(const ShellView& v, bool iden
 // Your rating as the bridge counts it, and how far the class is from moving.
 std::optional<MenuEntry> RankingsPanel::RatingRow(const ShellView& v) const {
     const auto& status = v.rankings;
-    if (status.bridge != bridge_ || !status.rating.loaded || !status.rating.value.known) return std::nullopt;
-    const auto& r = status.rating.value;
+    if (status.bridge != bridge_ || !status.rating.loaded || !status.rating.value.rating) return std::nullopt;
+    const auto& r = *status.rating.value.rating;
     const auto whole = [](double value) { return std::to_string(static_cast<long long>(std::lround(value))); };
     std::string detail;
     if (r.upAt && r.downBelow) detail = loc::Tf("rankings.rating_between", whole(*r.upAt), whole(*r.downBelow));
@@ -397,16 +424,16 @@ bool RankingsPanel::Adjust(const MenuAction& a) {
     const int at = pointsFighter_ < 0 || found == order + selection::FighterCount ? 0 : static_cast<int>(found - order) + 1;
     const int next = StepTab(at, a.delta, selection::FighterCount + 1);
     pointsFighter_ = next == 0 ? -1 : order[next - 1];
-    wantPoints_ = true;
+    Want(Read::Points);
     return true;
 }
 
 bool RankingsPanel::Activate(const MenuAction& a, const ShellView& v, MenuNavigation& nav) {
     if (a.id == "rk-setup") { nav.Push("public-rooms"); return true; }
-    if (a.id == "rk-error") { wantStanding_ = true; return true; }
-    if (a.id == "rkb-error") { wantBoard_ = true; return true; }
+    if (a.id == "rk-error") { Want(Read::Standing); return true; }
+    if (a.id == "rkb-error") { Want(Read::Board); return true; }
     if (a.id == "rk-points") { nav.Push(PointsScreen); return true; }
-    if (a.id == "rkp-error") { wantPoints_ = true; return true; }
+    if (a.id == "rkp-error") { Want(Read::Points); return true; }
     if (a.id == "rk-stop" || a.id == "rk-join") { if (!pending_) Choose(a.id == "rk-join"); return true; }
     if (a.id == "rk-players") {
         nav.Push(BoardScreen);
@@ -431,9 +458,7 @@ std::optional<player_opening::Opening> RankingsPanel::PlayerOf(const ShellView& 
 
 bool RankingsPanel::Shortcut(const MenuAction& a) {
     if (a.delta != MenuInput::Options || !Refreshable()) return false;
-    if (lastScreen_ == PointsScreen) wantPoints_ = true;
-    else if (lastScreen_ == BoardScreen) wantBoard_ = true;
-    else wantStanding_ = true;
+    Want(ReadOf(PageOf(lastScreen_)));
     return true;
 }
 
@@ -471,6 +496,6 @@ bool RankingsPanel::TakeSaid(std::string& text) {
 // A choice already sent is kept: its answer is taken, and said, when Ember shows again.
 void RankingsPanel::Conceal() {
     if (pending_ && !pending_->sent) pending_.reset();
-    wantStanding_ = wantBoard_ = wantPoints_ = wantRating_ = false; lastScreen_.clear();
+    wanted_ = {}; lastScreen_.clear();
 }
 } }

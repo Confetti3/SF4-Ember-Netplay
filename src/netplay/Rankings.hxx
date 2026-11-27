@@ -143,22 +143,27 @@ struct RatingExample {
 	RatingOutcome win, loss;
 };
 
-// The player's rated game: how they stand by rating and band. `known` is false
-// when there is no rated game yet or the bridge hides classes, in which case
-// every other field is left at its default.
-struct RatingDetails {
-	bool known = false;
-	// Whether the player takes part, and whether the rating is settled.
+// The most examples a rating answer lists (the protocol's MAX_EXAMPLES).
+constexpr std::size_t MaxRatingExamples = 8;
+
+// The player's own rating, as the bridge counts it.
+struct OwnRating {
 	bool takesPart = false, settled = false;
 	double rating = 0, deviation = 0, volatility = 0;
 	std::uint8_t band = 0;
-	// When the rating is expected to rise or fall below.
+	// The rating at which the class moves up, and under which it moves down;
+	// none at the top, at the bottom, and before a class.
 	std::optional<double> upAt, downBelow;
-	// Days until the rating may faint, when the bridge says.
+	// Whole days without a game until the class shows faint; none while it is not settled.
 	std::optional<std::uint64_t> faintInDays;
-	// When the rated game was played, unix seconds.
+	// The last rated game, unix seconds.
 	std::uint64_t playedAt = 0;
 	std::vector<RatingExample> examples;
+};
+
+struct RatingDetails {
+	// None before a rated game, or while the bridge hides classes.
+	std::optional<OwnRating> rating;
 };
 
 struct Status {

@@ -67,7 +67,7 @@ int main() {
                 for (std::size_t j = 0; j < i; ++j) CHECK(std::string(Links[j].id) != link.id && std::string(Links[j].address) != address);
             }
             CHECK(std::string(Links[1].address) == "ko-fi.com/confetti3" && std::string(Links[2].address) == "embernetplay.link" &&
-                std::string(Links[3].address) == "embernetplay.link/docs" && !Links[3].onHome &&
+                std::string(Links[3].address) == "embernetplay.link/docs" && Links[3].places == sf4e::platform::LinkPlaces::AboutOnly &&
                 std::string(Links[4].address) == "x.com/kabiefox");
             CHECK(FindLink("") == nullptr && FindLink("discord ") == nullptr && FindLink("https://discord.gg") == nullptr);
             // A link opens only through OpenLink with a link of the table; a request by name or address is refused.

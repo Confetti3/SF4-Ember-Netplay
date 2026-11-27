@@ -170,8 +170,9 @@ public:
     }
     // The three pages, your own, the board and the points board, are tabs; Options refreshes them while it can.
     void Dress(const ScreenFrame& f, GameMenu& menu) const override {
-        menu.tabs = {{RankingsPanel::Screen, MenuScreenName(RankingsPanel::Screen)}, {RankingsPanel::BoardScreen, MenuScreenName(RankingsPanel::BoardScreen)}, {RankingsPanel::PointsScreen, MenuScreenName(RankingsPanel::PointsScreen)}};
-        menu.tab = f.screen == RankingsPanel::Screen ? 0 : f.screen == RankingsPanel::BoardScreen ? 1 : 2;
+        menu.tabs.clear();
+        for (const auto& page : RankingsPanel::Pages) menu.tabs.emplace_back(page.screen, MenuScreenName(page.screen));
+        menu.tab = RankingsPanel::PageOf(f.screen);
         if (f.shell.rankings_.Refreshable()) menu.shortcutHints = ShortcutHints({{MenuInput::Options, loc::T("legend.refresh")}});
     }
     bool Adjust(const ScreenFrame& f, const MenuAction& a) const override { return f.shell.rankings_.Adjust(a); }

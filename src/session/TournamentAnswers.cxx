@@ -485,48 +485,39 @@ std::optional<netplay::rankings::PointsBoard> DecodePointsBoard(const json& data
 }
 
 // Rating details: the bridge sends a "rating" object, left out before a rated
-// game, and the rules beside it, which Ember does not show. Every number must
-// be finite or the answer is refused; an example whose weight is not in
-// (0,1] is dropped, never a failed answer. At most eight examples.
+// game, and the rules beside it, which Ember does not show. The helper has
+// checked the answer against the protocol, so anything else is refused whole.
 std::optional<netplay::rankings::RatingDetails> DecodeRatingDetails(const json& data) {
 	try {
 		Strict(data, {"rating", "rules"});
 		netplay::rankings::RatingDetails details;
 		const auto found = data.find("rating");
 		if (found == data.end()) return details;
-		const auto& rating = Strict(*found, {"takes_part", "rating", "deviation", "volatility", "band", "settled",
+		const auto& object = Strict(*found, {"takes_part", "rating", "deviation", "volatility", "band", "settled",
 			"up_at", "down_below", "faint_in_days", "played_at", "examples"});
-		details.known = true;
-		details.takesPart = rating.at("takes_part").get<bool>();
-		details.settled = rating.at("settled").get<bool>();
-		details.rating = Finite(rating, "rating");
-		details.deviation = Finite(rating, "deviation");
-		details.volatility = Finite(rating, "volatility");
-		details.band = static_cast<std::uint8_t>((std::min)(Count(rating, "band"), static_cast<std::uint64_t>(SkillBadge::Classes)));
-		details.upAt = OptionalFinite(rating, "up_at");
-		details.downBelow = OptionalFinite(rating, "down_below");
-		if (rating.find("faint_in_days") != rating.end()) details.faintInDays = Count(rating, "faint_in_days");
-		details.playedAt = Count(rating, "played_at");
-		const auto& examples = rating.at("examples");
-		if (!examples.is_array() || examples.size() > 8) return std::nullopt;
+		auto& own = details.rating.emplace();
+		own.takesPart = object.at("takes_part").get<bool>();
+		own.settled = object.at("settled").get<bool>();
+		own.rating = Finite(object, "rating");
+		own.deviation = Finite(object, "deviation");
+		own.volatility = Finite(object, "volatility");
+		own.band = static_cast<std::uint8_t>(Small(object, "band", SkillBadge::Classes));
+		own.upAt = OptionalFinite(object, "up_at");
+		own.downBelow = OptionalFinite(object, "down_below");
+		if (object.find("faint_in_days") != object.end()) own.faintInDays = Count(object, "faint_in_days");
+		own.playedAt = Count(object, "played_at");
+		const auto& examples = object.at("examples");
+		if (!examples.is_array() || examples.size() > netplay::rankings::MaxRatingExamples) return std::nullopt;
 		const auto outcome = [](const json& value) {
-			const auto& object = Strict(value, {"weight", "change"});
-			const netplay::rankings::RatingOutcome read{Finite(object, "weight"), Finite(object, "change")};
-			if (read.weight <= 0.0 || read.weight > 1.0) throw std::invalid_argument("weight");
-			return read;
+			const auto& read = Strict(value, {"weight", "change"});
+			const netplay::rankings::RatingOutcome outcome{Finite(read, "weight"), Finite(read, "change")};
+			if (outcome.weight <= 0.0 || outcome.weight > 1.0) throw std::invalid_argument("weight");
+			return outcome;
 		};
 		for (const auto& example : examples) {
-			try {
-				const auto& object = Strict(example, {"opponent", "band", "win", "loss"});
-				netplay::rankings::RatingExample entry;
-				entry.opponent = Finite(object, "opponent");
-				entry.band = static_cast<std::uint8_t>(CappedCount(object, "band", SkillBadge::Classes));
-				entry.win = outcome(object.at("win"));
-				entry.loss = outcome(object.at("loss"));
-				details.examples.push_back(entry);
-			} catch (const std::exception&) {
-				// One example that cannot be read is dropped, never a failed answer.
-			}
+			const auto& read = Strict(example, {"opponent", "band", "win", "loss"});
+			own.examples.push_back({Finite(read, "opponent"), static_cast<std::uint8_t>(Small(read, "band", SkillBadge::Classes)),
+				outcome(read.at("win")), outcome(read.at("loss"))});
 		}
 		return details;
 	} catch (const std::exception&) {

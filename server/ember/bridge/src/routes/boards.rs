@@ -10,6 +10,7 @@ use axum::{
     http::StatusCode,
     response::Response,
 };
+use ember_protocol::levels::{MAX_POINTS_BOARD, PointsBoard, PointsLine};
 use serde::Deserialize;
 
 use crate::{
@@ -75,16 +76,16 @@ impl Boards {
         self.answers[board.slot()].get_or_init(|| {
             let lines = self.snapshot.lines(board);
             let listed_at = self.snapshot.read_at();
-            let answer = ember_protocol::levels::PointsBoard {
+            let answer = PointsBoard {
                 listed_at,
                 fighter,
                 total: lines.len(),
                 players: lines
                     .iter()
-                    .take(ember_protocol::levels::MAX_POINTS_BOARD)
+                    .take(MAX_POINTS_BOARD)
                     .map(|line| {
                         let player = self.snapshot.player(line);
-                        ember_protocol::levels::PointsLine {
+                        PointsLine {
                             place: line.place,
                             name: player.listing.name.clone(),
                             country: player.listing.country.clone(),

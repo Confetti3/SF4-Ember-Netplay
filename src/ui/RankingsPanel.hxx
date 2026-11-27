@@ -5,6 +5,7 @@
 #include "../netplay/PlayerPreferences.hxx"
 #include "../netplay/Rankings.hxx"
 #include "../netplay/TournamentStatus.hxx"
+#include <array>
 #include <cstdint>
 #include <functional>
 #include <optional>
@@ -34,7 +35,12 @@ public:
     static constexpr const char* Screen = "rankings";
     static constexpr const char* BoardScreen = "rankings-board";
     static constexpr const char* PointsScreen = "rankings-points";
-    static bool Owns(const std::string& screen) { return screen == Screen || screen == BoardScreen || screen == PointsScreen; }
+    // Rankings' pages in tab order: your standing, the class board and the points board.
+    struct Page { const char* screen; const char* title; };
+    static constexpr Page Pages[] = {{Screen, "rankings.title"}, {BoardScreen, "rankings.board_title"}, {PointsScreen, "rankings.points_title"}};
+    // The page `screen` is, or -1 when it is none of Rankings'.
+    static int PageOf(const std::string& screen);
+    static bool Owns(const std::string& screen) { return PageOf(screen) >= 0; }
     // A refused request or a failed read, by its stable code, in words.
     static std::string FailureText(const std::string& code);
     // How this player is listed: the name and flag rooms show for them.
@@ -80,6 +86,12 @@ private:
     std::vector<MenuEntry> PointsRows(const ShellView& view) const;
     const netplay::rankings::PointsBoard* ShownPoints(const ShellView& view) const;
     std::optional<MenuEntry> RatingRow(const ShellView& view) const;
+    // The reads, in priority order: a standing read goes first, and the rating details
+    // follow every standing read so they never describe an older standing.
+    enum class Read : std::uint8_t { Standing, Board, Points, Rating };
+    static Read ReadOf(int page);
+    std::optional<Read> NextRead(const ShellView& view, const std::string& screen) const;
+    void Want(Read read) { wanted_[static_cast<std::size_t>(read)] = true; }
     void Choose(bool ranked);
     void TakeAnswers(const ShellView& view, bool owned);
     void ReadForProfile(const ShellView& view, const std::string& bridge, const Submit& submit);
@@ -89,8 +101,8 @@ private:
     // The service and Ember ID whose standing ReadForProfile asked for, or found loaded.
     std::string profileRead_;
     netplay::rankings::Listing own_;
-    // The rating details follow every standing read, so they never describe an older standing.
-    bool wantStanding_ = false, wantBoard_ = false, wantPoints_ = false, wantRating_ = false;
+    // Which reads are wanted, by Read.
+    std::array<bool, 4> wanted_{};
     std::uint64_t pointsSeen_ = 0;
     // -1: all fighters, else a native fighter id.
     int pointsFighter_ = -1;

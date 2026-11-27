@@ -278,31 +278,29 @@ static void TestRankings() {
 	auto dropped = session::DecodePointsBoard({{"players", json::array({json{{"place", 1u}, {"name", "Player 1"}}})}});
 	CHECK(dropped && dropped->lines.empty());
 
-	// A ranking_rating answer with no "rating" decodes as known=false.
+	// Before a rated game the answer has no "rating", and decodes with none.
 	const auto ratingMissing = session::DecodeRatingDetails({{"rules", json::object()}});
-	CHECK(ratingMissing && !ratingMissing->known && !ratingMissing->takesPart && !ratingMissing->settled && ratingMissing->rating == 0 && ratingMissing->examples.empty());
+	CHECK(ratingMissing && !ratingMissing->rating);
 	const auto ratingFull = session::DecodeRatingDetails({
 		{"rules", json::object()},
 		{"rating", {{"takes_part", true}, {"rating", 1612.4}, {"deviation", 61.2}, {"volatility", 0.06},
 			{"band", 5u}, {"settled", true}, {"up_at", 1700.0}, {"down_below", 1550.0}, {"faint_in_days", 12u},
 			{"played_at", 1700000000u},
 			{"examples", json::array({{{"opponent", 1500.0}, {"band", 4u},
-				{"win", {{"weight", 1.0}, {"change", 9.8}}}, {"loss", {{"weight", 1.0}, {"change", -9.6}}}}})}}}}});
-	CHECK(ratingFull && ratingFull->known && ratingFull->takesPart && ratingFull->settled && ratingFull->rating == 1612.4 &&
-		ratingFull->deviation == 61.2 && ratingFull->volatility == 0.06 && ratingFull->band == 5 &&
-		ratingFull->upAt == 1700.0 && ratingFull->downBelow == 1550.0 && ratingFull->faintInDays == 12 &&
-		ratingFull->playedAt == 1700000000u && ratingFull->examples.size() == 1);
-	CHECK(ratingFull->examples[0].opponent == 1500.0 && ratingFull->examples[0].band == 4 &&
-		ratingFull->examples[0].win.weight == 1.0 && ratingFull->examples[0].win.change == 9.8 &&
-		ratingFull->examples[0].loss.change == -9.6);
-	// An example whose weight is not in (0,1] is dropped.
-	auto badWeight = session::DecodeRatingDetails({
+				{"win", {{"weight", 1.0}, {"change", 9.8}}}, {"loss", {{"weight", 1.0}, {"change", -9.6}}}}})}}}});
+	CHECK(ratingFull && ratingFull->rating);
+	const auto& own = *ratingFull->rating;
+	CHECK(own.takesPart && own.settled && own.rating == 1612.4 && own.deviation == 61.2 && own.volatility == 0.06 && own.band == 5 &&
+		own.upAt == 1700.0 && own.downBelow == 1550.0 && own.faintInDays == 12 && own.playedAt == 1700000000u && own.examples.size() == 1);
+	CHECK(own.examples[0].opponent == 1500.0 && own.examples[0].band == 4 &&
+		own.examples[0].win.weight == 1.0 && own.examples[0].win.change == 9.8 && own.examples[0].loss.change == -9.6);
+	// The helper checked the answer, so an example whose weight is not in (0,1] is refused with it.
+	CHECK(!session::DecodeRatingDetails({
 		{"rules", json::object()},
 		{"rating", {{"takes_part", true}, {"rating", 1612.4}, {"deviation", 61.2}, {"volatility", 0.06},
 			{"band", 5u}, {"settled", true}, {"played_at", 1700000000u},
-			{"examples", json::array({{{"opponent", 1500.0},
-				{"win", {{"weight", 1.5}, {"change", 9.8}}}, {"loss", {{"weight", 1.0}, {"change", -9.6}}}}})}}}}});
-	CHECK(badWeight && badWeight->examples.empty());
+			{"examples", json::array({{{"opponent", 1500.0}, {"band", 4u},
+				{"win", {{"weight", 1.5}, {"change", 9.8}}}, {"loss", {{"weight", 1.0}, {"change", -9.6}}}}})}}}}));
 	// A non-number rating is refused.
 	CHECK(!session::DecodeRatingDetails({
 		{"rules", json::object()},
