@@ -84,7 +84,8 @@ pub struct Config {
     pub trusted_proxies: Vec<std::net::IpAddr>,
     /// The website's signed-in pages (docs/design/SITE_PLAYER_CARDS.md): a
     /// browser signs in with Discord there to read its player's card and
-    /// rating. Off when absent; needs `discord` and `rooms`.
+    /// rating. Off when absent, and while public rooms are (`rooms`), whose
+    /// games are what it shows; needs `discord`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub website: Option<Website>,
     pub tenants: Vec<Tenant>,
@@ -594,11 +595,8 @@ impl Config {
         if let Some(website) = &self.website {
             check_origin(&website.origin, self.policy())
                 .map_err(|_| "website.origin must be a bare https origin".to_owned())?;
-            if self.discord.is_none() || self.rooms.is_none() {
-                return Err(
-                    "website needs discord, to sign in with, and rooms, whose games it shows"
-                        .into(),
-                );
+            if self.discord.is_none() {
+                return Err("website needs discord, to sign in with".into());
             }
         }
         let mut seen = std::collections::BTreeSet::new();

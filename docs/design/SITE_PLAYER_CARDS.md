@@ -197,7 +197,7 @@ signed out gets 401. 120 calls in 10 minutes for an account.
 "website": { "origin": "https://embernetplay.link", "sessions_from": 0 }
 ```
 
-Needs `discord` and `rooms`. Deploying: add
+Needs `discord`; its routes answer only where public rooms are on. Deploying: add
 `https://embernetplay.link/account/discord/callback` to the Discord
 application's redirects, then the bridge, whose deployed settings
 (`deploy/tenants.json`, production's alone) carry `website`, then the site
