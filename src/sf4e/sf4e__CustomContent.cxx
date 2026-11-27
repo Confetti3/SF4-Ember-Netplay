@@ -5,6 +5,7 @@
 
 #include <array>
 #include <cstring>
+#include <map>
 #include <mutex>
 #include <string>
 
@@ -58,7 +59,8 @@ std::once_flag scanned;
 // The stage loader's own calls of the stage code lookup (Steam 1.05: Stage::Loader::Load RVA 0x1f0f80 builds
 // STG_<code>.emz/.tex.emz, the step after it RVA 0x1f0d10 runs <code>_SetupObj.lua, _SetupParam.lua, _CUBE.emb),
 // and the stage music's (RVA 0x1efd20 builds battle/sound/bgm/BGM_<code>.csb; the call returns to RVA 0x1efdb2)
-// when the custom stage has music of its own. Everything else keeps the fallback stage's code.
+// when the custom stage has music of its own. Everything else keeps the fallback stage's code; its effects have names
+// of their own (UseEffects).
 using StageCode = const char* (__cdecl*)(int);
 StageCode stageCode = nullptr;
 std::uintptr_t loaderBegin = 0, loaderEnd = 0, musicCaller = 0;
@@ -78,6 +80,59 @@ const char* __cdecl LoaderStageCode(int stageId) {
 bool Exists(const std::wstring& file) {
     const DWORD attributes = GetFileAttributesW(file.c_str());
     return attributes != INVALID_FILE_ATTRIBUTES && !(attributes & FILE_ATTRIBUTE_DIRECTORY);
+}
+
+// A stage's effects (water splashes, dust: <code>.vfx.emz, .vfx.ptex.emz, .vfx.ttex.emz and .vfx.bvs beside its STG_
+// files). The game doesn't build their names from the stage code: it reads them from a table of five names per stage
+// (Steam 1.05: RVA 0x556208, 20 bytes a stage for stages 0-29, read at RVA 0x1f20d6: .vfx.emz, .vfx.ptex.emz,
+// .vfx.ttex.emz, .vfx.bvs, .light.emz), where the stages without effects of their own name the Training Stage's.
+// While a custom stage with its own effects plays, its fallback's four effects names are the custom stage's; ApplyStage
+// and EndBattle put them back. The table is read-only data: each change opens its page for writing and closes it again.
+constexpr std::uintptr_t EffectsTableRva = 0x556208;
+constexpr int NamesPerStage = 5, EffectFiles = 4, TableStages = 30;
+static_assert(sizeof(const char*) == 4, "the game's table holds 32-bit pointers");
+const char* const effectSuffixes[EffectFiles] = {".vfx.emz", ".vfx.ptex.emz", ".vfx.ttex.emz", ".vfx.bvs"};
+const char** effectsTable = nullptr;
+// Each custom stage's names, kept for the game's whole run like the game's own: it may hold on to a name it was given.
+std::map<std::string, std::array<std::string, EffectFiles>> customEffects;
+std::array<const char*, EffectFiles> stockEffects = {};
+const char** swappedEffects = nullptr;               // the fallback's entry while it names the custom stage's
+
+bool WriteEffects(const char** entry, const char* const* names) {
+    DWORD protection = 0;
+    if (!VirtualProtect(entry, sizeof(const char*) * EffectFiles, PAGE_READWRITE, &protection)) return false;
+    for (int i = 0; i < EffectFiles; i++) entry[i] = names[i];
+    VirtualProtect(entry, sizeof(const char*) * EffectFiles, protection, &protection);
+    return true;
+}
+
+void RestoreEffects() {
+    if (swappedEffects) WriteEffects(swappedEffects, stockEffects.data());
+    swappedEffects = nullptr;
+}
+
+// Only a whole set (the effects, their textures and their script; .vfx.ttex.emz is optional, as for the game's own
+// stages): a custom stage without one plays its fallback's effects, as before.
+bool UseEffects(const std::string& code, int fallback) {
+    if (!effectsTable || fallback < 0 || fallback >= TableStages) return false;
+    const std::wstring stem = battleFolder + L"stage\\" + std::wstring(code.begin(), code.end());
+    for (const wchar_t* needed : {L".vfx.emz", L".vfx.ptex.emz", L".vfx.bvs"})
+        if (!Exists(stem + needed)) return false;
+    const char** entry = effectsTable + fallback * NamesPerStage;
+    if (!entry[0] || std::strncmp(entry[0], "battle\\stage\\", 13) != 0) {   // not the table this build knows
+        spdlog::warn("Custom stage {}: the game's stage effects table isn't where this build expects it; its fallback's effects play", code);
+        return false;
+    }
+    auto& own = customEffects[code];
+    const char* names[EffectFiles];
+    for (int i = 0; i < EffectFiles; i++) {
+        stockEffects[i] = entry[i];
+        if (own[i].empty()) own[i] = "battle\\stage\\" + code + effectSuffixes[i];
+        names[i] = own[i].c_str();
+    }
+    if (!WriteEffects(entry, names)) return false;
+    swappedEffects = entry;
+    return true;
 }
 
 }
@@ -101,6 +156,7 @@ selection::InstalledContentPtr Installed() {
 }
 
 int ApplyStage(int stageId) {
+    RestoreEffects();
     customNative = -1;
     customCode[0] = 0;
     customMusic = false;
@@ -111,7 +167,9 @@ int ApplyStage(int stageId) {
     std::memcpy(customCode, code.c_str(), sizeof(customCode));
     customNative = fallback;
     customMusic = Exists(battleFolder + L"sound\\bgm\\BGM_" + std::wstring(code.begin(), code.end()) + L".csb");
-    spdlog::info("Custom stage {} plays as stage {} with its own files{}", code, fallback, customMusic ? " and music" : "");
+    const bool effects = UseEffects(code, fallback);
+    spdlog::info("Custom stage {} plays as stage {} with its own files{}", code, fallback,
+        customMusic && effects ? ", music and effects" : customMusic ? " and music" : effects ? " and effects" : "");
     return fallback;
 }
 
@@ -145,6 +203,7 @@ void EndBattle() {
     customNative = -1;
     customCode[0] = 0;
     customMusic = false;
+    RestoreEffects();
 }
 
 void Install() {
@@ -157,6 +216,7 @@ void Install() {
     loaderBegin = base + 0x1f0d10;
     loaderEnd = base + 0x1f1100;
     musicCaller = base + 0x1efdb2;
+    effectsTable = reinterpret_cast<const char**>(base + EffectsTableRva);
     DetourAttach((PVOID*)&stageCode, (PVOID)LoaderStageCode);
 }
 
