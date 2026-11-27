@@ -34,8 +34,21 @@ void ShootRankings(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,c
     stand(Standing{},"rankings-no-account");
     rankings.standing=netplay::Answered<Standing>{};rankings.standing.error="ranking_unavailable";++rankings.standing.finished;
     page("rankings");draw(nullptr,0,6);draw("rankings-unavailable");
-    // The board: your row, two classes, a name in Japanese and the longest name.
+    // Your rating under your class, and the points board's row.
+    netplay::rankings::OwnRating own;own.takesPart=own.settled=true;own.rating=1612.4;own.deviation=61.2;own.volatility=.06;own.band=10;
+    own.downBelow=1550.;own.faintInDays=12;own.playedAt=1700000000;
+    rankings.rating.value.rating=own;rankings.rating.loaded=true;++rankings.rating.finished;++rankings.rating.revision;
     stand(ranked(10,true),"rankings-grand-master");
+    // The points board: your line with its card, a name in Japanese, the longest name and every tier.
+    auto points=std::make_shared<netplay::rankings::PointsBoard>();points->total=812;
+    points->lines.push_back({1,{"Player 2",CountryCode::Parsed("JP")},10,48210,4,"card-2"});
+    points->lines.push_back({2,{"Player 1",CountryCode::Parsed("GB")},10,31877,3,"card-1"});
+    points->lines.push_back({3,{"プレイヤー3",CountryCode::Parsed("JP")},7,12040,2,""});
+    points->lines.push_back({4,{std::string(32,'W'),CountryCode::Parsed("BR")},7,5300,1,""});
+    points->lines.push_back({5,{"Player 5",CountryCode()},0,120,0,""});
+    rankings.points.value=points;rankings.points.loaded=true;++rankings.points.finished;++rankings.points.revision;
+    shell.Navigation().Push("rankings-points");draw(nullptr,0,6);draw("rankings-points");
+    page("rankings");draw(nullptr,0,4);
     auto board=std::make_shared<std::vector<netplay::rankings::BoardEntry>>();
     board->push_back({{"Player 2",CountryCode::Parsed("JP")},10,false});
     board->push_back({{"Player 1",CountryCode::Parsed("GB")},10,true});
