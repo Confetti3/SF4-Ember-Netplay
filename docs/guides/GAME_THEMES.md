@@ -45,6 +45,8 @@ Inside a theme, each part's folder is laid out exactly like the game's own folde
 
 `ember\theme` is where Ember copies the parts you picked. The game is told to look there before its own folders. Ember rebuilds it whenever you pick something else, so put your work in `ember\themes\<name>`, never in `ember\theme`.
 
+The HUD editor makes `ember\themes` the first time it opens, and saves the game's own HUD layout there as a theme named `Original`. Edit that one to change the game's own HUD. Settings lists it after the next start of the game; to go back to the game's HUD at any time, pick **The game's own** there. If you delete `Original`, the editor makes it again from the game's files.
+
 ## theme.json
 
 Optional. Ember does not read it yet; later versions will show it next to the theme's name. Include it so your theme is ready:

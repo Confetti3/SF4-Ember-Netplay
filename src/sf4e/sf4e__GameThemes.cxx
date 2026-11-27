@@ -61,12 +61,7 @@ const std::string& PartFolder(int part) {
 }
 // The game's own newest copy of a file of battle\hud, by the game's folders, newest first.
 std::filesystem::path GameHudFile(const std::wstring& relative) {
-	std::error_code ignored;
-	for (const char* layer : sf4e::training::GameLayers) {
-		const std::filesystem::path path = std::filesystem::path(gameDirectory) / layer / L"battle\\hud" / relative;
-		if (std::filesystem::is_regular_file(path, ignored)) return path;
-	}
-	return {};
+	return sf4e::training::NewestGameFile(gameDirectory, std::filesystem::path(L"battle\\hud") / relative);
 }
 // What a part must satisfy before it is used: the battle HUD's layouts and sheets belong together.
 const game_themes::Rules& ThemeRules() {

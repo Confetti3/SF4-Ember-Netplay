@@ -59,6 +59,12 @@ inline const char* RegulationFolder(int edition, int id) {
 // The game's folders, newest layer first.
 inline const char* const GameLayers[] = {"patch_ae2_tu3", "patch_ae2_tu2", "patch_ae2_tu1b", "patch_ae2_tu1", "patch_ae2",
     "dlc/04_ae2", "dlc/03_character_free", "patch", "resource"};
+// The game's newest copy of a file, by its path under a layer ("battle/hud/CMN/cockpit.ems.emz"); empty when it has none.
+inline std::filesystem::path NewestGameFile(const std::filesystem::path& game, const std::filesystem::path& relative) {
+    std::error_code ignored;
+    for (const char* layer : GameLayers) if (std::filesystem::is_regular_file(game / layer / relative, ignored)) return game / layer / relative;
+    return {};
+}
 inline std::filesystem::path CommandFolder(const std::filesystem::path& game, const std::string& code, int id, int edition) {
     std::error_code ignored;
     for (const int one : {edition, 14}) {
