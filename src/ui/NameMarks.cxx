@@ -110,6 +110,12 @@ std::string ClassName(std::uint8_t band) {
     return shown.letters ? shown.letters : loc::T(band == SkillBadge::Classes ? "class.grand_master" : "class.master");
 }
 
+std::string ClassShort(std::uint8_t band) {
+    if (band == SkillBadge::Classes) return "GM";
+    if (band == SkillBadge::Classes - 1) return "M";
+    return ClassName(band);
+}
+
 float NameMarksWidth(const NameMarks& marks, float fontSize) {
     auto* art = MenuArt();
     const bool flag = art && marks.country.Present() && art->Flag(marks.country).texture;

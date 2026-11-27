@@ -1,4 +1,5 @@
 #include "RankingsPanel.hxx"
+#include "RankingsBoard.hxx"
 #include "ApplicationShell.hxx"
 #include "IdentityPanel.hxx"
 #include "MenuRows.hxx"
@@ -20,7 +21,7 @@ using netplay::rankings::Standing;
 using netplay::tournament::Command;
 using Kind = Standing::Kind;
 // Card heights, unscaled.
-constexpr float CardHeight = 110, StateCardHeight = 120, HeaderHeight = 40, PlayerHeight = 34;
+constexpr float CardHeight = 110, StateCardHeight = 120;
 
 MenuEntry Card(std::string id, std::string label, std::string detail, float height) {
     auto card = InfoRow(std::move(id), std::move(label), {}, std::move(detail));
@@ -204,6 +205,7 @@ void RankingsPanel::TakeAnswers(const ShellView& v, bool owned) {
     if (status.board.finished != boardSeen_) {
         boardSeen_ = status.board.finished;
         if (ours && !status.board.error.empty() && status.board.loaded) Say(FailureText(status.board.error));
+        landOnClass_ = true;
     }
     if (status.points.finished != pointsSeen_) {
         pointsSeen_ = status.points.finished;
@@ -325,16 +327,16 @@ std::optional<MenuEntry> RankingsPanel::RatingRow(const ShellView& v) const {
 std::vector<MenuEntry> RankingsPanel::BoardRows(const ShellView& v) const {
     const auto& status = v.rankings;
     const auto* standing = Current(v);
-    const auto* board = status.bridge == bridge_ && status.board.loaded ? status.board.value.get() : nullptr;
+    const auto* board = ShownBoard(v);
     std::vector<MenuEntry> rows;
-    // You lead the board, whether or not it lists you: it says why not.
+    // You lead the board, whether or not it lists you: it says why not. The
+    // board draws it over both columns, out of the pad's way.
     if (standing) {
         const auto words = StandingWords(*standing);
         const bool own = board && std::any_of(board->begin(), board->end(), [](const netplay::rankings::BoardEntry& e) { return e.own; });
         const bool beyond = Boardable(*standing) && standing->badge.HasClass() && standing->badge.settled && standing->listed && board && !own;
         auto you = InfoRow("rkb-you", loc::T("rankings.you"), words.first,
             beyond ? loc::Tf("rankings.you_beyond_cap", netplay::rankings::MaxBoard) : words.second);
-        you.height = HeaderHeight;
         rows.push_back(std::move(you));
     }
     if (standing && !standing->classesShown) { rows.push_back(Card("rkb-hidden", loc::T("rankings.hidden_detail"), {}, StateCardHeight)); return rows; }
@@ -347,36 +349,44 @@ std::vector<MenuEntry> RankingsPanel::BoardRows(const ShellView& v) const {
         return rows;
     }
     if (board->empty()) { rows.push_back(Card("rkb-empty", loc::T("rankings.empty"), {}, StateCardHeight)); return rows; }
-    // A header per class, highest first, then its players. Left and Right move
-    // between headers, so any row is a few presses from the top.
-    std::vector<std::size_t> headers;
+    // The classes down the side, highest first; one without players stands dimmed and cannot be chosen.
+    const ClassCounts counts = CountClasses(*board);
+    for (std::uint8_t band = SkillBadge::Classes; band >= 1; --band) {
+        auto rung = Row(ClassRow(band), ClassName(band), {}, counts.of[band] > 0);
+        rung.value = std::to_string(counts.of[band]);
+        rung.hint = loc::T("rankings.see_players");
+        rows.push_back(std::move(rung));
+    }
+    // Then the players of the class on show, as the board lists them.
+    const std::uint8_t shown = ShownClass(*board);
     for (std::size_t i = 0; i < board->size(); ++i) {
-        const auto band = (*board)[i].band;
-        if (!i || (*board)[i - 1].band != band) {
-            headers.push_back(rows.size());
-            const auto count = std::count_if(board->begin() + i, board->end(), [&](const netplay::rankings::BoardEntry& e) { return e.band == band; });
-            auto header = InfoRow("rkb-class:" + std::to_string(band), ClassName(band), std::to_string(count), loc::T("rankings.jump"));
-            header.height = HeaderHeight; header.key = band;
-            rows.push_back(std::move(header));
-        }
         const auto& entry = (*board)[i];
+        if (entry.band != shown) continue;
         std::string detail = loc::Tf("class.tip", ClassName(entry.band));
         if (entry.listing.country.Present()) detail += "\n" + CountryName(entry.listing.country);
         // A board's player opens their profile.
-        auto player = Row("rkb-p:" + std::to_string(i), entry.listing.name, std::move(detail));
+        auto player = Row(BoardPlayerRow(i), entry.listing.name, std::move(detail));
         player.hint = loc::T("room.member_card");
-        player.userText = true; player.detailText = DetailText::Name; player.height = PlayerHeight; player.valueHighlighted = entry.own;
-        player.left = rows[headers.back()].id; player.key = i;
+        player.userText = true; player.detailText = DetailText::Name; player.valueHighlighted = entry.own;
+        player.key = i;
         rows.push_back(std::move(player));
     }
-    // Each row's Right is the next header; a header's Left is the previous one, the top one's You.
-    for (std::size_t h = 0; h < headers.size(); ++h) {
-        const std::string next = h + 1 < headers.size() ? rows[headers[h + 1]].id : std::string();
-        const std::size_t end = h + 1 < headers.size() ? headers[h + 1] : rows.size();
-        for (std::size_t r = headers[h]; r < end; ++r) rows[r].right = next;
-        rows[headers[h]].left = h ? rows[headers[h - 1]].id : rows.front().id;
-    }
     return rows;
+}
+
+std::uint8_t RankingsPanel::ShownClass(const std::vector<netplay::rankings::BoardEntry>& board) const {
+    const auto listed = [&](std::uint8_t band) { return std::any_of(board.begin(), board.end(), [&](const netplay::rankings::BoardEntry& e) { return e.band == band; }); };
+    if (class_ && listed(class_)) return class_;
+    const auto own = std::find_if(board.begin(), board.end(), [](const netplay::rankings::BoardEntry& e) { return e.own; });
+    if (own != board.end()) return own->band;
+    std::uint8_t highest = 0;
+    for (const auto& entry : board) highest = (std::max)(highest, entry.band);
+    return highest;
+}
+
+// The class board on show: this service's, once it has loaded.
+const std::vector<netplay::rankings::BoardEntry>* RankingsPanel::ShownBoard(const ShellView& v) const {
+    return v.rankings.bridge == bridge_ && v.rankings.board.loaded ? v.rankings.board.value.get() : nullptr;
 }
 
 // The points board on show: this service's, for the fighter chosen now, not one asked for before.
@@ -385,14 +395,49 @@ const netplay::rankings::PointsBoard* RankingsPanel::ShownPoints(const ShellView
     return v.rankings.bridge == bridge_ && points.loaded && points.value && points.value->fighter == pointsFighter_ ? points.value.get() : nullptr;
 }
 
+void RankingsPanel::DrawBoard(const ShellView& v, const std::string& screen, GameMenu& menu, const std::vector<MenuEntry>& rows, MenuAction& action) {
+    auto& nav = menu.navigation;
+    const auto* board = screen == BoardScreen ? ShownBoard(v) : nullptr;
+    const std::uint8_t shown = board && !board->empty() ? ShownClass(*board) : 0;
+    // A board just arrived or opened puts the pad on the class it shows,
+    // unless the pad already stands on a class or a player.
+    if (shown && landOnClass_) {
+        landOnClass_ = false;
+        if (!ClassOfRow(nav.Focus()) && !ListFocused(screen, nav.Focus())) nav.Focus(ClassRow(shown), rows);
+    }
+    const bool changed = nav.Focus() != focus_;
+    focus_ = nav.Focus();
+    const RankingsBoardFrame f{rows, menu, action, changed};
+    if (screen == PointsScreen) { DrawPointsBoard(f, ShownPoints(v), pointsFighter_, own_); return; }
+    const auto* standing = Current(v);
+    const bool classes = standing && standing->kind == Kind::Ranked && standing->classesShown;
+    DrawClassBoard(f, board, classes ? standing->badge.ClassBand() : 0, shown);
+    // Moving the focus is no action, so the class the side list stands on is
+    // taken from it here; its players are next frame's rows.
+    if (const auto rung = ClassOfRow(nav.Focus())) class_ = *rung;
+}
+
+bool RankingsPanel::ListFocused(const std::string& screen, const std::string& focus) {
+    return (screen == BoardScreen && BoardPlayerOfRow(focus)) || (screen == PointsScreen && PointsPlayerOfRow(focus));
+}
+
 std::vector<MenuEntry> RankingsPanel::PointsRows(const ShellView& v) const {
     const auto& status = v.rankings;
     const auto* board = ShownPoints(v);
-    std::string fighterName;
-    if (pointsFighter_ < 0) fighterName = loc::T("rankings.points_all");
-    else if (const auto* f = selection::FindFighter(pointsFighter_)) fighterName = f->name;
-    else fighterName = std::to_string(pointsFighter_);
-    std::vector<MenuEntry> rows{Value("rkp-fighter", loc::T("rankings.points_fighter"), fighterName, {})};
+    // The fighters down the side: every fighter first, then the roster in the
+    // order the select screen shows it. A shows a fighter's board.
+    std::vector<MenuEntry> rows;
+    const auto fighterRow = [&](int fighter, std::string name) {
+        auto row = Row(FighterRow(fighter), std::move(name), {});
+        row.hint = loc::T("rankings.show_board");
+        rows.push_back(std::move(row));
+    };
+    fighterRow(-1, loc::T("rankings.points_all"));
+    for (std::size_t i = 0; i < static_cast<std::size_t>(selection::FighterCount); ++i) {
+        const int fighter = selection::RosterDisplayOrder[i];
+        const auto* known = selection::FindFighter(fighter);
+        fighterRow(fighter, known ? std::string(known->name) : std::to_string(fighter));
+    }
     if (!board) {
         const bool failed = status.bridge == bridge_ && !status.points.error.empty() && !status.points.loading;
         if (!failed) { rows.push_back(Card("rkp-loading", loc::T("rankings.loading_points"), {}, StateCardHeight)); return rows; }
@@ -406,52 +451,53 @@ std::vector<MenuEntry> RankingsPanel::PointsRows(const ShellView& v) const {
         const auto& line = board->lines[i];
         std::string detail;
         if (line.listing.country.Present()) detail = CountryName(line.listing.country);
-        auto player = Row("rkp-p:" + std::to_string(i), "#" + std::to_string(line.place) + "  " + line.listing.name, std::move(detail));
+        auto player = Row(PointsPlayerRow(i), "#" + std::to_string(line.place) + "  " + line.listing.name, std::move(detail));
         player.value = loc::Tf("rankings.points_value", line.points);
         player.hint = loc::T("room.member_card");
-        player.userText = true; player.detailText = DetailText::Name; player.height = PlayerHeight;
+        player.userText = true; player.detailText = DetailText::Name;
         player.key = i;
         rows.push_back(std::move(player));
     }
     return rows;
 }
 
-bool RankingsPanel::Adjust(const MenuAction& a) {
-    if (a.id != "rkp-fighter") return false;
-    // All fighters first, then the roster in the order the select screen shows it.
-    const auto* order = selection::RosterDisplayOrder;
-    const auto* found = std::find(order, order + selection::FighterCount, pointsFighter_);
-    const int at = pointsFighter_ < 0 || found == order + selection::FighterCount ? 0 : static_cast<int>(found - order) + 1;
-    const int next = StepTab(at, a.delta, selection::FighterCount + 1);
-    pointsFighter_ = next == 0 ? -1 : order[next - 1];
-    Want(Read::Points);
-    return true;
-}
-
 bool RankingsPanel::Activate(const MenuAction& a, const ShellView& v, MenuNavigation& nav) {
+    // Back from a board's page returns to the side list's entry it shows.
+    if (a.kind == MenuAction::Back) { nav.Prefer(nav.Screen() == PointsScreen ? FighterRow(pointsFighter_) : ClassRow(class_)); return true; }
     if (a.id == "rk-setup") { nav.Push("public-rooms"); return true; }
     if (a.id == "rk-error") { Want(Read::Standing); return true; }
     if (a.id == "rkb-error") { Want(Read::Board); return true; }
-    if (a.id == "rk-points") { nav.Push(PointsScreen); return true; }
+    if (a.id == "rk-points") { nav.Push(PointsScreen); nav.Prefer(FighterRow(pointsFighter_)); return true; }
     if (a.id == "rkp-error") { Want(Read::Points); return true; }
     if (a.id == "rk-stop" || a.id == "rk-join") { if (!pending_) Choose(a.id == "rk-join"); return true; }
-    if (a.id == "rk-players") {
-        nav.Push(BoardScreen);
-        // The board opens on your own row when the last one listed you.
-        if (const auto* board = v.rankings.bridge == bridge_ ? v.rankings.board.value.get() : nullptr)
-            for (std::size_t i = 0; i < board->size(); ++i)
-                if ((*board)[i].own) { nav.Prefer("rkb-p:" + std::to_string(i)); break; }
+    // The board lands on the class it shows (DrawBoard).
+    if (a.id == "rk-players") { nav.Push(BoardScreen); landOnClass_ = true; return true; }
+    // A on a class goes into its players, at your own when it is yours.
+    if (const auto band = ClassOfRow(a.id)) {
+        class_ = *band;
+        if (const auto* board = ShownBoard(v)) {
+            const auto in = [&](const netplay::rankings::BoardEntry& e) { return e.band == class_; };
+            auto at = std::find_if(board->begin(), board->end(), [&](const netplay::rankings::BoardEntry& e) { return in(e) && e.own; });
+            if (at == board->end()) at = std::find_if(board->begin(), board->end(), in);
+            if (at != board->end()) nav.Prefer(BoardPlayerRow(static_cast<std::size_t>(at - board->begin())));
+        }
+        return true;
+    }
+    // A on a fighter reads their board.
+    if (const auto fighter = FighterOfRow(a.id)) {
+        pointsFighter_ = *fighter;
+        Want(Read::Points);
         return true;
     }
     return false;
 }
 
 std::optional<player_opening::Opening> RankingsPanel::PlayerOf(const ShellView& v, const MenuAction& a) const {
-    const auto atPoints = RowKey<std::size_t>(a.id, "rkp-p:");
+    const auto atPoints = PointsPlayerOfRow(a.id);
     const auto* points = ShownPoints(v);
     if (atPoints && points && *atPoints < points->lines.size()) return player_opening::OpeningOf(points->lines[*atPoints]);
-    const auto at = RowKey<std::size_t>(a.id, "rkb-p:");
-    const auto* board = v.rankings.bridge == bridge_ && v.rankings.board.loaded ? v.rankings.board.value.get() : nullptr;
+    const auto at = BoardPlayerOfRow(a.id);
+    const auto* board = ShownBoard(v);
     if (!at || !board || *at >= board->size()) return std::nullopt;
     return player_opening::OpeningOf((*board)[*at]);
 }

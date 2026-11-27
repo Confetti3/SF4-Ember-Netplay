@@ -8606,9 +8606,6 @@ msgstr "Ty"
 msgid "rankings.you_beyond_cap"
 msgstr "Ranking zawiera do {0} graczy i teraz Cię w nim nie ma."
 
-msgid "rankings.jump"
-msgstr "Lewo i prawo przełączają klasy."
-
 msgid "rankings.loading_board"
 msgstr "Wczytywanie graczy..."
 

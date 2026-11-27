@@ -22,6 +22,8 @@ struct DrawnMarks {
 // A class by its band, 1 to SkillBadge::Classes: the game's letters (D to A+)
 // or the crown's name in the catalog; empty for none.
 std::string ClassName(std::uint8_t band);
+// The same as a chart's column label, as the site's: the letters, M and GM.
+std::string ClassShort(std::uint8_t band);
 // The room the marks take beside text of `fontSize`: only the marks whose art
 // has loaded, so a name centred with them is centred as drawn.
 float NameMarksWidth(const NameMarks& marks, float fontSize);

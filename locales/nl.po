@@ -8606,9 +8606,6 @@ msgstr "Jij"
 msgid "rankings.you_beyond_cap"
 msgstr "De ranglijst toont maximaal {0} spelers en jij staat er nu niet bij."
 
-msgid "rankings.jump"
-msgstr "Links en Rechts wisselen tussen klassen."
-
 msgid "rankings.loading_board"
 msgstr "Spelers laden..."
 

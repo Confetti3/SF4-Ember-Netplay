@@ -8606,9 +8606,6 @@ msgstr "나"
 msgid "rankings.you_beyond_cap"
 msgstr "랭킹에는 최대 {0}명이 표시되며, 지금은 내가 포함되어 있지 않습니다."
 
-msgid "rankings.jump"
-msgstr "좌우로 클래스를 이동합니다."
-
 msgid "rankings.loading_board"
 msgstr "플레이어를 불러오는 중..."
 

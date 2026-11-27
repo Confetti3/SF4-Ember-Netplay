@@ -8606,9 +8606,6 @@ msgstr "あなた"
 msgid "rankings.you_beyond_cap"
 msgstr "ランキングには最大{0}人が載りますが、現在あなたは含まれていません。"
 
-msgid "rankings.jump"
-msgstr "左右でクラスを切り替えます。"
-
 msgid "rankings.loading_board"
 msgstr "プレイヤーを読み込み中..."
 

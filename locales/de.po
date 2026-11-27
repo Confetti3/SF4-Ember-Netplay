@@ -8606,9 +8606,6 @@ msgstr "Sie"
 msgid "rankings.you_beyond_cap"
 msgstr "Die Rangliste führt bis zu {0} Spieler, und Sie sind derzeit nicht dabei."
 
-msgid "rankings.jump"
-msgstr "Links und Rechts wechseln zwischen den Klassen."
-
 msgid "rankings.loading_board"
 msgstr "Spieler werden geladen..."
 

@@ -25,11 +25,11 @@ void ShootRankings(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,c
     const auto ranked=[](std::uint8_t band,bool settled){
         Standing s;s.kind=Standing::Kind::Ranked;s.classesShown=true;s.badge=band?SkillBadge::OfClass(band,settled):SkillBadge::Placing();
         s.listed=true;s.listing={"Player 1",CountryCode::Parsed("GB")};return s;};
-    // Down to the row `row`, then the shot of its pane.
+    // The shot of the screen with the row `row` focused, as the pad leaves it.
     const auto focus=[&](const char* row,const char* shot){
-        for(int i=0;i<12&&shell.Navigation().Focus()!=row;++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
+        shell.Navigation().Prefer(row);draw(nullptr,0,2);
         Require(shell.Navigation().Focus()==row,"A Rankings row did not take the focus");
-        draw(nullptr,0,2);draw(shot);};
+        draw(shot);};
     stand(ranked(9,true),"rankings-class");
     stand(ranked(0,false),"rankings-placing");
     Standing developer=ranked(0,false);developer.badge=SkillBadge::Developer();stand(developer,"rankings-developer");
@@ -61,15 +61,22 @@ void ShootRankings(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,c
     shell.Navigation().Push("rankings-points");draw(nullptr,0,6);draw("rankings-points");
     focus("rkp-p:1","rankings-points-player");
     page("rankings");draw(nullptr,0,4);
+    // The board: your class, 7, among others, the crowns at the top.
     auto board=std::make_shared<std::vector<netplay::rankings::BoardEntry>>();
     board->push_back({{"Player 2",CountryCode::Parsed("JP")},10,false});
-    board->push_back({{"Player 1",CountryCode::Parsed("GB")},10,true});
+    board->push_back({{"Player 6",CountryCode::Parsed("US")},10,false});
+    board->push_back({{"Player 7",CountryCode::Parsed("KR")},9,false});
     board->push_back({{"プレイヤー3",CountryCode::Parsed("JP")},7,false});
+    board->push_back({{"Player 1",CountryCode::Parsed("GB")},7,true});
     board->push_back({{std::string(32,'W'),CountryCode::Parsed("BR")},7,false});
+    board->push_back({{"Player 8",CountryCode::Parsed("FR")},7,false});
+    board->push_back({{"Player 9",CountryCode::Parsed("DE")},5,false});
     board->push_back({{"Player 5",CountryCode()},1,false});
     rankings.board.value=board;rankings.board.loaded=true;++rankings.board.finished;++rankings.board.revision;
     shell.Navigation().Push("rankings-board");draw(nullptr,0,6);draw("rankings-board");
-    focus("rkb-p:1","rankings-board-player");
+    // In the class's players, on your own row; then the crowns' class from the side.
+    focus("rkb-p:4","rankings-board-player");
+    focus("rkb-c:10","rankings-board-crowns");
     rankings.board.value=std::make_shared<std::vector<netplay::rankings::BoardEntry>>();++rankings.board.finished;++rankings.board.revision;
     draw(nullptr,0,4);draw("rankings-board-empty");
     rankings=netplay::rankings::Status{};

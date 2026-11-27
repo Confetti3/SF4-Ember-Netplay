@@ -8606,9 +8606,6 @@ msgstr "Вы"
 msgid "rankings.you_beyond_cap"
 msgstr "В таблице не больше {0} игроков, и сейчас вас среди них нет."
 
-msgid "rankings.jump"
-msgstr "Влево и вправо переключают классы."
-
 msgid "rankings.loading_board"
 msgstr "Загрузка игроков..."
 

@@ -8606,9 +8606,6 @@ msgstr "你"
 msgid "rankings.you_beyond_cap"
 msgstr "榜单最多列出 {0} 名玩家，你目前不在其中。"
 
-msgid "rankings.jump"
-msgstr "左右切换等级。"
-
 msgid "rankings.loading_board"
 msgstr "正在加载玩家..."
 

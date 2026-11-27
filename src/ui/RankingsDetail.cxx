@@ -1,274 +1,221 @@
 #include "RankingsDetail.hxx"
 #include "ApplicationShell.hxx"
-#include "CountryFlag.hxx"
-#include "GameMenu.hxx"
 #include "NameMarks.hxx"
-#include "RowId.hxx"
 #include "Theme.hxx"
 #include "V2.hxx"
-#include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
+#include <cfloat>
 #include <cmath>
 #include <cstdio>
 #include <string>
 #include <variant>
-#include <vector>
 
 namespace sf4e { namespace ui {
 namespace {
+using netplay::rankings::OwnRating;
 using netplay::rankings::Standing;
 
 // The panes Rankings draws, each with the answer it shows.
 struct StandingPane {};
-struct RatingPane { const netplay::rankings::OwnRating& rating; };
-struct PointsBoardPane {};
-struct PointsPlayerPane { const netplay::rankings::PointsBoard& board; const netplay::rankings::PointsLine& line; };
-struct ClassPlayerPane { const netplay::rankings::BoardEntry& entry; };
-using Pane = std::variant<std::monostate, StandingPane, RatingPane, PointsBoardPane, PointsPlayerPane, ClassPlayerPane>;
+struct RatingPane { const OwnRating& rating; };
+using Pane = std::variant<std::monostate, StandingPane, RatingPane>;
 
-void Gap(float px) {
-    ImGui::Dummy(ImVec2(0, px * Scale()));
-}
+// The pane's measures, in logical pixels.
+constexpr float Title = 22, Body = 15, Small = 13, Tile = 78, Rung = 34;
 
-void Title(const std::string& text) {
-    const float s = Scale();
-    const auto& c = v2::Colors();
-    v2::Paragraph(text, 22 * s, c.text, HeadingFont());
-}
+void Gap(float px) { ImGui::Dummy(ImVec2(0, px * Scale())); }
 
+// A block of the pane: its heading in the accent, as the site heads its panels.
 void Section(const std::string& text) {
-    const float s = Scale();
-    const auto& c = v2::Colors();
-    Gap(16);
-    v2::Paragraph(text, 15 * s, c.accent, HeadingFont());
-    Gap(4);
+    Gap(22);
+    v2::Paragraph(text, 17 * Scale(), v2::Colors().accent, HeadingFont());
+    Gap(6);
 }
 
-void Muted(const std::string& text) {
-    const float s = Scale();
-    const auto& c = v2::Colors();
-    v2::Paragraph(text, 15 * s, c.muted);
-}
+void Muted(const std::string& text, float size = Body) { v2::Paragraph(text, size * Scale(), v2::Colors().muted); }
 
-std::string Whole(double value) {
-    return std::to_string(static_cast<long long>(std::lround(value)));
-}
+std::string Whole(double value) { return std::to_string(static_cast<long long>(std::lround(value))); }
 
 // A rating change with its sign; the hyphen, as the fonts have no minus sign.
 std::string Signed(double change) {
-    const long long n = static_cast<long long>(std::lround(std::abs(change)));
-    return (change >= 0 ? "+" : "-") + std::to_string(n);
+    return (change >= 0 ? "+" : "-") + std::to_string(static_cast<long long>(std::lround(std::abs(change))));
 }
 
-void FactsAcross(std::vector<v2::TagView::Fact> facts, std::size_t across) {
+// Reserves `height` across the pane under what was drawn at the cursor.
+void Reserve(float height) { ImGui::Dummy(ImVec2(ImGui::GetContentRegionAvail().x, height)); }
+
+// The note that only you see these numbers, on the accent's wash as the site's lock note.
+void PrivacyNote() {
+    auto* d = ImGui::GetWindowDrawList();
+    const auto& c = v2::Colors();
+    const float s = Scale(), width = ImGui::GetContentRegionAvail().x, pad = 12 * s;
     const ImVec2 at = ImGui::GetCursorScreenPos();
-    const float w = ImGui::GetContentRegionAvail().x;
-    const float h = v2::FactCells(ImGui::GetWindowDrawList(), at, w, facts, across);
-    ImGui::Dummy(ImVec2(w, h));
+    const std::string text = loc::T("rankings.rating_private");
+    const float height = v2::Paragraph(nullptr, at, width - 2 * pad, text, 14 * s, 0) + 2 * pad;
+    d->AddRectFilled(at, ImVec2(at.x + width, at.y + height), v2::color::Alpha(c.accent, .08f), 4 * s);
+    d->AddRect(at, ImVec2(at.x + width, at.y + height), v2::color::Alpha(c.accent, .4f), 4 * s, 0, 1 * s);
+    v2::Paragraph(d, ImVec2(at.x + pad, at.y + pad), width - 2 * pad, text, 14 * s, c.accentLight);
+    Reserve(height);
 }
 
-void PlayerTag(const netplay::rankings::Listing& listing, std::uint8_t band) {
-    const float s = Scale();
-    const float width = ImGui::GetContentRegionAvail().x;
-    const ImVec2 cursor = ImGui::GetCursorScreenPos();
+// The three numbers side by side, each on a tile: its name over the number.
+void NumberTiles(const OwnRating& r) {
     auto* d = ImGui::GetWindowDrawList();
-    v2::TagView tag;
-    tag.name = listing.name;
-    tag.marks = {listing.country, band ? SkillBadge::OfClass(band, true) : SkillBadge()};
-    const float h = v2::Tag(d, cursor, width, tag, v2::TagSize::M);
-    ImGui::Dummy(ImVec2(width, h + 10 * s));
-}
-
-void FramesSection() {
-    const float s = Scale();
     const auto& c = v2::Colors();
-    const float width = ImGui::GetContentRegionAvail().x;
-    auto* d = ImGui::GetWindowDrawList();
-    Section(loc::T("rankings.frames"));
-    for (int i = 0; i < 5; ++i) {
-        const auto t = v2::FrameTier(i);
-        const ImVec2 row = ImGui::GetCursorScreenPos();
-        d->AddRectFilled(ImVec2(row.x, row.y + 6 * s), ImVec2(row.x + 10 * s, row.y + 16 * s), v2::TierColor(t).stripe, 2 * s);
-        v2::Text(d, ImVec2(row.x + 20 * s, row.y), width - 20 * s, v2::TierName(t), 15 * s, c.text);
-        ImGui::Dummy(ImVec2(width, 24 * s));
+    const float s = Scale(), width = ImGui::GetContentRegionAvail().x, gap = 10 * s, w = (width - 2 * gap) / 3, h = Tile * s;
+    char volatility[32];
+    std::snprintf(volatility, sizeof(volatility), "%.3f", r.volatility);
+    const struct { const char* name; std::string value; } tiles[] = {
+        {"rankings.rating", Whole(r.rating)}, {"rankings.deviation", Whole(r.deviation)}, {"rankings.volatility", volatility}};
+    const ImVec2 at = ImGui::GetCursorScreenPos();
+    for (int i = 0; i < 3; ++i) {
+        const ImVec2 min(at.x + i * (w + gap), at.y), max(min.x + w, min.y + h);
+        d->AddRectFilled(min, max, v2::PanelGround(), 4 * s);
+        d->AddRect(min, max, c.border, 4 * s, 0, 1 * s);
+        v2::Text(d, ImVec2(min.x + 14 * s, min.y + 12 * s), w - 28 * s, loc::T(tiles[i].name), Small * s, c.muted);
+        v2::Text(d, ImVec2(min.x + 14 * s, min.y + 32 * s), w - 28 * s, tiles[i].value, 30 * s, c.text, HeadingFont());
     }
-    Gap(4);
-    Muted(loc::T("rankings.frames_about"));
+    Reserve(h);
 }
 
-// Your class as the site's card shows it: the emblem large over its name and
-// what it means. Without a class to show, just the words.
-void DrawStanding(const ShellView& v, const MenuEntry& e) {
-    const float s = Scale(), width = ImGui::GetContentRegionAvail().x, emblem = 88 * s;
-    const auto& st = v.rankings.standing;
-    const NameMarks marks{CountryCode(), st.value.badge};
-    if (st.loaded && st.value.kind == Standing::Kind::Ranked && st.value.classesShown && NameMarksWidth(marks, emblem) > 0) {
-        const ImVec2 at = ImGui::GetCursorScreenPos();
-        DrawNameMarks(ImGui::GetWindowDrawList(), at.x, at.y, emblem, marks);
-        ImGui::Dummy(ImVec2(width, emblem + 12 * s));
-    }
-    Title(e.label);
-    Muted(e.detail);
-}
-
-void Draw(const ShellView&, const MenuEntry&, std::monostate) {}
-
-void Draw(const ShellView& v, const MenuEntry& e, StandingPane) { DrawStanding(v, e); }
-
-// Your rating as the site's Rating details page gives it: the three numbers,
-// where your class moves, what your next game would move, then what each
-// number means.
-void Draw(const ShellView&, const MenuEntry& e, RatingPane pane) {
+// The classes from D to Grand Master as a ladder in their tones, as the site's
+// chart labels them, your class lit and your rating a line through it, placed
+// between where the class moves down and up.
+void ClassLadder(const OwnRating& r) {
     auto* d = ImGui::GetWindowDrawList();
-    const float s = Scale(), width = ImGui::GetContentRegionAvail().x;
     const auto& c = v2::Colors();
-    const auto& r = pane.rating;
-    Title(loc::T("rankings.rating_title"));
-    Muted(loc::T("rankings.rating_private"));
-    Gap(10);
-    char vol[32];
-    std::snprintf(vol, sizeof(vol), "%.3f", r.volatility);
-    FactsAcross({{loc::T("rankings.rating"), Whole(r.rating)},
-                 {loc::T("rankings.deviation"), Whole(r.deviation)},
-                 {loc::T("rankings.volatility"), vol}}, 3);
-    if (r.upAt && r.downBelow && *r.upAt > *r.downBelow) {
-        Gap(14);
-        const ImVec2 at = ImGui::GetCursorScreenPos();
-        const float part = static_cast<float>(std::clamp((r.rating - *r.downBelow) / (*r.upAt - *r.downBelow), 0., 1.));
-        v2::Meter(d, v2::Box{at, {at.x + width, at.y + 8 * s}}, part, 0);
-        const float textY = at.y + 8 * s + 14 * s;
-        if (r.band > 1)
-            v2::Text(d, ImVec2(at.x, textY), width * .5f, loc::Tf("rankings.down_to", ClassName(static_cast<std::uint8_t>(r.band - 1)), Whole(*r.downBelow)), 14 * s, c.muted);
-        if (r.band < 10)
-            v2::TextEnd(d, ImVec2(at.x, textY), width, loc::Tf("rankings.up_to", ClassName(static_cast<std::uint8_t>(r.band + 1)), Whole(*r.upAt)), 14 * s, c.muted);
-        ImGui::Dummy(ImVec2(width, 8 * s + 14 * s + 18 * s));
-        Gap(6);
-        if (!e.detail.empty()) Muted(e.detail);
-    }
-    if (!r.examples.empty()) {
-        Section(loc::T("rankings.next_game"));
-        const ImVec2 header = ImGui::GetCursorScreenPos();
-        v2::Text(d, header, 150 * s, loc::T("rankings.opponent"), 13 * s, c.muted);
-        v2::TextEnd(d, header, width - 72 * s, loc::T("rankings.win"), 13 * s, c.muted);
-        v2::TextEnd(d, header, width, loc::T("rankings.loss"), 13 * s, c.muted);
-        const float lineY = header.y + 20 * s;
-        d->AddLine(ImVec2(header.x, lineY), ImVec2(header.x + width, lineY), c.border, 1.f);
-        ImGui::Dummy(ImVec2(width, 22 * s));
-        const std::size_t count = (std::min)(r.examples.size(), (std::size_t)4);
-        for (std::size_t i = 0; i < count; ++i) {
-            const auto& ex = r.examples[i];
-            const ImVec2 at = ImGui::GetCursorScreenPos();
-            const std::string left = ex.band ? loc::Tf("rankings.example", ClassName(ex.band), Whole(ex.opponent)) : loc::T("rankings.example_new");
-            v2::Text(d, at, width - 150 * s, left, 15 * s, c.text);
-            v2::TextEnd(d, at, width - 72 * s, Signed(ex.win.change), 15 * s, c.ready);
-            v2::TextEnd(d, at, width, Signed(ex.loss.change), 15 * s, c.danger);
-            ImGui::Dummy(ImVec2(width, 26 * s));
+    const float s = Scale(), width = ImGui::GetContentRegionAvail().x, label = 22 * s, h = Rung * s;
+    const ImVec2 at = ImGui::GetCursorScreenPos();
+    const float y = at.y + label, w = width / SkillBadge::Classes;
+    float x = at.x, markX = -1;
+    for (std::uint8_t band = 1; band <= SkillBadge::Classes; ++band) {
+        const ImVec2 min(x + 1 * s, y), max(x + w - 1 * s, y + h);
+        const ImU32 tone = v2::ClassTone(band);
+        const bool own = band == r.band;
+        d->AddRectFilled(min, max, v2::color::Alpha(tone, own ? .28f : .09f), 2 * s);
+        if (own) d->AddRect(min, max, tone, 2 * s, 0, 1 * s);
+        v2::Text(d, ImVec2(min.x, y + (h - Small * s) * .5f), max.x - min.x, ClassShort(band), Small * s, own ? c.text : tone, HeadingFont(), true);
+        if (own) {
+            double part = .5;
+            if (r.upAt && r.downBelow && *r.upAt > *r.downBelow) part = std::clamp((r.rating - *r.downBelow) / (*r.upAt - *r.downBelow), 0., 1.);
+            else if (r.upAt) part = .25;
+            else if (r.downBelow) part = .75;
+            markX = min.x + static_cast<float>(part) * (max.x - min.x);
         }
+        x += w;
     }
+    // Your rating points down at the rung from over it, clear of the class's letters.
+    if (markX >= 0) {
+        d->AddTriangleFilled(ImVec2(markX - 5 * s, y - 7 * s), ImVec2(markX + 5 * s, y - 7 * s), ImVec2(markX, y - 1 * s), c.text);
+        d->AddRectFilled(ImVec2(markX - 1 * s, y + h), ImVec2(markX + 1 * s, y + h + 5 * s), c.text);
+        const std::string mine = loc::Tf("rankings.your_rating", Whole(r.rating));
+        const float w = HeadingFont()->CalcTextSizeA(Small * s, FLT_MAX, 0, mine.c_str()).x + 2 * s;
+        const float left = std::clamp(markX - w * .5f, at.x, at.x + width - w);
+        v2::Text(d, ImVec2(left, at.y - 2 * s), w, mine, Small * s, c.text, HeadingFont());
+    }
+    const float under = y + h + 12 * s;
+    if (r.downBelow && r.band > 1)
+        v2::Text(d, ImVec2(at.x, under), width * .5f, loc::Tf("rankings.down_to", ClassName(static_cast<std::uint8_t>(r.band - 1)), Whole(*r.downBelow)), 14 * s, c.muted);
+    if (r.upAt && r.band < SkillBadge::Classes)
+        v2::TextEnd(d, ImVec2(at.x, under), width, loc::Tf("rankings.up_to", ClassName(static_cast<std::uint8_t>(r.band + 1)), Whole(*r.upAt)), 14 * s, c.muted);
+    Reserve(label + h + 12 * s + 20 * s);
+}
+
+// What the next game would move against each kind of opponent: their class and
+// rating, then the change a win and a loss make, as the site's table.
+void NextGame(const OwnRating& r) {
+    auto* d = ImGui::GetWindowDrawList();
+    const auto& c = v2::Colors();
+    const float s = Scale(), width = ImGui::GetContentRegionAvail().x, column = 96 * s, row = 40 * s;
+    const ImVec2 head = ImGui::GetCursorScreenPos();
+    v2::Text(d, head, width - 2 * column, loc::T("rankings.opponent"), Small * s, c.muted);
+    v2::TextEnd(d, head, width - column, loc::T("rankings.win"), Small * s, c.muted);
+    v2::TextEnd(d, head, width, loc::T("rankings.loss"), Small * s, c.muted);
+    float y = head.y + 24 * s;
+    d->AddLine(ImVec2(head.x, y), ImVec2(head.x + width, y), c.border, 1 * s);
+    const std::size_t count = (std::min)(r.examples.size(), std::size_t{4});
+    for (std::size_t i = 0; i < count; ++i) {
+        const auto& ex = r.examples[i];
+        const float text = y + (row - Body * s) * .5f;
+        float x = head.x;
+        if (ex.band) {
+            const float chip = v2::ChipFont() + 8 * s;
+            x += v2::Chip(d, ImVec2(x, y + (row - chip) * .5f), ClassName(ex.band), v2::ClassTone(ex.band)) + 10 * s;
+        }
+        const std::string who = ex.band ? loc::Tf("rankings.rated", Whole(ex.opponent)) : loc::T("rankings.example_new");
+        v2::Text(d, ImVec2(x, text), head.x + width - 2 * column - x, who, Body * s, c.text);
+        v2::TextEnd(d, ImVec2(head.x, text), width - column, Signed(ex.win.change), 17 * s, c.ready);
+        v2::TextEnd(d, ImVec2(head.x, text), width, Signed(ex.loss.change), 17 * s, c.danger);
+        y += row;
+        if (i + 1 < count) d->AddLine(ImVec2(head.x, y), ImVec2(head.x + width, y), v2::color::Alpha(c.border, .6f), 1 * s);
+    }
+    Reserve(y - head.y);
+}
+
+// What each number means: its name over the site's words for it.
+void Abouts() {
     const struct { const char* name; const char* about; } abouts[] = {
         {"rankings.rating", "rankings.rating_about"},
         {"rankings.deviation", "rankings.deviation_about"},
         {"rankings.volatility", "rankings.volatility_about"},
     };
     for (const auto& a : abouts) {
+        v2::Paragraph(loc::T(a.name), Body * Scale(), v2::Colors().text, HeadingFont());
+        Muted(loc::T(a.about), 14);
         Gap(10);
-        v2::Paragraph(loc::T(a.name), 15 * s, c.text, HeadingFont());
-        Muted(loc::T(a.about));
     }
 }
 
-// A points board: the fighter's face and name over its total (all fighters'
-// BP board just its title), then how points are earned and the frames.
-void DrawPointsBoard(const ShellView& v) {
-    auto* d = ImGui::GetWindowDrawList();
-    const float s = Scale(), width = ImGui::GetContentRegionAvail().x;
-    const auto& c = v2::Colors();
-    const auto* b = v.rankings.points.loaded ? v.rankings.points.value.get() : nullptr;
-    if (!b) {
-        Title(loc::T("rankings.points_title"));
-        Muted(loc::T("rankings.points_detail"));
-        return;
-    }
-    if (const auto* fighter = b->fighter >= 0 ? selection::FindFighter(b->fighter) : nullptr) {
+// Your class as the site's card shows it: the emblem large over its name and
+// what it means. Without a class to show, just the words.
+void Draw(const ShellView& v, const MenuEntry& e, StandingPane) {
+    const float s = Scale(), emblem = 88 * s;
+    const auto& st = v.rankings.standing;
+    const NameMarks marks{CountryCode(), st.value.badge};
+    if (st.loaded && st.value.kind == Standing::Kind::Ranked && st.value.classesShown && NameMarksWidth(marks, emblem) > 0) {
         const ImVec2 at = ImGui::GetCursorScreenPos();
-        const float face = 72 * s, x = at.x + face + 14 * s;
-        DrawCharacterPortrait(b->fighter, at, ImVec2(at.x + face, at.y + face));
-        d->AddRect(at, ImVec2(at.x + face, at.y + face), c.border, 2 * s, 0, 1.f);
-        v2::Text(d, ImVec2(x, at.y + 10 * s), width - face - 14 * s, fighter->name, 22 * s, c.text, HeadingFont());
-        v2::Text(d, ImVec2(x, at.y + 40 * s), width - face - 14 * s, loc::T("rankings.points_fp_title"), 15 * s, c.muted);
-        ImGui::Dummy(ImVec2(width, face + 10 * s));
-        Muted(loc::Tf("rankings.points_fp_total", b->total, fighter->name));
-    } else {
-        Title(loc::T("rankings.points_bp_title"));
-        Muted(loc::Tf("rankings.points_bp_total", b->total));
+        DrawNameMarks(ImGui::GetWindowDrawList(), at.x, at.y, emblem, marks);
+        Reserve(emblem + 12 * s);
     }
-    Section(loc::T("fighters.how"));
-    Muted(loc::T("fighters.how_detail"));
-    FramesSection();
+    v2::Paragraph(e.label, Title * s, v2::Colors().text, HeadingFont());
+    Muted(e.detail);
 }
 
-void Draw(const ShellView& v, const MenuEntry&, PointsBoardPane) { DrawPointsBoard(v); }
-
-// A line of the points board: the player's tag over their points, then their place, frame, class and country.
-void Draw(const ShellView&, const MenuEntry&, PointsPlayerPane pane) {
-    auto* d = ImGui::GetWindowDrawList();
-    const float s = Scale(), width = ImGui::GetContentRegionAvail().x;
-    const auto* b = &pane.board;
-    const auto& line = pane.line;
-    PlayerTag(line.listing, line.band);
-    const ImVec2 cursor = ImGui::GetCursorScreenPos();
-    v2::Level(d, cursor, 30 * s, line.points, b->fighter < 0 ? "points.account_label" : "points.label");
-    ImGui::Dummy(ImVec2(width, 30 * s + 12 * s));
-    std::vector<v2::TagView::Fact> facts{
-        {loc::T("rankings.place"), loc::Tf("rankings.place_of", line.place, b->total)},
-        {loc::T("rankings.frame"), v2::TierName(v2::FrameTier(line.tier))},
-        {loc::T("rankings.class"), line.band ? ClassName(line.band) : loc::T("rankings.no_class")},
-    };
-    if (line.listing.country.Present())
-        facts.push_back({loc::T("rankings.country"), CountryName(line.listing.country)});
-    if (b->fighter >= 0) {
-        const auto* fighter = selection::FindFighter(b->fighter);
-        if (fighter)
-            facts.push_back({loc::T("rankings.points_fighter"), fighter->name});
-    }
-    FactsAcross(facts, 2);
-    if (!line.card.empty()) {
-        Gap(10);
-        Muted(loc::T("rankings.opens_card"));
-    }
-}
-
-// A player of the class board: their tag, class and country.
-void Draw(const ShellView&, const MenuEntry&, ClassPlayerPane pane) {
-    const auto& entry = pane.entry;
-    PlayerTag(entry.listing, entry.band);
-    std::vector<v2::TagView::Fact> facts{{loc::T("rankings.class"), ClassName(entry.band)}};
-    if (entry.listing.country.Present())
-        facts.push_back({loc::T("rankings.country"), CountryName(entry.listing.country)});
-    FactsAcross(facts, 2);
+// Your rating as the site's Rating details page gives it: the three numbers,
+// where your rating sits among the classes, what your next game would move,
+// then what each number means.
+void Draw(const ShellView&, const MenuEntry& e, RatingPane pane) {
+    const auto& r = pane.rating;
+    v2::Paragraph(loc::T("rankings.rating_title"), Title * Scale(), v2::Colors().text, HeadingFont());
     Gap(10);
-    Muted(loc::T("rankings.opens_card"));
+    PrivacyNote();
+    Gap(12);
+    NumberTiles(r);
+    if (r.band) {
+        Section(loc::T("rankings.where_title"));
+        ClassLadder(r);
+        if (e.id == "rk-rating" && !e.detail.empty()) Muted(e.detail, 14);
+    }
+    if (!r.examples.empty()) {
+        Section(loc::T("rankings.next_game"));
+        NextGame(r);
+    }
+    Section(loc::T("rankings.numbers_title"));
+    Abouts();
 }
 
-// The pane the focused row takes, its answer found and checked here once:
-// none while the answer it shows is missing, so the menu's own pane stands in.
+void Draw(const ShellView&, const MenuEntry&, std::monostate) {}
+
+// The pane the focused row takes, its answer found and checked here once: your
+// class shows your rating details once they are read, and none while the answer
+// a pane shows is missing, so the menu's own pane stands in.
 Pane PaneOf(const ShellView& v, const std::string& id) {
-    const auto& rankings = v.rankings;
-    if (id == "rk-standing") return StandingPane{};
-    if (id == "rk-rating") {
-        if (rankings.rating.loaded && rankings.rating.value.rating) return RatingPane{*rankings.rating.value.rating};
-        return {};
-    }
-    if (id == "rkp-fighter") return PointsBoardPane{};
-    if (const auto at = RowKey<std::size_t>(id, "rkp-p:")) {
-        const auto* b = rankings.points.loaded ? rankings.points.value.get() : nullptr;
-        if (b && *at < b->lines.size()) return PointsPlayerPane{*b, b->lines[*at]};
-        return {};
-    }
-    if (const auto at = RowKey<std::size_t>(id, "rkb-p:")) {
-        const auto* board = rankings.board.loaded ? rankings.board.value.get() : nullptr;
-        if (board && *at < board->size()) return ClassPlayerPane{(*board)[*at]};
+    const auto& rating = v.rankings.rating;
+    const OwnRating* own = rating.loaded && rating.value.rating ? &*rating.value.rating : nullptr;
+    if (id == "rk-rating" || id == "rk-standing") {
+        if (own) return RatingPane{*own};
+        if (id == "rk-standing") return StandingPane{};
     }
     return {};
 }

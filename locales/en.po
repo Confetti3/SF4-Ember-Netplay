@@ -8225,9 +8225,6 @@ msgstr "You"
 msgid "rankings.you_beyond_cap"
 msgstr "The board lists up to {0} players, and you are not among them right now."
 
-msgid "rankings.jump"
-msgstr "Left and Right move between classes."
-
 msgid "rankings.loading_board"
 msgstr "Loading players..."
 
@@ -8245,9 +8242,6 @@ msgstr "Points board"
 
 msgid "rankings.points_detail"
 msgstr "Who has played the most, overall or with one fighter."
-
-msgid "rankings.points_fighter"
-msgstr "Fighter"
 
 msgid "rankings.points_all"
 msgstr "All fighters"
@@ -8324,17 +8318,11 @@ msgstr "Win"
 msgid "rankings.loss"
 msgstr "Loss"
 
-msgid "rankings.example"
-msgstr "{0}, rated {1}"
+msgid "rankings.rated"
+msgstr "Rated {0}"
 
 msgid "rankings.example_new"
 msgstr "A new player"
-
-msgid "rankings.points_bp_title"
-msgstr "Battle points"
-
-msgid "rankings.points_fp_title"
-msgstr "Fighter points"
 
 msgid "rankings.points_bp_total"
 msgstr "{0} players, every fighter counted together."
@@ -8357,17 +8345,47 @@ msgstr "{0} of {1}"
 msgid "rankings.class"
 msgstr "Class"
 
-msgid "rankings.no_class"
-msgstr "No class yet"
+msgid "rankings.your_place"
+msgstr "Your place"
 
 msgid "rankings.frame"
 msgstr "Frame"
 
-msgid "rankings.country"
-msgstr "Country"
+msgid "rankings.player"
+msgstr "Player"
 
-msgid "rankings.opens_card"
-msgstr "Select opens their card."
+msgid "rankings.points_column"
+msgstr "Points"
+
+msgid "rankings.players_count"
+msgstr "{0} players"
+
+msgid "rankings.players_one"
+msgstr "{0} player"
+
+msgid "rankings.classes"
+msgstr "Classes"
+
+msgid "rankings.fighters"
+msgstr "Fighters"
+
+msgid "rankings.see_players"
+msgstr "See players"
+
+msgid "rankings.show_board"
+msgstr "Show board"
+
+msgid "rankings.your_class"
+msgstr "Your class"
+
+msgid "rankings.where_title"
+msgstr "Where you stand"
+
+msgid "rankings.your_rating"
+msgstr "You, {0}"
+
+msgid "rankings.numbers_title"
+msgstr "What the numbers mean"
 
 msgid "settings.class_emblems"
 msgstr "Class emblems"

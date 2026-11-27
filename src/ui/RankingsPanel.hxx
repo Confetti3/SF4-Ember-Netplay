@@ -15,6 +15,7 @@
 namespace sf4e { namespace ui {
 struct ShellView;
 enum class Tone;
+class GameMenu;
 
 // Rankings (docs/design/SKILL_BADGE.md, "Rankings"): the player's own class and
 // their choice to take part, and the board of players by class. It works from
@@ -62,8 +63,12 @@ public:
     std::optional<player_opening::Opening> PlayerOf(const ShellView& view, const MenuAction& action) const;
     // The Options button or key (Y, T) reads the screen's answer again.
     bool Shortcut(const MenuAction& action);
-    // Left and Right on the points board's fighter step through all fighters, then the roster.
-    bool Adjust(const MenuAction& a);
+    // The class board and the points board (`screen`), drawn as a side list and
+    // the page it picks (RankingsBoard.hxx) in place of the menu's list; `rows`
+    // are this frame's Rows.
+    void DrawBoard(const ShellView& view, const std::string& screen, GameMenu& menu, const std::vector<MenuEntry>& rows, MenuAction& action);
+    // The focus is in a board's page, where Back returns to the side list (GameMenu::ownsBack).
+    static bool ListFocused(const std::string& screen, const std::string& focus);
     bool Refreshable() const { return Owns(lastScreen_) && !bridge_.empty(); }
     // What a request in flight or the board's own state says on `screen`.
     bool Status(const ShellView& view, const std::string& screen, std::string& status, Tone& tone) const;
@@ -85,6 +90,10 @@ private:
     std::vector<MenuEntry> BoardRows(const ShellView& view) const;
     std::vector<MenuEntry> PointsRows(const ShellView& view) const;
     const netplay::rankings::PointsBoard* ShownPoints(const ShellView& view) const;
+    const std::vector<netplay::rankings::BoardEntry>* ShownBoard(const ShellView& view) const;
+    // The class whose players the board shows: the one last on the side, else
+    // your own, else the highest with players.
+    std::uint8_t ShownClass(const std::vector<netplay::rankings::BoardEntry>& board) const;
     std::optional<MenuEntry> RatingRow(const ShellView& view) const;
     // The reads, in priority order: a standing read goes first, and the rating details
     // follow every standing read so they never describe an older standing.
@@ -98,6 +107,8 @@ private:
     void Say(std::string text) { said_ = std::move(text); }
 
     std::string bridge_, lastScreen_, said_;
+    // The board's focus last frame, so a row the pad moves to scrolls into view.
+    std::string focus_;
     // The service and Ember ID whose standing ReadForProfile asked for, or found loaded.
     std::string profileRead_;
     netplay::rankings::Listing own_;
@@ -106,6 +117,10 @@ private:
     std::uint64_t pointsSeen_ = 0;
     // -1: all fighters, else a native fighter id.
     int pointsFighter_ = -1;
+    // The class the side list last stood on, 0 before one.
+    std::uint8_t class_ = 0;
+    // A board arrived or opened: the pad goes to the class it shows, once (DrawBoard).
+    bool landOnClass_ = false;
     // The visit sent its listing already, so an answer that still differs cannot loop.
     bool listingSent_ = false;
     std::optional<Pending> pending_;

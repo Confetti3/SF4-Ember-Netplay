@@ -165,27 +165,40 @@ public:
         return shell.rankings_.Activate(a, f.view, nav);
     }
     void Shortcut(const ScreenFrame& f, const MenuAction& a) const override { f.shell.rankings_.Shortcut(a); }
+    // Your standing is a list of cards beside the detail pane; the two boards draw themselves as the site's.
     GameMenu::Card Card(const ScreenFrame& f, double) const override {
+        if (f.screen != RankingsPanel::Screen) return {};
         const ShellView* view = &f.view;
         return [view](const MenuEntry& e, ImVec2 min, ImVec2 max) { return DrawRankingsRow(*view, e, min, max); };
     }
     GameMenu::Detail Detail(const ScreenFrame& f) const override {
-        if (!f.rows) return {};
+        if (!f.rows || f.screen != RankingsPanel::Screen) return {};
         const ShellView* view = &f.view; const std::vector<MenuEntry>* rows = f.rows;
         return [view, rows](const std::string& id) {
             for (const auto& e : *rows) if (e.id == id) { DrawRankingsDetail(*view, e); return; }
         };
     }
+    GameMenu::Body Body(const ScreenFrame& f) const override {
+        if (f.screen == RankingsPanel::Screen) return {};
+        ApplicationShell* shell = &f.shell; const ShellView* view = &f.view; const std::string* screen = &f.screen;
+        return [shell, view, screen](const std::vector<MenuEntry>& rows, MenuNavigation&, MenuAction& action, float, const MenuVisualFeedback&) {
+            shell->rankings_.DrawBoard(*view, *screen, shell->menu_, rows, action);
+        };
+    }
     // The three pages, your own, the board and the points board, are tabs; Options refreshes them while it can.
-    // Your class, your rating, a points board and a player take the pane as the site's pages show them.
+    // Your class and your rating take the pane as the site's Rating details page. In a board's page, Back
+    // returns to its side list, and says so.
     void Dress(const ScreenFrame& f, GameMenu& menu) const override {
         menu.tabs.clear();
         for (const auto& page : RankingsPanel::Pages) menu.tabs.emplace_back(page.screen, MenuScreenName(page.screen));
         menu.tab = RankingsPanel::PageOf(f.screen);
-        menu.customDetail = RankingsDrawsDetail(f.view, menu.navigation.Focus());
+        menu.customDetail = f.screen == RankingsPanel::Screen && RankingsDrawsDetail(f.view, menu.navigation.Focus());
         if (f.shell.rankings_.Refreshable()) menu.shortcutHints = ShortcutHints({{MenuInput::Options, loc::T("legend.refresh")}});
+        if (RankingsPanel::ListFocused(f.screen, menu.navigation.Focus())) {
+            menu.ownsBack = true;
+            menu.backHint = loc::T(f.screen == RankingsPanel::BoardScreen ? "rankings.classes" : "rankings.fighters");
+        }
     }
-    bool Adjust(const ScreenFrame& f, const MenuAction& a) const override { return f.shell.rankings_.Adjust(a); }
 };
 
 // Profile: the player's Card and Fighters pages, under the strip Friends and

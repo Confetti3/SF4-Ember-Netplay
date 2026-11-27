@@ -8606,9 +8606,6 @@ msgstr "Vous"
 msgid "rankings.you_beyond_cap"
 msgstr "Le classement liste jusqu'à {0} joueurs, et vous n'en faites pas partie pour l'instant."
 
-msgid "rankings.jump"
-msgstr "Gauche et Droite changent de classe."
-
 msgid "rankings.loading_board"
 msgstr "Chargement des joueurs..."
 

@@ -241,6 +241,9 @@ TierColors TierColor(Tier tier);
 constexpr int IconCount = 12;
 void Icon(ImDrawList* draw, int icon, ImVec2 at, float size, ImU32 ink);
 const char* TierName(Tier tier);
+// A class's tone by its band (1, D, to 10, Grand Master), as the site colours
+// classes on its boards and chart; muted for no class.
+ImU32 ClassTone(std::uint8_t band);
 // A title on its tier's plate (the profile card's, the Card tab's): a slanted
 // bar `line` tall at `at` with the tier's stripe at its start, as wide as the
 // title needs, from 340 px up to `room`. Returns its width.

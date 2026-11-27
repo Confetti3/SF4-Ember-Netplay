@@ -1,7 +1,6 @@
 #pragma once
-// Rankings' own detail pane, as the site's card and rating pages give the same
-// answers: your class, your rating details, a points board and a player of
-// either board.
+// The standing page's own detail pane, as the site's Rating details page: your
+// class, and your rating with where it stands among the classes.
 #include "MenuNavigation.hxx"
 #include <string>
 

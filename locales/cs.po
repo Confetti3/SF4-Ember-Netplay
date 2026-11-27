@@ -8606,9 +8606,6 @@ msgstr "Vy"
 msgid "rankings.you_beyond_cap"
 msgstr "Žebříček uvádí nejvýše {0} hráčů a vy teď mezi nimi nejste."
 
-msgid "rankings.jump"
-msgstr "Vlevo a vpravo přepínají mezi třídami."
-
 msgid "rankings.loading_board"
 msgstr "Načítání hráčů..."
 
