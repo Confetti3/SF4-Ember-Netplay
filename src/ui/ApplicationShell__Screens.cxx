@@ -8,6 +8,7 @@
 #include "PublicRoomsCards.hxx"
 #include "RowId.hxx"
 #include "RankingsCards.hxx"
+#include "RankingsDetail.hxx"
 #include "ScreenPanel.hxx"
 #include "SignInSites.hxx"
 #include "Theme.hxx"
@@ -168,11 +169,20 @@ public:
         const ShellView* view = &f.view;
         return [view](const MenuEntry& e, ImVec2 min, ImVec2 max) { return DrawRankingsRow(*view, e, min, max); };
     }
+    GameMenu::Detail Detail(const ScreenFrame& f) const override {
+        if (!f.rows) return {};
+        const ShellView* view = &f.view; const std::vector<MenuEntry>* rows = f.rows;
+        return [view, rows](const std::string& id) {
+            for (const auto& e : *rows) if (e.id == id) { DrawRankingsDetail(*view, e); return; }
+        };
+    }
     // The three pages, your own, the board and the points board, are tabs; Options refreshes them while it can.
+    // Your class, your rating, a points board and a player take the pane as the site's pages show them.
     void Dress(const ScreenFrame& f, GameMenu& menu) const override {
         menu.tabs.clear();
         for (const auto& page : RankingsPanel::Pages) menu.tabs.emplace_back(page.screen, MenuScreenName(page.screen));
         menu.tab = RankingsPanel::PageOf(f.screen);
+        menu.customDetail = RankingsDrawsDetail(f.view, menu.navigation.Focus());
         if (f.shell.rankings_.Refreshable()) menu.shortcutHints = ShortcutHints({{MenuInput::Options, loc::T("legend.refresh")}});
     }
     bool Adjust(const ScreenFrame& f, const MenuAction& a) const override { return f.shell.rankings_.Adjust(a); }

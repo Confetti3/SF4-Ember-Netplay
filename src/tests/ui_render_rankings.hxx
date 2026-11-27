@@ -25,6 +25,11 @@ void ShootRankings(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,c
     const auto ranked=[](std::uint8_t band,bool settled){
         Standing s;s.kind=Standing::Kind::Ranked;s.classesShown=true;s.badge=band?SkillBadge::OfClass(band,settled):SkillBadge::Placing();
         s.listed=true;s.listing={"Player 1",CountryCode::Parsed("GB")};return s;};
+    // Down to the row `row`, then the shot of its pane.
+    const auto focus=[&](const char* row,const char* shot){
+        for(int i=0;i<12&&shell.Navigation().Focus()!=row;++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
+        Require(shell.Navigation().Focus()==row,"A Rankings row did not take the focus");
+        draw(nullptr,0,2);draw(shot);};
     stand(ranked(9,true),"rankings-class");
     stand(ranked(0,false),"rankings-placing");
     Standing developer=ranked(0,false);developer.badge=SkillBadge::Developer();stand(developer,"rankings-developer");
@@ -39,6 +44,12 @@ void ShootRankings(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,c
     own.downBelow=1550.;own.faintInDays=12;own.playedAt=1700000000;
     rankings.rating.value.rating=own;rankings.rating.loaded=true;++rankings.rating.finished;++rankings.rating.revision;
     stand(ranked(10,true),"rankings-grand-master");
+    // Your rating's own pane: where the class moves and what the next game would move.
+    own.band=7;own.rating=1484.6;own.upAt=1525.;own.downBelow=1440.;
+    own.examples={{1702.,10,{.4,9.8},{.4,-3.1}},{1490.,7,{.5,6.2},{.5,-6.4}},{1300.,0,{.3,2.9},{.3,-11.7}}};
+    rankings.rating.value.rating=own;++rankings.rating.revision;
+    stand(ranked(7,true),"rankings-class-pane");
+    focus("rk-rating","rankings-rating");
     // The points board: your line with its card, a name in Japanese, the longest name and every tier.
     auto points=std::make_shared<netplay::rankings::PointsBoard>();points->total=812;
     points->lines.push_back({1,{"Player 2",CountryCode::Parsed("JP")},10,48210,4,"card-2"});
@@ -48,6 +59,7 @@ void ShootRankings(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,c
     points->lines.push_back({5,{"Player 5",CountryCode()},0,120,0,""});
     rankings.points.value=points;rankings.points.loaded=true;++rankings.points.finished;++rankings.points.revision;
     shell.Navigation().Push("rankings-points");draw(nullptr,0,6);draw("rankings-points");
+    focus("rkp-p:1","rankings-points-player");
     page("rankings");draw(nullptr,0,4);
     auto board=std::make_shared<std::vector<netplay::rankings::BoardEntry>>();
     board->push_back({{"Player 2",CountryCode::Parsed("JP")},10,false});
@@ -57,6 +69,7 @@ void ShootRankings(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,c
     board->push_back({{"Player 5",CountryCode()},1,false});
     rankings.board.value=board;rankings.board.loaded=true;++rankings.board.finished;++rankings.board.revision;
     shell.Navigation().Push("rankings-board");draw(nullptr,0,6);draw("rankings-board");
+    focus("rkb-p:1","rankings-board-player");
     rankings.board.value=std::make_shared<std::vector<netplay::rankings::BoardEntry>>();++rankings.board.finished;++rankings.board.revision;
     draw(nullptr,0,4);draw("rankings-board-empty");
     rankings=netplay::rankings::Status{};

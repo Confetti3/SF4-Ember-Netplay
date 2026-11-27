@@ -16,6 +16,8 @@ namespace sf4e { namespace ui {
 namespace {
 using netplay::rankings::Standing;
 constexpr ImU32 ChipFill = IM_COL32(16, 15, 14, 230);
+// The points board's frame column (its swatch and name), and the narrowest line that keeps it.
+constexpr float FrameColumn = 96, FrameColumnFrom = 620;
 
 float Measure(float size, const std::string& text) { return ImGui::GetFont()->CalcTextSizeA(size, FLT_MAX, 0, text.c_str()).x; }
 
@@ -84,7 +86,8 @@ void DrawStateCard(const MenuEntry& e, ImVec2 min, ImVec2 max) {
 }
 
 bool StateCard(const std::string& id) {
-    for (const char* card : {"rk-checking", "rk-needs-setup", "rk-loading", "rk-unavailable", "rk-error", "rkb-hidden", "rkb-loading", "rkb-error", "rkb-empty"})
+    for (const char* card : {"rk-checking", "rk-needs-setup", "rk-loading", "rk-unavailable", "rk-error", "rkb-hidden", "rkb-loading", "rkb-error", "rkb-empty",
+             "rkp-loading", "rkp-error", "rkp-empty"})
         if (id == card) return true;
     return false;
 }
@@ -154,6 +157,42 @@ bool DrawRankingsBoardRow(const MenuEntry& e, const Standing* standing, const st
     }
     return false;
 }
+
+// A line of the points board as the site lists it: the place (the top three
+// in the accent), the player's S tag, then at the right the frame's colour and
+// name and the points as the game draws BP and FP. The frame gives way on a
+// narrow list; place, name and points always stay.
+bool DrawPointsRow(const MenuEntry& e, const netplay::rankings::PointsBoard& board, ImVec2 min, ImVec2 max) {
+    const auto index = RowKey<std::size_t>(e.id, "rkp-p:");
+    if (!index || *index >= board.lines.size()) return false;
+    const auto& line = board.lines[*index];
+    const float s = Scale(), h = max.y - min.y, pad = 16 * s;
+    const auto& c = v2::Colors();
+    auto* d = ImGui::GetWindowDrawList();
+    const float placeWidth = 40 * s, placeSize = 17 * s;
+    const std::string place = std::to_string(line.place);
+    const float placeDrawn = HeadingFont()->CalcTextSizeA(placeSize, FLT_MAX, 0, place.c_str()).x;
+    d->AddText(HeadingFont(), placeSize, ImVec2(min.x + pad + placeWidth - placeDrawn, min.y + (h - placeSize) * .5f), line.place <= 3 ? c.accent : c.muted,
+        place.c_str());
+    const char* label = board.fighter < 0 ? "points.account_label" : "points.label";
+    const float digits = 18 * s;
+    float right = max.x - pad - v2::LevelWidth(line.points, digits, label);
+    v2::Level(d, ImVec2(right, min.y + (h - digits) * .5f), digits, line.points, label);
+    right -= 24 * s;
+    if (max.x - min.x >= FrameColumnFrom * s) {
+        const v2::Tier tier = v2::FrameTier(line.tier);
+        const float frameWidth = FrameColumn * s, x = right - frameWidth, swatch = 10 * s, text = 15 * s;
+        d->AddRectFilled(ImVec2(x, min.y + (h - swatch) * .5f), ImVec2(x + swatch, min.y + (h + swatch) * .5f), v2::TierColor(tier).stripe, 2 * s);
+        v2::Text(d, ImVec2(x + swatch + 8 * s, min.y + (h - text) * .5f), frameWidth - swatch - 8 * s, v2::TierName(tier), text, c.muted);
+        right = x - 12 * s;
+    }
+    v2::TagView tag;
+    tag.name = line.listing.name;
+    tag.marks = {line.listing.country, line.band ? SkillBadge::OfClass(line.band, true) : SkillBadge()};
+    const float x = min.x + pad + placeWidth + 14 * s;
+    v2::Tag(d, ImVec2(x, min.y + (h - 26 * s) * .5f), right - x, tag, v2::TagSize::S);
+    return true;
+}
 }
 
 bool DrawRankingsRow(const ShellView& v, const MenuEntry& e, ImVec2 min, ImVec2 max) {
@@ -161,11 +200,13 @@ bool DrawRankingsRow(const ShellView& v, const MenuEntry& e, ImVec2 min, ImVec2 
     const auto& rankings = v.rankings;
     const Standing* standing = rankings.standing.loaded ? &rankings.standing.value : nullptr;
     const auto* board = rankings.board.loaded ? rankings.board.value.get() : nullptr;
+    const auto* points = rankings.points.loaded ? rankings.points.value.get() : nullptr;
     const bool known = StateCard(e.id) || e.id == "rk-standing" || e.id == "rk-board-as" || e.id == "rkb-you" ||
-        HasPrefix(e.id, "rkb-class:") || HasPrefix(e.id, "rkb-p:");
+        HasPrefix(e.id, "rkb-class:") || HasPrefix(e.id, "rkb-p:") || HasPrefix(e.id, "rkp-p:");
     if (!known) return false;
     // A board of hundreds paints only the rows in view.
     if (!ImGui::IsRectVisible(min, max)) return true;
+    if (points && DrawPointsRow(e, *points, min, max)) return true;
     if (DrawRankingsBoardRow(e, standing, board, min, max)) return true;
     if (StateCard(e.id)) DrawStateCard(e, min, max);
     else if (e.id == "rk-board-as") {
