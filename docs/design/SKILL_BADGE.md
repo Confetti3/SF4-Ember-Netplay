@@ -18,8 +18,10 @@ positions and no numbers (Rankings). The research behind it is
   Ember ID costs nothing to replace, a Discord account does, so a new Ember ID
   does not start over and two throwaway IDs cannot farm each other. A game
   with a fighter who has no Discord account counts for neither.
-- The rating is Glicko-2 with one game per rating period, and it never leaves
-  the bridge. Only the class does.
+- The rating is Glicko-2 with one game per rating period. No other player is
+  ever told it: a ticket, a card and a board carry the class alone. A player
+  can read their own on embernetplay.link, signed in, with what each number
+  means (`SITE_PLAYER_CARDS.md`, Rating details).
 - A new player has no class until the rating is sure enough (a deviation of
   200 or less), about three games against settled players.
 - A class changes only when the rating has crossed into another class by a

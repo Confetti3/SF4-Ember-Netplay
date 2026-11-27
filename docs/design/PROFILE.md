@@ -955,6 +955,12 @@ against that player, which the answer already sends for the awards.
 | Never served | a Discord ID or name, an Ember ID, a rating, the friends count of another, per-fighter games and wins of another, anything to a player the account blocked, any card to a caller without a Discord account |
 | Never leaves the PC | recent opponents, the search texts, the controller's name or model (only the device class), the measured latency and route (only Wired / Wi-Fi), anything of the region beyond its code |
 
+The points boards of embernetplay.link (`SITE_PLAYER_CARDS.md`) are the one
+place points are read without a Discord account: a board lists, to anyone,
+the points and tier of each player who takes part in ranking and is listed,
+beside the name, flag and class the class board shows of them. A block does
+not hide a board line. A card opened from a board follows the rules above.
+
 A block is between Discord accounts and is checked against the caller's, so
 the look-up answers `null` for every selector of a caller whose Ember ID has
 no Discord account (`routes::levels::lookup`): a card is served only to a

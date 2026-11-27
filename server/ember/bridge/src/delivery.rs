@@ -18,6 +18,9 @@
 //! Each queue keeps its items in a table of its own and says what is due
 //! (`Queue::due`); the columns it leases and records by (`Table`) are
 //! leased and fenced the same way for all of them.
+//!
+//! Beside the queues, `rounds` reads the archive's games kept before their
+//! round scores were back from the bucket, at a pace of its own.
 pub mod archive;
 pub mod calls;
 pub mod dms;
@@ -25,6 +28,7 @@ pub mod duplicates;
 pub mod packs;
 pub mod progress;
 pub mod results;
+pub mod rounds;
 pub mod status;
 pub mod table;
 pub mod webhooks;

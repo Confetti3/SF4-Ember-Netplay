@@ -1,0 +1,61 @@
+/* The points boards (/points, points.js): the fighter picker, the board's
+   head, the player's own place and the table. The filters, views and loading
+   shapes are rankings.css's; the frames, columns and table site.css's. */
+.fighter-picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(48px, 1fr)); gap: 8px; }
+.fighter-pick { display: block; width: 48px; height: 48px; border-radius: 4px; opacity: 0.72; }
+.fighter-pick .face { display: block; }
+.fighter-pick:hover { opacity: 1; }
+.fighter-pick[aria-checked="true"] { opacity: 1; outline: 2px solid var(--ember); outline-offset: 2px; }
+.fighter-pick:focus-visible { opacity: 1; outline: 2px solid var(--ivory); outline-offset: 2px; }
+
+.board-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; margin: 0 0 14px; }
+.board-face { display: block; }
+.board-face .face { display: block; }
+.board-titles { flex: 1 1 14rem; min-width: 0; }
+.panel .board-title { margin: 0; color: var(--ivory); font-size: 1.5rem; line-height: 1.2; }
+.board-count { margin: 0; }
+
+/* The player's own place on the shown board, or what stands in for it. */
+.board-you { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 0 0 14px; padding: 12px 14px; background: var(--accent-wash); border: 1px solid var(--button-border); border-radius: 6px; }
+.board-you-label { color: var(--ember-light); font-size: 0.875rem; font-weight: 600; }
+.board-you-place { font-size: 1.25rem; }
+.board-you-name { flex: 1 1 8rem; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.board-you-text { flex: 1 1 16rem; }
+
+.board-summary { margin: 0 0 8px; }
+.board-table { min-width: 560px; }
+.board-table td, .board-table th { padding-top: 6px; padding-bottom: 6px; height: 46px; }
+.board-place { width: 3.25rem; color: var(--muted); font-weight: 600; }
+.board-who { gap: 10px; }
+.board-name, .board-name:visited { min-width: 0; overflow: hidden; color: var(--ivory); text-decoration: none; text-overflow: ellipsis; white-space: nowrap; }
+.board-name:hover { color: var(--ember-light); text-decoration: underline; }
+.board-name mark { color: var(--ink); background: var(--ember-light); border-radius: 2px; }
+.board-message { padding: 8px 0; }
+.board-message p { margin: 0 0 6px; }
+.board-message-title { color: var(--ivory); font-size: 1.1rem; }
+.board-message .button { margin-top: 8px; }
+.board-more { display: flex; justify-content: center; margin: 16px 0 0; }
+.board-status { margin: 8px 0 0; }
+
+/* The frame's dot stands before the points where the Frame column goes. */
+.board-table .num .frame-dot { display: none; }
+
+/* A phone: place, player, class and points fit the screen without scrolling;
+   the frame's column goes, its dot before the points, and a long name ends
+   in an ellipsis. The columns beside the name are as narrow as what they
+   hold, so the name has the rest. */
+@media (max-width: 560px) {
+  .board-table { min-width: 0; table-layout: fixed; }
+  .board-table .board-frame { display: none; }
+  .board-table tbody th { overflow: hidden; }
+  .board-table .num .frame-dot { display: inline-block; margin-right: 6px; }
+  .board-table th, .board-table td { padding-left: 4px; padding-right: 4px; }
+  .board-table thead th:first-child { width: 2.25rem; }
+  .board-table thead th:nth-child(3) { width: 4.25rem; }
+  .board-table thead th:last-child { width: 6.25rem; }
+  .board-who { gap: 8px; }
+  /* The one class too long for its column reads GM here; the pill keeps its
+     words for a screen reader. */
+  .board-table .rank-class.tier-gm { font-size: 0; }
+  .board-table .rank-class.tier-gm::after { content: "GM"; font-size: 0.8125rem; }
+}

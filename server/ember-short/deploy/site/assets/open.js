@@ -1,3 +1,4 @@
+// needs: site
 // Opens an Ember link: a room invitation (/j#CODE), a tournament match
 // (/m#BRIDGE/MATCH), a public room of a service (/r#BRIDGE/ROOM), or, at
 // /start, tells a player new to Ember how to get it

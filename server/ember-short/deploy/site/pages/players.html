@@ -1,0 +1,43 @@
+<!--
+file: players.html
+path: /players
+title: Player card
+nav: rankings
+styles: card
+scripts: answers session blocks card players
+body: players-page
+index: no
+-->
+<div class="page-head">
+<div>
+<nav class="crumbs" aria-label="You are here"><a href="{{site}}/rankings">Rankings</a><a href="{{site}}/points">Points</a><span id="crumb">Player card</span></nav>
+<h1>Player card</h1>
+</div>
+</div>
+
+<p class="status" id="status" role="status" aria-live="polite"></p>
+{{session}}
+
+<div class="page-cols" id="card-view" hidden>
+<div class="page-main" id="player-card"></div>
+<aside class="page-side">
+<section class="panel">
+<h2>What a card shows</h2>
+<p class="note">A player's name, flag and class, their points and frames, and the counts behind their awards. Their games and wins with each fighter, their win rate and their rating stay with them.</p>
+</section>
+{{frames}}
+</aside>
+</div>
+
+<section class="panel" id="choose" aria-labelledby="choose-title" hidden>
+<h2 id="choose-title" tabindex="-1">Players with this name</h2>
+<p class="note">More than one player has this name. Choose the one you mean.</p>
+<ul class="player-choices" id="choices"></ul>
+</section>
+
+<section class="panel rule" id="not-found" aria-labelledby="not-found-title" hidden>
+<h2 id="not-found-title">No card to show</h2>
+<p class="note" id="not-found-note"></p>
+<p class="note">Open a player from the <a href="{{site}}/points">points boards</a>, or ask them for their card link.</p>
+</section>
+<noscript><div class="panel"><p>This page needs JavaScript to show a player's card. In Ember, open the player from a room or your friends.</p></div></noscript>

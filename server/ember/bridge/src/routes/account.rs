@@ -27,6 +27,21 @@ pub struct Bucket {
     pub window: u64,
 }
 
+impl Bucket {
+    /// One more use by `owner`, at `now`.
+    pub fn spend(&self, state: &AppState, owner: &str, now: u64) -> Result<()> {
+        state
+            .rate
+            .check(
+                &format!("{}:{owner}", self.name),
+                self.uses,
+                self.window,
+                now,
+            )
+            .map_err(ApiFailure::rate_limited)
+    }
+}
+
 /// Which routes a caller is admitted to.
 #[derive(Clone, Copy)]
 pub enum Gate {
@@ -108,7 +123,7 @@ impl PlayerAccount {
             Some(account) => account.clone(),
             None => format!("ember:{}", self.ember_id.as_str()),
         };
-        spend(state, bucket, &owner, self.now)
+        bucket.spend(state, &owner, self.now)
     }
 }
 
@@ -139,18 +154,6 @@ impl Linked {
     /// One more use of `bucket`, by the Discord account: a route's second
     /// limit for some of its uses.
     pub fn spend(&self, state: &AppState, bucket: &Bucket) -> Result<()> {
-        spend(state, bucket, &self.account, self.now)
+        bucket.spend(state, &self.account, self.now)
     }
-}
-
-fn spend(state: &AppState, bucket: &Bucket, owner: &str, now: u64) -> Result<()> {
-    state
-        .rate
-        .check(
-            &format!("{}:{owner}", bucket.name),
-            bucket.uses,
-            bucket.window,
-            now,
-        )
-        .map_err(ApiFailure::rate_limited)
 }

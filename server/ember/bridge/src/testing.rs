@@ -103,6 +103,7 @@ pub fn loopback_config(dir: &Path, origin: &str) -> Config {
         replay_retention: None,
         archive: None,
         trusted_proxies: Vec::new(),
+        website: None,
         tenants: vec![config::Tenant {
             id: "local".into(),
             name: "Local".into(),

@@ -1,3 +1,4 @@
+// needs: nothing
 // Which game a rooms or rankings page shows: ?game=sfv is Street Fighter V's,
 // in SFV Ember's own look (site.css, html[data-game="sfv"]), and anything else
 // is Ultra Street Fighter IV's. Loaded in the head without defer, so the page

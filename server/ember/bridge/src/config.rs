@@ -82,7 +82,27 @@ pub struct Config {
     /// Loopback always is one; any other caller is known by its own address.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub trusted_proxies: Vec<std::net::IpAddr>,
+    /// The website's signed-in pages (docs/design/SITE_PLAYER_CARDS.md): a
+    /// browser signs in with Discord there to read its player's card and
+    /// rating. Off when absent, and while public rooms are (`rooms`), whose
+    /// games are what it shows; needs `discord`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub website: Option<Website>,
     pub tenants: Vec<Tenant>,
+}
+
+/// The website whose pages sign in through this bridge.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Website {
+    /// The site's own origin, which passes `/account/*` on to this bridge.
+    /// The Discord application's redirect list must hold
+    /// `<origin>/account/discord/callback`.
+    pub origin: String,
+    /// Sessions signed in before this unix second are no longer read: set it
+    /// to now to sign every browser out, since a session is not stored.
+    #[serde(default)]
+    pub sessions_from: u64,
 }
 
 /// Where organizers' own events run.
@@ -472,6 +492,7 @@ impl Config {
             replay_retention: None,
             archive: None,
             trusted_proxies: Vec::new(),
+            website: None,
             tenants: vec![Tenant {
                 id: "local".into(),
                 name: "Local tournaments".into(),
@@ -569,6 +590,13 @@ impl Config {
                     .all(|b| matches!(b, b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.'))
             {
                 return Err("archive.bucket must be an S3 bucket name".into());
+            }
+        }
+        if let Some(website) = &self.website {
+            check_origin(&website.origin, self.policy())
+                .map_err(|_| "website.origin must be a bare https origin".to_owned())?;
+            if self.discord.is_none() {
+                return Err("website needs discord, to sign in with".into());
             }
         }
         let mut seen = std::collections::BTreeSet::new();

@@ -52,7 +52,7 @@ assert doc.lines[0] == "# New" and build.mark(doc.lines, doc.owners)[1].startswi
 images = set()
 out = build.rewrite(["[a](TRAINING_LAB.md#x) ![b](../images/guides/lab/1.webp) [c](../design/X.md)", "```",
                      "[d](CUSTOM_ROOMS.md)", "```"], "docs/guides/USER_NETPLAY.md",
-                    {"docs/guides/TRAINING_LAB.md": "Training Lab"}, images, build.UPSTREAM)
+                    build.wiki_target({"docs/guides/TRAINING_LAB.md": "Training Lab"}, images, build.UPSTREAM))
 assert out[0] == ("[a](Training-Lab#x) ![b](images/guides/lab/1.webp) "
                   f"[c](https://github.com/{build.UPSTREAM}/blob/nightly/docs/design/X.md)"), out
 assert out[2] == "[d](CUSTOM_ROOMS.md)" and images == {"docs/images/guides/lab/1.webp"}

@@ -50,14 +50,10 @@ let askedAt = 0;
 
 // --- Pieces -----------------------------------------------------------------
 
-// A fighter's face from faces.webp, sized by the stylesheet.
+// A fighter's face from faces.webp, placed and sized by the stylesheet (class f0 to f43).
 function face(id, extra = '') {
-  const node = el('span', { className: 'face' + (extra ? ' ' + extra : '') });
-  if (id == null || id < 0 || id >= FIGHTERS.length) node.classList.add('none');
-  else {
-    node.style.backgroundSize = FIGHTERS.length * 100 + '% 100%';
-    node.style.backgroundPosition = (id / (FIGHTERS.length - 1)) * 100 + '% 0';
-  }
+  const known = Number.isInteger(id) && id >= 0 && id < FIGHTERS.length;
+  const node = el('span', { className: 'face ' + (known ? 'f' + id : 'none') + (extra ? ' ' + extra : '') });
   node.setAttribute('role', 'img');
   node.setAttribute('aria-label', fighterName(id));
   node.title = fighterName(id);
@@ -88,38 +84,115 @@ function flag(code) {
 function pill(band) {
   if (!(band >= 1 && band <= CLASSES.length)) return null;
   const short = band === 9 ? 'M' : band === 10 ? 'GM' : CLASSES[band - 1];
-  const node = el('span', { className: 'pill tier-' + TIERS[band - 1], textContent: short, title: 'Class ' + CLASSES[band - 1] + ' on the rankings today' });
+  const node = el('span', { className: 'rank-class tier-' + TIERS[band - 1], textContent: short, title: 'Class ' + CLASSES[band - 1] + ' on the rankings today' });
   return node;
 }
 
 // One side of a game: face, then name, flag and class, then the fighter.
 // Drawn as side A or B (B mirrored, on the right) as `as` says, else as played.
-function side(game, at, as = at) {
+// `won` marks the side that won what the row shows.
+function side(game, at, as = at, won = false) {
   const name = game.names[at];
   const classes = game.classes || [];
-  return el('div', { className: 'side ' + (as ? 'b' : 'a') },
+  return el('div', { className: 'side ' + (as ? 'b' : 'a') + (won ? ' won' : '') },
     face(game.fighters[at]),
     el('div', { className: 'who' },
       el('div', { className: 'name-line' },
         // A side nobody named (its player did not share the game) shows its fighter.
         el('span', { className: 'name' + (name ? '' : ' unknown'), textContent: name || fighterName(game.fighters[at]) }),
         flag(game.countries[at]),
-        pill(classes[at])),
+        pill(classes[at]),
+        won ? el('span', { className: 'win', textContent: 'Win' }) : null),
       name ? el('span', { className: 'fighter', textContent: fighterName(game.fighters[at]) }) : null));
 }
 
 function known(set) { return set.online ? null : state.sets[set.key]; }
 
-// The middle of a match: the set's score when it has one, else "vs".
-function middle(set, withMeta) {
+// --- Results ---------------------------------------------------------------
+
+// The side that won a game, 0 or 1: its `rounds` is the round score, player 1
+// first, which the bridge reads from the replay. None for a game whose replay
+// does not say (a drawn deciding round, a game cut short).
+function winnerOf(game) {
+  const rounds = game.rounds;
+  return Array.isArray(rounds) && rounds[0] !== rounds[1] ? (rounds[0] > rounds[1] ? 0 : 1) : null;
+}
+
+// What a row can say of who won, as { score: [left, right], what, partial }:
+// a set's score from the bridge, a single game's rounds, or the games each of
+// two named players won (by name, since players swap sides between games).
+// None while no game of it has a result.
+function resultOf(set) {
   const set_ = known(set);
-  const score = set_ ? el('span', { className: 'score', textContent: set_.score.join(' – ') }) : el('span', { className: 'score vs', textContent: 'vs' });
-  return el('div', { className: 'mid' }, score,
-    withMeta && set.games.length > 1 ? el('span', { className: 'meta', textContent: plural(set.games.length, 'game', 'games') }) : null);
+  if (set_) return { score: set_.score, what: plural(set.games.length, 'game', 'games') };
+  const first = set.games[0];
+  if (set.games.length === 1) return winnerOf(first) == null ? null : { score: first.rounds, what: 'rounds', rounds: true };
+  const [left, right] = first.names;
+  if (!left || !right || left === right) return null;
+  const score = [0, 0];
+  for (const game of set.games) {
+    const won = winnerOf(game);
+    // Only a win by one of the two: a side with another name, or none, is not theirs to count.
+    const at = won == null ? -1 : [left, right].indexOf(game.names[won]);
+    if (at >= 0) score[at] += 1;
+  }
+  const scored = score[0] + score[1];
+  if (!scored) return null;
+  return { score, what: counted(set.games.length, scored) };
+}
+
+// "4 games", and how many of them have no result when some do not.
+function counted(games, scored) {
+  return plural(games, 'game', 'games') + (scored < games ? `, ${games - scored} without a result` : '');
+}
+
+// A session's player's record over the games that have a result.
+function recordOf(set) {
+  const record = { won: 0, lost: 0 };
+  for (const game of set.games) {
+    const won = winnerOf(game);
+    if (won != null) record[won === sideOf(game, set.player) ? 'won' : 'lost'] += 1;
+  }
+  return record;
+}
+
+// Which side of a result is ahead, 0 or 1, or none when level.
+const ahead = (result) => (result && result.score[0] !== result.score[1] ? (result.score[0] > result.score[1] ? 0 : 1) : null);
+
+// A score as two numbers, the higher one lit; one game's rounds are set smaller than a set's games.
+function scoreLine(score, rounds = false) {
+  const number = (at) => el('b', { className: score[at] > score[1 - at] ? 'up' : '', textContent: score[at] });
+  return el('span', { className: 'score' + (rounds ? ' rounds' : '') }, number(0), ' – ', number(1));
+}
+
+// The middle of a match: its score when it has one, else "vs", and under it
+// what the score counts.
+function middle(set, withMeta) {
+  const result = resultOf(set);
+  const what = result ? result.what : set.games.length > 1 ? plural(set.games.length, 'game', 'games') : null;
+  return el('div', { className: 'mid' },
+    result ? scoreLine(result.score, result.rounds) : el('span', { className: 'score vs', textContent: 'vs' }),
+    withMeta && what ? el('span', { className: 'meta', textContent: what }) : null);
+}
+
+// The two sides of a match around its middle, the side ahead marked.
+function versus(set, withMeta) {
+  const first = set.games[0];
+  const lead = ahead(resultOf(set));
+  return el('div', { className: 'versus' }, side(first, 0, 0, lead === 0), middle(set, withMeta), side(first, 1, 1, lead === 1));
+}
+
+// A session's middle: the player's wins and losses, else "vs".
+function sessionMiddle(set) {
+  const record = recordOf(set);
+  const scored = record.won + record.lost;
+  return el('div', { className: 'mid' },
+    scored ? el('span', { className: 'score record', textContent: `${record.won} W  ${record.lost} L` }) : el('span', { className: 'score vs', textContent: 'vs' }),
+    el('span', { className: 'meta', textContent: scored ? counted(set.games.length, scored) : plural(set.games.length, 'game', 'games') }));
 }
 
 function downloadLink(href, text, main) {
-  const link = el('a', { className: 'btn small' + (main ? ' main' : ''), href, download: '' });
+  const link = el('a', { className: 'button small' + (main ? ' primary' : ''), href, download: '' });
   link.insertAdjacentHTML('afterbegin', DOWNLOAD);
   link.append(text);
   return link;
@@ -189,7 +262,7 @@ async function load(append, auto = false) {
     // classes, so the order changed): start again from the top.
     if (append && error.message === '400') { load(false); return; }
     $('summary').textContent = 'The archive did not answer. Try again in a minute.';
-    $('events').replaceChildren(el('p', { className: 'note' }, el('button', { type: 'button', className: 'btn', textContent: 'Try again', onclick: () => load(false) })));
+    $('events').replaceChildren(el('p', { className: 'note' }, el('button', { type: 'button', className: 'button', textContent: 'Try again', onclick: () => load(false) })));
     $('events').removeAttribute('aria-busy');
     return;
   }
@@ -307,11 +380,7 @@ function sessionRow(set, dated) {
   open.addEventListener('click', () => openSet(set.key));
   return el('li', { className: 'match session' },
     open,
-    el('div', { className: 'versus' },
-      side(first, sideOf(first, set.player), 0),
-      el('div', { className: 'mid' }, el('span', { className: 'score vs', textContent: 'vs' }),
-        el('span', { className: 'meta', textContent: plural(set.games.length, 'game', 'games') })),
-      metSide(set, 6)),
+    el('div', { className: 'versus' }, side(first, sideOf(first, set.player), 0), sessionMiddle(set), metSide(set, 6)),
     el('div', { className: 'act' },
       el('span', { className: 'meta', textContent: (dated ? time : clock)(first.saved_at) + '–' + clock(last.saved_at) }),
       el('span', { className: 'ghost', textContent: 'Games ›' })));
@@ -340,7 +409,7 @@ function matchRow(set, dated) {
   open.addEventListener('click', () => openSet(set.key));
   return el('li', { className: 'match' },
     open,
-    el('div', { className: 'versus' }, side(first, 0), middle(set, true), side(first, 1)),
+    versus(set, true),
     el('div', { className: 'act' }, el('span', { className: 'meta', textContent: when }), action));
 }
 
@@ -377,7 +446,7 @@ function renderList() {
       el('ol', { className: 'matches' }, ...event.sets.map((set) => matchRow(set, false))))));
   }
   if (!games && filtered) {
-    $('events').append(el('p', {}, el('button', { type: 'button', className: 'btn', textContent: 'Clear filters', onclick: clearFilters })));
+    $('events').append(el('p', {}, el('button', { type: 'button', className: 'button', textContent: 'Clear filters', onclick: clearFilters })));
   }
   $('events').removeAttribute('aria-busy');
   $('more').hidden = !state.more;
@@ -398,14 +467,13 @@ function renderSet(set) {
   $('set-hero').replaceChildren(
     el('span', { className: 'label', textContent: title }),
     session
-      ? el('div', { className: 'versus' }, side(first, sideOf(first, set.player), 0),
-        el('div', { className: 'mid' }, el('span', { className: 'score vs', textContent: 'vs' }), el('span', { className: 'meta', textContent: plural(set.games.length, 'game', 'games') })), metSide(set, 12))
-      : el('div', { className: 'versus' }, side(first, 0), middle(set, false), side(first, 1)),
+      ? el('div', { className: 'versus' }, side(first, sideOf(first, set.player), 0), sessionMiddle(set), metSide(set, 12))
+      : versus(set, false),
     el('p', { className: 'note', textContent: `${day(first.saved_at)} · ${plural(set.games.length, 'game', 'games')} · ${Math.ceil(size / 1024)} KB` }));
   const actions = [];
   if (set_ && set_.pack) actions.push(downloadLink(set_.pack, 'Download set (.emberpack)', true));
   else if (set.games.length === 1) actions.push(downloadLink(first.url, 'Download replay', true));
-  const copy = el('button', { type: 'button', className: 'btn', textContent: 'Copy link' });
+  const copy = el('button', { type: 'button', className: 'button', textContent: 'Copy link' });
   copy.addEventListener('click', async () => {
     try { await navigator.clipboard.writeText(location.href); copy.textContent = 'Link copied'; }
     catch { copy.textContent = 'Copy the address bar'; }
@@ -413,11 +481,22 @@ function renderSet(set) {
   });
   actions.push(copy);
   $('set-actions').replaceChildren(...actions);
-  $('set-games').replaceChildren(...set.games.map((game, i) => el('li', { className: 'game' },
+  $('set-games').replaceChildren(...set.games.map((game, i) => gameRow(game, i)));
+}
+
+// One game of an open set: who played whom, the winner's name lit, the round
+// score, and its download.
+function gameRow(game, i) {
+  const won = winnerOf(game);
+  const who = (at) => el('span', { className: 'player' + (won === at ? ' won' : ''),
+    textContent: game.names[at] ? game.names[at] + ' (' + fighterName(game.fighters[at]) + ')' : fighterName(game.fighters[at]) });
+  return el('li', { className: 'game' },
     el('span', { className: 'n', textContent: 'Game ' + (i + 1) }),
     el('div', { className: 'pair' }, face(game.fighters[0]), face(game.fighters[1], 'b'),
-      el('span', { textContent: [0, 1].map((at) => (game.names[at] ? game.names[at] + ' (' + fighterName(game.fighters[at]) + ')' : fighterName(game.fighters[at]))).join(' vs ') + ' · ' + clock(game.saved_at) })),
-    downloadLink(game.url, 'Download'))));
+      el('span', { className: 'players' }, who(0), ' vs ', who(1)),
+      el('span', { className: 'meta', textContent: clock(game.saved_at) })),
+    won == null ? el('span', { className: 'score vs', textContent: 'No result' }) : scoreLine(game.rounds, true),
+    downloadLink(game.url, 'Download'));
 }
 
 function render() {

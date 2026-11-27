@@ -17,6 +17,10 @@
 //! record above 059 is refused, not adopted. A record of 055 to 059 is taken
 //! only when the schema shows its migration ran (`schema_shows`).
 //!
+//! Two numbers have meant two files each, 055 and 067. A record of the file
+//! that was renumbered moves to its new number (`settle_unnamed_055`,
+//! `settle_067`), so the file that kept the number still runs.
+//!
 //! The bridge also refuses a database that holds a row of another game than
 //! `usf4` in a table that carries `game` (`refuse_other_games`): its reads of
 //! rooms, matches, lobbies and tournaments are not scoped by game, so the
@@ -146,7 +150,8 @@ pub(super) const MIGRATIONS: &[Migration] = migrations![
     "064_player_cards.sql",
     "065_points_class_bonus.sql",
     "066_areas.sql",
-    "067_room_quick_join.sql",
+    "067_archive_rounds.sql",
+    "068_room_quick_join.sql",
 ];
 
 /// Checks what the database recorded against `migrations`, then applies each
@@ -158,6 +163,7 @@ pub(super) fn migrate(
     let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
     record_table(&transaction)?;
     settle_unnamed_055(&transaction)?;
+    settle_067(&transaction)?;
     check_records(&transaction, migrations)?;
     refuse_other_games(&transaction)?;
     transaction.commit()?;
@@ -230,6 +236,27 @@ fn settle_unnamed_055(tx: &Transaction<'_>) -> Result<(), OpenError> {
          before this deploy again, or restore the database backup taken just before it"
             .into(),
     ))
+}
+
+/// Number 067 has meant two files. Nightly committed the quick-join columns as
+/// `067_room_quick_join.sql` while production had already run
+/// `067_archive_rounds.sql`, from the site's branch. The quick-join columns
+/// are 068 now, the same file byte for byte, and a database that recorded
+/// them as 67 (staging's, a developer's) has that record moved to 68, so the
+/// archive's rounds run as 67. A 67 recorded as anything else is left as it
+/// is, for `check_records` to take or refuse.
+fn settle_067(tx: &Transaction<'_>) -> rusqlite::Result<()> {
+    let quick_join = MIGRATIONS
+        .iter()
+        .find(|migration| migration.version == 68)
+        .expect("068 is listed");
+    tx.execute(
+        "UPDATE schema_migrations SET version = 68, name = ?1
+         WHERE version = 67 AND name = '067_room_quick_join.sql' AND checksum = ?2
+           AND NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = 68)",
+        params![quick_join.name, quick_join.checksum()],
+    )?;
+    Ok(())
 }
 
 /// The newest number a bridge from before the ledger could have recorded, and

@@ -1,0 +1,107 @@
+/* The guides (/docs) and the text of the frame data pages: a list of every
+   guide on the left, the guide at a reading width, and its own headings on the
+   right. `.prose` is what scripts/site/prose.py writes from a guide. */
+.doc {
+  display: grid;
+  grid-template-columns: 14rem minmax(0, 42rem) minmax(0, 13rem);
+  justify-content: space-between;
+  align-items: start;
+  gap: 0 40px;
+  padding-top: 36px;
+}
+/* A guide without headings of its own has no list of them: the guide sits beside the list of guides. */
+.doc.no-toc { grid-template-columns: 14rem minmax(0, 42rem); justify-content: start; gap: 0 72px; }
+.doc-nav, .doc-toc { position: sticky; top: calc(var(--header) + 20px); max-height: calc(100vh - var(--header) - 40px); overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent; font-size: 0.9rem; }
+.doc-nav h2, .doc-toc h2 { margin: 18px 0 6px; color: var(--meta); font-size: 0.8rem; font-weight: 600; }
+.doc-toc h2 { margin-top: 0; }
+.doc-nav ul, .doc-toc ul { margin: 0; padding: 0; list-style: none; }
+.doc-nav li, .doc-toc li { margin: 0; padding: 0; }
+.doc-nav li a, .doc-toc a { display: block; padding: 5px 10px; color: var(--muted); border-left: 2px solid var(--hairline); text-decoration: none; }
+.doc-nav li a:hover, .doc-toc a:hover { color: var(--ivory); border-left-color: var(--button-border); }
+.doc-nav li a[aria-current="page"] { color: var(--ivory); font-weight: 600; border-left-color: var(--ember); }
+.doc-toc .l3 a { padding-left: 22px; font-size: 0.85rem; }
+
+/* Search over every guide's headings (docs.js, from /docs/search.json). */
+.doc-search { display: block; }
+.doc-search input {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 12px;
+  background: var(--well);
+  border: 1px solid var(--button-border);
+  border-radius: 4px;
+  font-size: 0.95rem;
+}
+.doc-search.wide { max-width: 34rem; margin-bottom: 8px; }
+.doc-search.wide input { min-height: 48px; font-size: 1.0625rem; }
+.doc-search input::placeholder { color: var(--placeholder); }
+.doc-search input:focus-visible { outline: 2px solid var(--ivory); outline-offset: 1px; border-color: var(--ember); }
+.doc-results { max-width: 34rem; margin: 6px 0 0; padding: 4px; list-style: none; background: var(--panel); border: 1px solid var(--border); border-radius: 4px; }
+.doc-results li { margin: 0; padding: 0; }
+.doc-results a { display: block; padding: 7px 10px; color: var(--ivory); border-radius: 3px; text-decoration: none; }
+.doc-results a:hover, .doc-results a:focus-visible { background: var(--accent-wash-strong); }
+.doc-results span { display: block; color: var(--meta); font-size: 0.8rem; }
+.doc-results .words { color: var(--muted); }
+.doc-results .none { padding: 7px 10px; color: var(--muted); }
+
+/* The guides' own front page: each section's guides as a list, a guide's name and a line on it. */
+.doc-section { display: grid; grid-template-columns: 14rem minmax(0, 1fr); gap: 0 40px; margin: 0; padding: 22px 0; border-top: 1px solid var(--hairline); }
+.doc-search.wide + .doc-results + .doc-section { margin-top: 24px; }
+.doc-section h2 { font-size: 1.125rem; }
+.doc-list { margin: 0; padding: 0; list-style: none; }
+.doc-list li { display: grid; grid-template-columns: 13rem minmax(0, 1fr); gap: 2px 24px; margin: 0 0 10px; padding: 0; }
+.doc-list li:last-child { margin-bottom: 0; }
+.doc-list a { font-weight: 600; text-decoration: none; }
+.doc-list a:hover { text-decoration: underline; }
+.doc-list span { color: var(--muted); }
+
+/* A guide's text. */
+.prose { min-width: 0; }
+.prose h1 { margin: 0 0 20px; }
+.prose h1::after { content: ""; display: block; width: 72px; height: 3px; margin-top: 14px; background: var(--ember); }
+.prose h2 { margin: 44px 0 12px; padding-top: 20px; border-top: 1px solid var(--hairline); font-size: 1.5rem; }
+.prose h3 { margin: 28px 0 8px; font-size: 1.1875rem; }
+.prose h4 { margin: 22px 0 6px; font-size: 1rem; color: var(--ember-light); }
+.prose p, .prose li { color: #ddd3c5; }
+.prose p { margin: 0 0 14px; }
+.prose ul, .prose ol { margin: 0 0 14px; }
+.prose li > p { margin-bottom: 8px; }
+.prose img { display: block; max-width: 100%; height: auto; margin: 16px 0 20px; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; }
+.prose code { padding: 1px 5px; background: var(--raised); border-radius: 3px; font-family: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace; font-size: 0.875em; font-weight: 400; }
+.prose pre { margin: 0 0 16px; padding: 14px 16px; overflow-x: auto; background: var(--well); border: 1px solid var(--hairline); border-radius: 6px; line-height: 1.5; }
+.prose pre code { padding: 0; background: none; font-size: 0.85rem; overflow-wrap: normal; }
+.prose blockquote { margin: 0 0 16px; padding: 2px 0 2px 16px; border-left: 3px solid var(--ember); }
+.prose blockquote > :last-child { margin-bottom: 0; }
+.prose hr { margin: 32px 0; border: 0; border-top: 1px solid var(--hairline); }
+.prose details { margin: 0 0 16px; padding: 10px 14px; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; }
+.prose summary { font-weight: 600; cursor: pointer; }
+.prose details[open] summary { margin-bottom: 10px; }
+
+.table-wrap { margin: 0 0 18px; overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; }
+.prose table { width: 100%; border-collapse: collapse; font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+.prose th, .prose td { padding: 8px 12px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--hairline); }
+.prose th { color: var(--muted); background: var(--panel); font-weight: 600; white-space: nowrap; }
+.prose tr:last-child td { border-bottom: 0; }
+.prose :is(th, td).num { text-align: right; }
+.prose :is(th, td).mid { text-align: center; }
+
+.doc-turns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 48px 0 16px; }
+.doc-turn { display: flex; flex-direction: column; gap: 2px; padding: 12px 16px; color: var(--ivory); background: var(--panel); border: 1px solid var(--border); border-radius: 6px; font-weight: 600; text-decoration: none; }
+.doc-turn:visited { color: var(--ivory); }
+.doc-turn:hover { color: var(--ivory); border-color: var(--ember); }
+.doc-turn.on { text-align: right; }
+.doc-turn span { color: var(--meta); font-size: 0.8rem; font-weight: 400; }
+
+/* Narrower: first the guide's own headings go, then the list of guides moves
+   under the guide. */
+@media (max-width: 1180px) {
+  .doc { grid-template-columns: 14rem minmax(0, 1fr); }
+  .doc-toc { display: none; }
+}
+@media (max-width: 860px) {
+  .doc, .doc.no-toc { grid-template-columns: minmax(0, 1fr); padding-top: 24px; }
+  .doc-section, .doc-list li { grid-template-columns: minmax(0, 1fr); }
+  .doc-section h2 { margin-bottom: 12px; }
+  .doc-nav { position: static; order: 2; max-height: none; margin-top: 32px; padding-top: 20px; border-top: 1px solid var(--border); }
+  .prose h2 { font-size: 1.3125rem; }
+}

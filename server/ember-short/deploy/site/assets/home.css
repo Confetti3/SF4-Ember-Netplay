@@ -1,0 +1,73 @@
+/* The home page: what Ember is beside a picture of a match, who is playing
+   now, what it adds in four pictures, the fighters, and how to start. */
+body.home::before { height: 44rem; }
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  align-items: center;
+  gap: 32px 56px;
+  padding: 64px 0 56px;
+}
+.hero h1 { font-size: clamp(2.25rem, 4.6vw, 3.5rem); letter-spacing: -0.025em; line-height: 1.05; }
+.hero .lead { max-width: 30rem; margin: 20px 0 28px; color: var(--ivory); font-size: 1.1875rem; }
+.hero .note { max-width: 30rem; margin: 16px 0 0; }
+.hero-shot { margin: 0; }
+/* Screenshots are the game's own 16:9 frame, on a hairline so their dark
+   edges do not melt into the page. */
+.hero-shot img, .tour-row img {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.hero-shot img { box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55); }
+
+/* Who is playing now, from the list the rooms page reads. */
+.live { margin: 0 0 56px; padding: 18px 20px 20px; background: var(--panel); border: 1px solid var(--border); border-left: 3px solid var(--ember); border-radius: 6px; }
+.live-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; margin-bottom: 14px; }
+.live-head h2 { font-size: 1.125rem; }
+.live-count { margin: 0; color: var(--ready); font-variant-numeric: tabular-nums; }
+.live-head a { margin-left: auto; font-weight: 600; text-decoration: none; }
+.live-rooms { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); gap: 10px; }
+.live-room { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 12px; color: var(--ivory); background: var(--ink); border: 1px solid var(--hairline); border-radius: 4px; text-decoration: none; }
+.live-room:visited { color: var(--ivory); }
+.live-room:hover { color: var(--ivory); border-color: var(--button-border); }
+.live-room-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.live-room-meta { display: flex; justify-content: space-between; gap: 8px; color: var(--meta); font-size: 0.875rem; font-variant-numeric: tabular-nums; }
+.live-room-faces { display: flex; gap: 4px; min-height: 32px; }
+
+/* What Ember adds: a picture and a few lines for each part, one under the other. */
+.tour { display: flex; flex-direction: column; margin: 0 0 72px; border-bottom: 1px solid var(--hairline); }
+.tour-row { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); align-items: center; gap: 24px 48px; padding: 36px 0; border-top: 1px solid var(--hairline); }
+.tour-row h2 { margin-bottom: 12px; font-size: 1.5rem; letter-spacing: -0.01em; }
+.tour-row p { max-width: 32rem; color: var(--muted); }
+.tour-links { display: flex; flex-wrap: wrap; gap: 6px 24px; margin: 18px 0 0; }
+.tour-links a { font-weight: 600; text-decoration: none; }
+.tour-links a:hover { text-decoration: underline; }
+
+.section-head { margin-bottom: 20px; }
+.section-head h2, .start > h2 { font-size: 1.5rem; letter-spacing: -0.01em; }
+.section-head p { margin: 8px 0 0; color: var(--muted); }
+.frames-teaser { margin: 0 0 72px; }
+
+/* The three steps are a sequence, so they are numbered. */
+.start { margin: 0 0 40px; }
+.start > h2 { margin-bottom: 20px; }
+.steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 40px; margin: 0 0 32px; padding: 0 0 0 1.4em; color: var(--muted); }
+.steps li { margin: 0; padding-left: 6px; }
+.start-more { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 24px 40px; }
+.start-more h3 { margin-bottom: 6px; }
+.start-more p { margin: 0; color: var(--muted); font-size: 0.9375rem; }
+
+@media (max-width: 860px) {
+  .hero { grid-template-columns: minmax(0, 1fr); padding: 36px 0 40px; }
+  .hero .actions .button { flex: 1 1 auto; }
+  .live { margin-bottom: 48px; }
+  .tour { margin-bottom: 48px; }
+  .tour-row { grid-template-columns: minmax(0, 1fr); padding: 28px 0; }
+  .frames-teaser { margin-bottom: 48px; }
+  .steps { grid-template-columns: minmax(0, 1fr); }
+}

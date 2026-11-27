@@ -2,6 +2,8 @@
 //! public replay archive's games (docs/design/REPLAY_ARCHIVE.md): the
 //! `.emberreplay` a player's game archived, as it is sent to the bridge,
 //! and the set's pack the bridge serves.
+mod score;
+
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
@@ -82,6 +84,10 @@ pub struct Replay {
     /// the two fighters and what was played (`BODY_PLAYED_FROM` on). A
     /// replay too short to hold a round's record is known by its digest.
     pub game: [u8; 32],
+    /// The rounds each side won, P1 first, when the replay says who won
+    /// (`score`); none for a replay that does not, or that is laid out in a
+    /// way the game does not read. The side with more rounds won.
+    pub rounds: Option<[u8; 2]>,
 }
 
 impl Replay {
@@ -125,6 +131,7 @@ impl Replay {
             fighters: [p1, p2],
             digest,
             game,
+            rounds: score::rounds(record, body),
         })
     }
 
@@ -196,26 +203,83 @@ impl Sides {
     }
 }
 
-/// A made-up `.emberreplay` for tests, laid out as the game exports a
-/// Versus battle's slot (`ExportFromReplayAlone`): slot 300's record, the
-/// slot bytes `0E 0E`, and a replay whose header names `fighters` and was
-/// played at `saved_at`, followed by `payload`.
+/// A made-up `.emberreplay` for tests, laid out as Ember exports a Versus
+/// battle's slot when it makes the record up (`ExportFromReplayAlone`):
+/// slot 300's record, titled with the time it was played and naming no
+/// winner, the slot bytes `0E 0E`, and a replay whose header names
+/// `fighters` and was played at `saved_at`, followed by `payload`.
 pub fn made_up(payload: &[u8], saved_at: u32, fighters: [u8; 2]) -> Vec<u8> {
     let mut body = vec![0; BODY_HEADER];
+    body.extend_from_slice(payload);
+    exported(body, saved_at, fighters, None)
+}
+
+/// A made-up match for tests, laid out as the game's recorder lays one out
+/// (`src/common/ReplayInputs.hxx`), each round one frame long.
+pub struct MadeUpMatch {
+    /// What each side had won as each round started, P1 first.
+    pub starts: Vec<[u32; 2]>,
+    /// The rounds setting: 3 is a match first to two.
+    pub setting: u32,
+    /// The winner the game's own record names (0 for P1, 1 for P2); none for
+    /// a record Ember made up (`made_up`), which names none.
+    pub recorded: Option<u8>,
+    /// What both players held on each round's frame (22 bits), which tells
+    /// one match from another with the same rounds.
+    pub inputs: u32,
+}
+
+impl MadeUpMatch {
+    /// The match's `.emberreplay`, played at `saved_at` by `fighters`.
+    pub fn file(&self, saved_at: u32, fighters: [u8; 2]) -> Vec<u8> {
+        let rounds = self.starts.len();
+        let mut body = vec![0; BODY_PLAYED_FROM + rounds * ROUND_RECORD];
+        body[score::LAYOUT_AT..score::LAYOUT_AT + 4].copy_from_slice(&score::LAYOUT);
+        put_u32(&mut body, score::ROUNDS_PLAYED, rounds as u32);
+        put_u32(&mut body, score::ROUNDS_SETTING, self.setting);
+        for (round, start) in self.starts.iter().enumerate() {
+            let at = BODY_PLAYED_FROM + round * ROUND_RECORD;
+            for (wins_at, wins) in score::WINS.into_iter().zip(start) {
+                put_u32(&mut body, at + wins_at, *wins);
+            }
+            put_u32(
+                &mut body,
+                at + score::STREAM_BYTES,
+                score::FRAME_RECORD as u32,
+            );
+        }
+        for _ in 0..rounds {
+            body.extend_from_slice(&self.inputs.to_le_bytes()[..score::FRAME_RECORD]);
+        }
+        exported(body, saved_at, fighters, self.recorded)
+    }
+}
+
+fn put_u32(bytes: &mut [u8], at: usize, value: u32) {
+    bytes[at..at + 4].copy_from_slice(&value.to_le_bytes());
+}
+
+/// `body`, at least a header long, exported from slot 300 with its header
+/// naming `fighters` and played at `saved_at`: with the record Ember makes
+/// up, titled with the time played, or, given `recorded`, the game's own
+/// record naming that winner.
+fn exported(mut body: Vec<u8>, saved_at: u32, fighters: [u8; 2], recorded: Option<u8>) -> Vec<u8> {
     body[..4].copy_from_slice(BODY_MAGIC);
     let played = FILETIME_1970 + u64::from(saved_at) * FILETIME_SECOND;
     body[BODY_PLAYED..BODY_PLAYED + 8].copy_from_slice(&played.to_le_bytes());
     for (side, fighter) in fighters.into_iter().enumerate() {
-        let at = BODY_FIGHTER + side * BODY_PLAYER;
-        body[at..at + 4].copy_from_slice(&u32::from(fighter).to_le_bytes());
+        put_u32(
+            &mut body,
+            BODY_FIGHTER + side * BODY_PLAYER,
+            u32::from(fighter),
+        );
     }
-    body.extend_from_slice(payload);
     let mut record = [0u8; RECORD];
-    record[..4].copy_from_slice(&300u32.to_le_bytes());
+    put_u32(&mut record, 0, 300);
     record[USED] = 1;
-    record[CRC..CRC + 4].copy_from_slice(&crc32(&body).to_le_bytes());
-    record[SIZE..SIZE + 4].copy_from_slice(&(body.len() as u32).to_le_bytes());
-    record[SAVED..SAVED + 4].copy_from_slice(&saved_at.to_le_bytes());
+    put_u32(&mut record, CRC, crc32(&body));
+    put_u32(&mut record, SIZE, body.len() as u32);
+    put_u32(&mut record, SAVED, saved_at);
     // The menu's date and time: a Versus battle (7), then the year, month
     // and day, and the hour and minute at the record's end.
     let date = crate::event::rfc3339(u64::from(saved_at));
@@ -230,6 +294,15 @@ pub fn made_up(payload: &[u8], saved_at: u32, fighters: [u8; 2]) -> Vec<u8> {
     }
     record[123] = part(11..13) as u8;
     record[124] = part(14..16) as u8;
+    match recorded {
+        // "2027-01-15 08:00", in a title of 21 bytes.
+        None => {
+            let title = format!("{} {}", &date[..10], &date[11..16]);
+            put_u32(&mut record, score::TITLE, 21);
+            record[score::TITLE + 4..][..title.len()].copy_from_slice(title.as_bytes());
+        }
+        Some(winner) => record[score::WINNER] = winner,
+    }
     let mut out = MAGIC.to_vec();
     out.extend_from_slice(&record);
     out.extend_from_slice(&[0x0E, 0x0E]);
@@ -405,6 +478,10 @@ mod tests {
             (record[53], record[54], record[123], record[124]),
             (1, 15, 8, 0)
         );
+        // Titled as Ember titles a record it makes up, which the game's own
+        // never are.
+        assert_eq!(u32_at(record, 22), 21);
+        assert_eq!(&record[26..47], b"2027-01-15 08:00\0\0\0\0\0");
         let played = u64::from_le_bytes(
             file[HEAD + BODY_PLAYED..HEAD + BODY_PLAYED + 8]
                 .try_into()

@@ -1,13 +1,16 @@
-/* embernetplay.link: the landing page, the public rooms page, the rankings
-   page, the link page and the 404 page.
-   Colours follow src/ui/Theme.cxx. Inter is a Latin subset of the game's
-   own font files; see fonts/OFL.txt. */
+/* embernetplay.link: what every page shares. The tokens, the type, the header,
+   the page head, buttons, panels and the footer. Each page adds its own sheet
+   (home.css, rooms.css, rankings.css, docs.css, frames.css, link.css), and the
+   replay archive's host gets this one joined with its own (scripts/site/make.py).
+   Colours follow src/ui/Theme.cxx. Inter is a Latin subset of the game's own
+   font files; see fonts/OFL.txt. Addresses here are relative to this file, so
+   the same sheet works from /assets/ and from the archive's folder. */
 @font-face {
   font-family: "Inter";
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url("/assets/fonts/inter-latin-400.woff2") format("woff2");
+  src: url("fonts/inter-latin-400.woff2") format("woff2");
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
     U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
@@ -16,15 +19,17 @@
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  src: url("/assets/fonts/inter-latin-600.woff2") format("woff2");
+  src: url("fonts/inter-latin-600.woff2") format("woff2");
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
     U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
 :root {
   --ink: #141312;
-  --panel: rgba(33, 30, 27, 0.94);
+  --panel: #211e1b;
+  --raised: #2a2622;
   --border: #443a31;
+  --hairline: #2f2924;
   --ivory: #f3ebdd;
   --muted: #b5a99b;
   --ember: #ff8738;
@@ -35,145 +40,150 @@
   /* Public room types: Arcade and King of the hill beside the ember Classic. */
   --arcade: #6cc4d4;
   --king: #f0c75a;
-  /* The other tones the rules below share, so a game's view (Street Fighter
-     V's, at the end) can set its own. */
+  /* A result: ahead or won, and behind. */
+  --ready: #a4cea0;
+  --behind: #f0907a;
+  /* The other tones the rules share, so a game's view (Street Fighter V's, at
+     the end) can set its own. */
   --accent-wash: rgba(255, 135, 56, 0.08);
-  --accent-wash-strong: rgba(255, 135, 56, 0.1);
+  --accent-wash-strong: rgba(255, 135, 56, 0.14);
   --strong: #fff;
   --meta: #9e9386;
-  --well: rgba(16, 15, 14, 0.9);
+  --well: #100f0e;
   --chip: #38332e;
   --count: #26221e;
   --track: #3c3630;
   --face: #585048;
-  --card-dim: rgba(26, 24, 22, 0.94);
+  --card-dim: #1a1816;
+  --row-alt: #1a1816;
   --skeleton: #786c60;
   --placeholder: #8d8276;
   --option: #211e1b;
   --grid: #3a332d;
   --tip: #2c2723;
-  --ready: #a4cea0;
+  /* The page's measure and its side margin. */
+  --max: 76rem;
+  --gutter: clamp(16px, 4vw, 40px);
+  --header: 60px;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-html { background: var(--ink); -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+html {
+  background: var(--ink);
+  scroll-padding-top: calc(var(--header) + 16px);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
 body {
-  margin: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
   min-height: 100vh;
+  margin: 0;
   color: var(--ivory);
   font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   font-size: 1rem;
-  line-height: 1.55;
+  line-height: 1.6;
 }
-
-/* The menu artwork, as the game draws it: covering the page under a dark
-   tint, quiet on the left where the text sits. */
+/* The game's menu artwork behind the top of every page, fading into the ink
+   before the content that has to be read starts. */
 body::before {
   content: "";
-  position: fixed;
-  inset: 0;
+  position: absolute;
+  inset: 0 0 auto;
   z-index: -1;
+  height: 22rem;
   background-color: var(--ink);
   background-image:
-    linear-gradient(90deg, rgba(20, 19, 18, 0.96) 0%, rgba(20, 19, 18, 0.88) 42%, rgba(20, 19, 18, 0.5) 100%),
-    url("/assets/ember-background.jpg");
+    linear-gradient(180deg, rgba(20, 19, 18, 0.82) 0%, rgba(20, 19, 18, 0.9) 55%, var(--ink) 100%),
+    url("ember-background.jpg");
   background-image:
-    linear-gradient(90deg, rgba(20, 19, 18, 0.96) 0%, rgba(20, 19, 18, 0.88) 42%, rgba(20, 19, 18, 0.5) 100%),
-    image-set(url("/assets/ember-background.webp") type("image/webp"), url("/assets/ember-background.jpg") type("image/jpeg"));
+    linear-gradient(180deg, rgba(20, 19, 18, 0.82) 0%, rgba(20, 19, 18, 0.9) 55%, var(--ink) 100%),
+    image-set(url("ember-background.webp") type("image/webp"), url("ember-background.jpg") type("image/jpeg"));
   background-size: cover;
-  background-position: center, 70% center;
+  background-position: center, 70% 30%;
   background-repeat: no-repeat;
 }
 
-.shell {
-  /* No width: a block's own width already leaves room for the margin, and
-     100% plus the margin scrolled sideways below the max-width. */
-  max-width: calc(60rem + 2 * 48px);
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  padding: 28px 48px 24px;
-  margin-left: clamp(0px, 5vw, 80px);
-}
-main { flex: 1; }
+h1, h2, h3, h4 { margin: 0; font-weight: 600; line-height: 1.25; text-wrap: balance; }
+h1 { font-size: 2.125rem; letter-spacing: -0.015em; line-height: 1.15; }
+h2 { font-size: 1.375rem; letter-spacing: -0.005em; }
+h3 { font-size: 1.0625rem; }
+p { margin: 0 0 12px; }
+strong { font-weight: 600; color: var(--strong); }
+code { font-family: inherit; font-weight: 600; color: var(--strong); overflow-wrap: anywhere; }
+a { color: var(--ember); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+a:visited { color: var(--ember); }
+a:hover { color: var(--ember-light); }
+:is(a, button, input, select, summary):focus-visible { outline: 2px solid var(--ivory); outline-offset: 3px; }
+button, input, select { font: inherit; color: inherit; }
+button { padding: 0; background: none; border: 0; cursor: pointer; }
+ol, ul { margin: 0 0 12px; padding-left: 1.5em; }
+li { margin: 0 0 6px; padding-left: 2px; }
+ol > li::marker { color: var(--ember); font-weight: 600; }
+.offscreen { position: fixed; left: -9999px; opacity: 0; }
+.skip { position: absolute; left: -9999px; z-index: 20; padding: 10px 16px; color: var(--ink); background: var(--ember); font-weight: 600; }
+.skip:focus { left: 8px; top: 8px; }
+.skip:visited { color: var(--ink); }
 
-/* The header on every page: the emblem, EMBER and an orange subtitle, like
-   the game's Home, and the site's links. */
+/* The header on every page: the emblem and EMBER as on the game's Home, the
+   site's five places, and the download. It stays at the top of the window. */
 .site-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgba(20, 19, 18, 0.94);
+  border-bottom: 1px solid var(--hairline);
+}
+.site-bar {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px 24px;
-  margin-bottom: 32px;
+  gap: 8px 28px;
+  max-width: calc(var(--max) + 2 * var(--gutter));
+  min-height: 60px;
+  margin: 0 auto;
+  padding: 0 var(--gutter);
 }
-.site-nav { display: flex; flex-wrap: wrap; gap: 4px; }
+.brand { display: inline-flex; align-items: center; gap: 10px; color: var(--ivory); text-decoration: none; }
+.brand:visited, .brand:hover { color: var(--ivory); }
+.brand img { display: block; width: 36px; height: 36px; }
+.brand-text { display: flex; flex-direction: column; line-height: 1.1; }
+.brand-name { font-weight: 600; font-size: 1.3rem; letter-spacing: 0.05em; }
+.brand-sub { margin-top: 2px; color: var(--ember); font-size: 0.7rem; font-weight: 600; letter-spacing: 0.04em; white-space: nowrap; }
+.site-nav { display: flex; flex: 1 1 auto; gap: 2px; min-width: 0; }
 .site-nav a, .site-nav a:visited {
-  padding: 8px 12px;
-  color: var(--ivory);
-  font-size: 0.95rem;
-  font-weight: 600;
-  text-decoration: none;
-  border-radius: 4px;
-}
-.site-nav a:hover { color: var(--ember-light); background: var(--accent-wash); }
-.site-nav a[aria-current="page"] { color: var(--ember); box-shadow: inset 0 -2px 0 var(--ember); border-radius: 4px 4px 0 0; }
-.brand-home {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
-  color: var(--ivory);
-  text-decoration: none;
-  border-radius: 4px;
-}
-.brand-home img { display: block; width: 44px; height: 44px; }
-.brand-text { display: flex; flex-direction: column; line-height: 1.1; }
-.brand-name { font-weight: 600; font-size: 1.6rem; letter-spacing: 0.04em; }
-.brand-sub { margin-top: 4px; color: var(--ember); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; }
-/* The header spans the page; the link and 404 pages keep their text to a
-   reading width, while the landing and rooms pages use the whole width. */
-body:not(.wide) main, body:not(.wide) footer { max-width: 40rem; }
-
-/* Headings carry the game's header rule: a thin line with an orange start. */
-h1 {
-  margin: 0 0 16px;
-  padding-bottom: 12px;
-  font-size: 1.75rem;
-  font-weight: 600;
-  line-height: 1.25;
-  border-bottom: 1px solid var(--ember);
-}
-h2 { margin: 0 0 8px; font-size: 1.1rem; font-weight: 600; line-height: 1.3; color: var(--ember); }
-
-/* The rooms and rankings pages: the title with the Game switch at its end,
-   over one shared rule. */
-.page-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px 16px;
-  margin: 0 0 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--ember);
-}
-.page-head h1 { margin: 0; padding: 0; border: 0; }
-/* SF4 or SFV: one segmented switch, the shown game filled with the accent. */
-.game-switch { display: inline-flex; gap: 2px; padding: 3px; background: var(--well); border: 1px solid var(--button-border); border-radius: 7px; }
-.game-switch button {
-  min-height: 34px;
-  min-width: 4.75rem;
-  padding: 4px 14px;
+  height: 60px;
+  padding: 0 12px;
   color: var(--muted);
-  background: transparent;
-  border: 0;
-  border-radius: 4px;
   font-size: 0.95rem;
-  letter-spacing: 0.06em;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
 }
-.game-switch button:hover { color: var(--ivory); background: var(--button-hover); }
-.game-switch button[aria-pressed="true"] { color: var(--ink); background: var(--ember); cursor: default; }
+.site-nav a:hover { color: var(--ivory); }
+.site-nav a[aria-current="page"] { color: var(--ivory); box-shadow: inset 0 -3px 0 var(--ember); }
+.site-nav a:focus-visible { outline-offset: -4px; }
+/* The visitor's own card: "Your card", or their main's face and name once
+   this browser has seen them signed in (account.js). SF4's alone. */
+.site-account, .site-account:visited {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 14rem;
+  min-height: 44px;
+  padding: 0 4px;
+  color: var(--ivory);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.site-account:hover { color: var(--ember-light); }
+.site-account[aria-current="page"] { box-shadow: inset 0 -3px 0 var(--ember); }
+.site-account-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Words, marks and pictures that are one game's: assets/game.js marks the
    page's game on html before the first paint, and SF4's is the default. */
@@ -181,363 +191,117 @@ h2 { margin: 0 0 8px; font-size: 1.1rem; font-weight: 600; line-height: 1.3; col
 html:not([data-game="sfv"]) [data-game-text="sfv"] { display: none !important; }
 html[data-game="sfv"] [data-game-text="usf4"], html[data-game="sfv"] .mark-usf4 { display: none !important; }
 html[data-game="sfv"] .mark-sfv { display: block !important; }
-p { margin: 0 0 12px; }
-.lead { font-size: 1.1rem; color: var(--ivory); margin-bottom: 20px; }
-strong { font-weight: 600; color: var(--strong); }
 
-a { color: var(--ember); text-decoration-thickness: 1px; text-underline-offset: 3px; }
-a:visited { color: var(--ember); }
-a:hover { color: var(--ember-light); }
-a:focus-visible, button:focus-visible { outline: 2px solid var(--ivory); outline-offset: 3px; }
+main {
+  flex: 1;
+  width: 100%;
+  max-width: calc(var(--max) + 2 * var(--gutter));
+  margin: 0 auto;
+  padding: 0 var(--gutter) 48px;
+}
+/* The link and 404 pages keep their text to a reading width. */
+body.narrow main { max-width: calc(42rem + 2 * var(--gutter)); padding-top: 40px; }
+body.narrow h1 { margin-bottom: 20px; }
 
-.panel {
-  margin: 0 0 16px;
-  padding: 18px 20px;
-  background: var(--panel);
-  border: 1px solid var(--border);
+/* The top of a page: its title over the game's short ember rule, a line on
+   what the page is, and at the end what switches its view. */
+.page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px 32px;
+  margin: 0 0 24px;
+  padding: 44px 0 22px;
+  border-bottom: 1px solid var(--border);
+}
+.page-head h1::after { content: ""; display: block; width: 72px; height: 3px; margin-top: 14px; background: var(--ember); }
+.page-head .lead { max-width: 44rem; margin: 14px 0 0; }
+.lead { color: var(--muted); font-size: 1.0625rem; }
+.crumbs { display: flex; flex-wrap: wrap; gap: 4px 8px; margin: 0 0 8px; color: var(--meta); font-size: 0.875rem; }
+.crumbs a { text-decoration: none; }
+.crumbs > * + *::before { content: "/"; margin-right: 8px; color: var(--meta); }
+
+/* SF4 or SFV: one segmented switch, the shown game filled with the accent. */
+.game-switch { display: inline-flex; gap: 2px; padding: 3px; background: var(--well); border: 1px solid var(--button-border); border-radius: 7px; }
+.game-switch button {
+  min-height: 34px;
+  min-width: 4.75rem;
+  padding: 4px 14px;
+  color: var(--muted);
   border-radius: 4px;
-}
-.panel > :last-child { margin-bottom: 0; }
-/* The orange side rule the game puts beside the thing to act on. */
-.rule { border-left: 3px solid var(--ember); }
-
-ol { margin: 0 0 12px; padding-left: 1.5em; }
-li { margin: 0 0 6px; padding-left: 2px; }
-li::marker { color: var(--ember); font-weight: 600; }
-
-.code {
-  margin: 4px 0 16px;
-  font-size: clamp(1.3rem, 7vw, 2.4rem);
+  font-size: 0.95rem;
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum", "zero";
   letter-spacing: 0.06em;
-  text-align: center;
-  user-select: all;
-  overflow-wrap: anywhere;
 }
-code { font-family: inherit; font-weight: 600; color: var(--strong); overflow-wrap: anywhere; }
+.game-switch button:hover { color: var(--ivory); background: var(--button-hover); }
+.game-switch button[aria-pressed="true"] { color: var(--ink); background: var(--ember); cursor: default; }
 
-.actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 12px; }
-.panel .actions:first-child, #link .actions { justify-content: center; }
-.button, button {
+.button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
   min-height: 44px;
   padding: 10px 18px;
-  font: inherit;
-  font-weight: 600;
-  line-height: 1.2;
-  text-align: center;
-  text-decoration: none;
   color: var(--ivory);
   background: var(--button);
   border: 1px solid var(--button-border);
   border-radius: 4px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
   cursor: pointer;
 }
 .button:visited { color: var(--ivory); }
-.button:hover, button:hover { color: var(--ivory); background: var(--button-hover); border-color: var(--ember); }
+.button:hover { color: var(--ivory); background: var(--button-hover); border-color: var(--ember); }
 .button.primary, .button.primary:visited { color: var(--ink); background: var(--ember); border-color: var(--ember); }
 .button.primary:hover { color: var(--ink); background: var(--ember-light); border-color: var(--ember-light); }
-#open { min-width: 12rem; font-size: 1.1rem; padding: 12px 24px; }
+.button.small { min-height: 36px; padding: 6px 14px; font-size: 0.9rem; }
+.button.large { min-height: 52px; padding: 12px 26px; font-size: 1.0625rem; }
+.button svg { flex: none; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 12px; }
 
-.note { color: var(--muted); font-size: 0.95rem; }
-.version { color: var(--ivory); padding-left: 10px; border-left: 2px solid var(--ember); }
-.status { min-height: 1.55em; margin: 0 0 8px; text-align: center; color: var(--ember-light); }
-
-footer {
-  margin-top: 24px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-  color: var(--muted);
-  font-size: 0.85rem;
-}
-footer p { margin: 0 0 6px; }
-footer a { color: var(--muted); }
-footer a:visited { color: var(--muted); }
-footer a:hover { color: var(--ivory); }
-.links { display: flex; flex-wrap: wrap; gap: 4px 16px; }
-
-@media (max-width: 700px) {
-  body::before {
-    background-image:
-      linear-gradient(180deg, rgba(20, 19, 18, 0.9) 0%, rgba(20, 19, 18, 0.84) 40%, rgba(20, 19, 18, 0.93) 100%),
-      url("/assets/ember-background.jpg");
-    background-image:
-      linear-gradient(180deg, rgba(20, 19, 18, 0.9) 0%, rgba(20, 19, 18, 0.84) 40%, rgba(20, 19, 18, 0.93) 100%),
-      image-set(url("/assets/ember-background.webp") type("image/webp"), url("/assets/ember-background.jpg") type("image/jpeg"));
-    background-position: center, 78% center;
-  }
-  .shell { margin-left: 0; padding: 20px 16px 16px; }
-  .site-header { margin-bottom: 24px; }
-  .site-nav { width: 100%; margin-left: -12px; }
-  .site-nav a { padding: 6px 12px; }
-  h1 { font-size: 1.5rem; }
-  .panel { padding: 16px; }
-  .actions .button, .actions button { flex: 1 1 auto; }
-  .actions .primary { flex-basis: 100%; }
-}
-
-/* The public rooms page: cards laid out like Ember's Public rooms screen
-   (src/ui/PublicRoomsCards.cxx), wider than the other pages. */
-.offscreen { position: fixed; left: -9999px; opacity: 0; }
-
-.room-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin: 0 0 8px; }
-.room-filters { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 1 auto; }
-.room-filter, .room-refresh {
-  min-height: 34px;
-  padding: 6px 14px;
-  font-size: 0.9rem;
-  border-radius: 17px;
-}
-.room-filter[aria-pressed="true"] { color: var(--ink); background: var(--ember); border-color: var(--ember); }
-.room-filter[aria-pressed="true"]:hover { color: var(--ink); background: var(--ember-light); }
-.room-refresh:disabled { opacity: 0.6; cursor: progress; }
-.room-toggle { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 0.9rem; cursor: pointer; }
-.room-toggle input { width: 18px; height: 18px; margin: 0; accent-color: var(--ember); }
-.room-summary { min-height: 1.55em; margin: 0 0 12px; color: var(--muted); font-size: 0.95rem; }
-
-.room-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 26rem), 1fr)); gap: 12px; margin: 0 0 12px; }
-.room-card {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-width: 0;
-  padding: 12px;
-  background: var(--panel);
-  border: 1px solid rgba(255, 255, 255, 0.055);
-  border-radius: 4px;
-}
-.room-card:focus-within { box-shadow: inset 0 0 0 2px var(--ember); }
-.room-card.dimmed { background: var(--card-dim); }
-.room-card.dimmed .room-name { color: var(--muted); }
-
-.room-head { display: flex; align-items: flex-start; gap: 12px; }
-.room-titles { flex: 1 1 auto; min-width: 0; }
-.room-name {
-  margin: 0;
-  color: var(--ivory);
-  font-size: 1.25rem;
-  font-weight: 600;
-  line-height: 1.3;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.room-meta { margin: 4px 0 0; color: var(--meta); font-size: 0.875rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-/* The seat count in a pill, and how full the room is under it. */
-.room-seats { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
-.room-count {
-  min-width: 3.4rem;
-  padding: 2px 10px;
-  color: var(--ivory);
-  background: var(--count);
-  border-radius: 11px;
-  font-size: 0.875rem;
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-  line-height: 18px;
-}
-.dimmed .room-count { color: var(--muted); }
-.room-bar { position: relative; width: 64px; height: 3px; background: var(--track); border-radius: 1.5px; overflow: hidden; }
-.room-bar-fill { position: absolute; inset: 0 auto 0 0; background: var(--ember); border-radius: 1.5px; }
-.dimmed .room-bar-fill { background: var(--muted); }
-
-.room-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 32px; }
-.room-faces { display: flex; align-items: center; gap: 4px; }
-.room-face {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  background-color: var(--face);
-  background-image: url("/assets/faces.webp");
-  background-size: calc(44 * 32px) 32px;
-  background-repeat: no-repeat;
-  border-radius: 2px;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
-  color: var(--muted);
-  font-size: 0.875rem;
-}
-.room-face.none { background-image: none; }
-.dimmed .room-face { filter: brightness(0.55); }
-.room-more { margin-left: 2px; color: var(--muted); font-size: 0.875rem; }
-.room-rules { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 1 auto; }
-.room-standing { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
-.room-chip {
-  display: inline-block;
-  padding: 0 7px;
-  color: var(--muted);
-  background: var(--well);
-  border-radius: 10px;
-  font-size: 0.8125rem;
-  line-height: 20px;
-  white-space: nowrap;
-}
-.room-chip.set { color: var(--ember); }
-.room-chip.match { color: var(--ink); background: var(--ready); }
-.room-chip.status { background: var(--chip); }
-.room-chip.version { color: var(--ember-light); border: 1px solid var(--button-border); line-height: 18px; }
-.room-chip.type { color: var(--ink); font-weight: 600; }
-.room-chip.type.arcade { background: var(--arcade); }
-.room-chip.type.king { background: var(--king); }
-.dimmed .room-chip.type { filter: brightness(0.7); }
-
-/* Arcade and King of the hill cards carry their type's colour down the left. */
-.room-card.arcade { border-left: 3px solid var(--arcade); }
-.room-card.king { border-left: 3px solid var(--king); }
-
-/* The type buttons sit on their own row above the areas. */
-.room-types { order: -1; flex-basis: 100%; }
-.room-types .room-filter[data-type="1"][aria-pressed="true"] { background: var(--arcade); border-color: var(--arcade); }
-.room-types .room-filter[data-type="2"][aria-pressed="true"] { background: var(--king); border-color: var(--king); }
-
-/* One type's heading in the list, across the whole grid. */
-.room-group { grid-column: 1 / -1; margin: 14px 0 0; padding: 2px 0 2px 12px; border-left: 3px solid var(--ember); }
-.room-group:first-child { margin-top: 0; }
-.room-group.arcade { border-left-color: var(--arcade); }
-.room-group.king { border-left-color: var(--king); }
-.room-group-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin: 0; font-size: 1.125rem; font-weight: 600; line-height: 1.3; }
-.room-group.arcade .room-group-title { color: var(--arcade); }
-.room-group.king .room-group-title { color: var(--king); }
-.room-group-count { color: var(--muted); font-size: 0.875rem; font-weight: 400; }
-.room-group-about { margin: 2px 0 0; color: var(--muted); font-size: 0.875rem; }
-
-.room-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
-.room-age { color: var(--muted); font-size: 0.875rem; }
-.room-actions { display: flex; gap: 8px; margin-left: auto; }
-.room-action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font: inherit;
-  font-weight: 600;
-  line-height: 1.2;
-  cursor: pointer;
-  min-height: 34px;
-  padding: 6px 16px;
-  font-size: 0.9rem;
-  border-radius: 17px;
-  color: var(--ember);
-  background: transparent;
-  border: 1.5px solid var(--ember);
-  text-decoration: none;
-}
-.room-action:visited { color: var(--ember); }
-.room-action:hover { color: var(--ember-light); background: var(--accent-wash-strong); border-color: var(--ember-light); }
-.room-action.primary, .room-action.primary:visited { color: var(--ink); background: var(--ember); }
-.room-action.primary:hover { color: var(--ink); background: var(--ember-light); }
-
-.room-message { padding: 16px; grid-column: 1 / -1; }
-.room-message p { margin: 0; }
-.room-message-title { font-size: 1.1rem; color: var(--ivory); }
-.room-status { text-align: left; }
-
-/* The list on its way: pulsing shapes where the cards will be. */
-.room-skeleton { min-height: 118px; }
-.room-skeleton span { display: block; height: 14px; background: var(--skeleton); border-radius: 7px; animation: room-pulse 1.6s ease-in-out infinite; }
-.room-skeleton span:nth-child(1) { width: 40%; height: 18px; }
-.room-skeleton span:nth-child(2) { width: 25%; }
-.room-skeleton span:nth-child(3) { width: 30%; height: 32px; border-radius: 3px; }
-@keyframes room-pulse { 0%, 100% { opacity: 0.2; } 50% { opacity: 0.5; } }
-@media (prefers-reduced-motion: reduce) { .room-skeleton span { animation: none; opacity: 0.35; } }
-
-@media (max-width: 700px) {
-  .room-name { font-size: 1.1rem; }
-  .room-refresh { margin-left: auto; }
-  .room-actions { flex: 1 1 100%; }
-  .room-actions .room-action { flex: 1 1 auto; }
-}
-
-/* The landing page. */
-.hero { max-width: 44rem; margin: 8px 0 40px; }
-.eyebrow { margin: 0 0 10px; color: var(--ember); font-size: 0.8rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; }
-.hero-title {
-  font-size: clamp(2rem, 5.2vw, 3.25rem);
-  line-height: 1.1;
-  letter-spacing: -0.01em;
-  padding-bottom: 18px;
-  margin-bottom: 20px;
-}
-.hero .lead { font-size: 1.2rem; max-width: 38rem; }
-.hero-actions { margin: 24px 0 14px; }
-.hero-actions .button { min-height: 50px; padding: 12px 24px; font-size: 1.05rem; }
-.live-button { gap: 10px; }
-.live {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 2px 9px;
-  color: var(--ink);
-  background: var(--ready);
-  border-radius: 10px;
-  font-size: 0.8rem;
-  line-height: 18px;
-}
-.live::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #1d4a1a; }
-
-.section-title {
+.panel {
   margin: 0 0 16px;
-  color: var(--ivory);
-  font-size: 1.35rem;
-}
-.features, .start { margin: 0 0 40px; }
-.feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); gap: 12px; }
-.feature {
-  padding: 18px 20px;
+  padding: 20px 22px;
   background: var(--panel);
   border: 1px solid var(--border);
-  border-top: 3px solid var(--ember);
-  border-radius: 4px;
+  border-radius: 6px;
 }
-.feature h3 { margin: 0 0 8px; font-size: 1.05rem; font-weight: 600; color: var(--strong); }
-.feature p { margin: 0; color: var(--muted); font-size: 0.95rem; }
-.feature code { color: var(--ivory); font-weight: 400; }
-
-.step-list { counter-reset: step; list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); gap: 12px; }
-.step-list li {
-  counter-increment: step;
-  position: relative;
-  margin: 0;
-  padding: 16px 18px 16px 62px;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  color: var(--muted);
-}
-.step-list li::before {
-  content: counter(step);
-  position: absolute;
-  left: 18px;
-  top: 16px;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--ink);
-  background: var(--ember);
-  border-radius: 50%;
-  font-weight: 600;
-}
-.step-list strong { display: block; margin-bottom: 2px; }
+.panel > :last-child { margin-bottom: 0; }
+.panel h2 { margin-bottom: 10px; font-size: 1.125rem; color: var(--ember); }
+/* The orange side rule the game puts beside the thing to act on. */
+.rule { border-left: 3px solid var(--ember); }
 .panel-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 24rem), 1fr)); gap: 0 16px; align-items: start; }
+.note { color: var(--muted); font-size: 0.9375rem; }
+.version { color: var(--ivory); padding-left: 10px; border-left: 2px solid var(--ember); }
+.status { min-height: 1.6em; margin: 0 0 8px; color: var(--ember-light); }
+/* Something on its way: the pulse of the shapes that stand in for it
+   (rooms.css, rankings.css, card.css). */
+@keyframes room-pulse { 0%, 100% { opacity: 0.2; } 50% { opacity: 0.5; } }
 
-@media (max-width: 700px) {
-  .hero { margin-bottom: 32px; }
-  .hero .lead { font-size: 1.05rem; }
-  .hero-actions .button { flex: 1 1 100%; }
+/* A fighter's face from faces.webp, which holds one square a fighter in native
+   ID order; faces.css places each (class f0 to f43). */
+.face {
+  display: inline-block;
+  flex: none;
+  width: 48px;
+  height: 48px;
+  background: var(--face) url(faces.webp) no-repeat;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
 }
+.face.none { background-image: none; }
+.face.small { width: 32px; height: 32px; border-radius: 3px; }
+.face.large { width: 96px; height: 96px; border-radius: 6px; }
+.face.tiny { width: 28px; height: 28px; border-radius: 3px; }
 
-/* The rankings page: the board Ember shows under Online play, Rankings
-   (src/ui/RankingsCards.cxx), with filters. Classes are text pills, since the
-   game's emblems are read from each player's install and never served here;
-   each pair of classes shares a colour, brightest at the top. */
+/* A player's class as a text pill, since the game's emblems are read from each
+   player's install and never served here; each pair of classes shares a
+   colour, brightest at the top. */
 .rank-class {
   display: inline-block;
   flex: none;
@@ -558,113 +322,15 @@ footer a:hover { color: var(--ivory); }
 .tier-m { color: #ffb16f; }
 .tier-gm { color: #ff8738; }
 .rank-class.tier-gm { color: var(--ink); background: var(--ember); border-color: var(--ember); }
+/* A class the rating is not sure of yet shows faint, as in the game; a player
+   still placing shows a question mark, and a developer the Dev mark. */
+.rank-class.faint { opacity: 0.55; }
+.rank-class.placing { min-width: 1.6rem; color: var(--muted); }
+.rank-class.dev { color: var(--ivory); }
 
-.rank-classes { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
-.rank-chip {
-  gap: 8px;
-  min-height: 34px;
-  padding: 4px 8px 4px 14px;
-  font-size: 0.9rem;
-  border-radius: 17px;
-}
-.rank-chip.all { padding-right: 14px; }
-.rank-chip-name { color: inherit; }
-.rank-chip-count {
-  min-width: 1.6rem;
-  padding: 0 6px;
-  color: var(--muted);
-  background: var(--well);
-  border-radius: 9px;
-  font-size: 0.8rem;
-  font-variant-numeric: tabular-nums;
-  line-height: 18px;
-}
-.rank-chip.empty { opacity: 0.5; }
-.rank-chip[aria-pressed="true"] { color: var(--ink); background: var(--ember); border-color: var(--ember); }
-.rank-chip[aria-pressed="true"]:hover { color: var(--ink); background: var(--ember-light); }
-.rank-chip[aria-pressed="true"] .rank-chip-count { color: var(--ivory); }
-
-.rank-toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 12px; margin: 0 0 10px; }
-.rank-search { flex: 2 1 14rem; }
-.rank-search input, .rank-field select {
-  width: 100%;
-  min-height: 40px;
-  padding: 8px 12px;
-  color: var(--ivory);
-  background: var(--well);
-  border: 1px solid var(--button-border);
-  border-radius: 4px;
-  font: inherit;
-  font-size: 0.95rem;
-}
-.rank-search input::placeholder { color: var(--placeholder); }
-.rank-search input:focus-visible, .rank-field select:focus-visible { outline: 2px solid var(--ivory); outline-offset: 1px; border-color: var(--ember); }
-.rank-field { display: flex; flex-direction: column; gap: 2px; flex: 1 1 8.5rem; min-width: 7.5rem; max-width: 13rem; }
-.rank-field span { color: var(--muted); font-size: 0.8rem; }
-.rank-field select { padding-right: 8px; cursor: pointer; }
-.rank-field option { color: var(--ivory); background: var(--option); }
-.rank-field option.empty { color: var(--placeholder); }
-
-.rank-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; margin: 0 0 10px; }
-.rank-summary { margin: 0; }
-.rank-actions { display: flex; flex-wrap: wrap; gap: 6px; }
-
-.rank-jump { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: 0 0 12px; }
-.rank-jump-label { margin-right: 4px; color: var(--muted); font-size: 0.85rem; }
-.rank-jump-link {
-  min-height: 28px;
-  padding: 2px 10px;
-  color: var(--ember);
-  background: transparent;
-  border-color: transparent;
-  font-size: 0.85rem;
-}
-.rank-jump-link:hover { color: var(--ember-light); background: var(--accent-wash); border-color: transparent; }
-
-.rank-board { margin: 0 0 12px; }
-.rank-board > .room-message { margin: 0 0 12px; }
-.rank-board > .room-message .room-action { margin-top: 12px; }
-.rank-group { margin: 0 0 18px; scroll-margin-top: 12px; }
-.rank-group:focus { outline: none; }
-.rank-group:focus-visible .rank-group-head { outline: 2px solid var(--ivory); outline-offset: 2px; }
-.rank-group-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0 0 8px;
-  padding: 0 0 6px;
-  color: var(--ivory);
-  border-bottom: 1px solid var(--border);
-}
-.rank-group-title { font-size: 1.1rem; }
-.rank-group-count { margin-left: auto; color: var(--muted); font-size: 0.875rem; font-weight: 400; }
-.rank-group.by-class .rank-group-title { display: none; }
-.rank-group.by-class .rank-group-head .rank-class { font-size: 0.95rem; line-height: 22px; padding: 0 12px; }
-
-.rank-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15.5rem), 1fr));
-  gap: 6px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.rank-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  margin: 0;
-  padding: 7px 10px;
-  background: var(--panel);
-  border: 1px solid rgba(255, 255, 255, 0.055);
-  border-radius: 4px;
-}
-.rank-row .rank-class { margin-left: auto; }
-.rank-group.by-class .rank-row .rank-class { display: none; }
-.rank-group.by-country .rank-row .rank-flag { display: none; }
-.rank-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rank-name mark { color: var(--ink); background: var(--ember-light); border-radius: 2px; }
+/* A player's flag (marks.js): an image from assets/flags.png (flag-icons),
+   sized and placed from assets/flags.json, or the country's code until the
+   index loads or where the atlas has none. */
 .rank-flag {
   flex: none;
   width: 2.1rem;
@@ -679,57 +345,95 @@ footer a:hover { color: var(--ivory); }
   text-align: center;
 }
 .rank-flag.none { background: transparent; }
-/* A flag from assets/flags.png (flag-icons); rankings.js sizes and places
-   it from assets/flags.json. */
 .rank-flag.image {
   padding: 0;
-  background: url("/assets/flags.png") no-repeat;
+  background: url("flags.png") no-repeat;
   border-radius: 2px;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
-/* The class distribution over the board: each column in its class's pill
-   colour (the tier-* rules above), the smoothed outline in ivory, hairline
-   grid. A class not chosen fades. */
-.rank-chart { position: relative; margin: 0 0 14px; padding: 12px 14px 6px; background: var(--panel); border: 1px solid rgba(255, 255, 255, 0.055); border-radius: 4px; }
-.rank-chart figcaption { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; margin: 0 0 6px; }
-.rank-chart-title { color: var(--ivory); font-weight: 600; }
-.rank-chart-note { color: var(--muted); font-size: 0.8rem; }
-.rank-chart-plot { height: 170px; }
-.rank-chart-plot svg { display: block; overflow: visible; }
-.rank-chart-grid { stroke: var(--grid); stroke-width: 1; }
-.rank-chart-tick, .rank-chart-label { fill: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
-.rank-chart-bar { fill: currentColor; transition: opacity 0.12s, filter 0.12s; }
-.rank-chart-bar.dim { opacity: 0.25; }
-.rank-chart-bar.hover { opacity: 1; filter: brightness(1.2); }
-.rank-chart-curve { fill: none; stroke: var(--ivory); stroke-opacity: 0.75; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
-.rank-chart-hit { fill: transparent; cursor: pointer; }
-.rank-chart-tip {
-  position: absolute;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  padding: 6px 10px;
-  background: var(--tip);
-  border: 1px solid var(--border);
-  border-radius: 4px;
+/* What the card, rating and points pages share. The frame of a points count,
+   Ash to Ember (marks.js FRAMES): a tier colours a picture's frame or a dot,
+   never the number. */
+.frame-0 { --frame: #8e8894; }
+.frame-1 { --frame: #d9824b; }
+.frame-2 { --frame: #d5dce3; }
+.frame-3 { --frame: #f2c55c; }
+.frame-4 { --frame: #ff4d2e; }
+.frame-dot { display: inline-block; flex: none; width: 10px; height: 10px; margin-right: 8px; background: var(--frame); border-radius: 2px; }
+.frame-name { display: inline-flex; align-items: center; white-space: nowrap; }
+.face.framed { box-shadow: 0 0 0 2px var(--ink), 0 0 0 4px var(--frame); }
+.face.row { width: 40px; height: 40px; }
+.face.board { width: 64px; height: 64px; }
+.frame-legend { display: flex; flex-direction: column; gap: 6px; margin: 0 0 10px; padding: 0; list-style: none; }
+.frame-legend li { display: flex; align-items: center; margin: 0; padding: 0; }
+.pts { color: var(--strong); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* The page under its head: the card or board, and the notes beside it, which
+   go under it in a narrow window. */
+.page-cols { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 16px 24px; }
+.page-main { flex: 999 1 560px; min-width: 0; }
+.page-side { flex: 1 1 280px; min-width: 0; }
+.page-side .note + .note { margin-top: 10px; }
+
+/* What only the player sees carries the lock (blocks.js). */
+.own-mark { display: inline-flex; align-items: center; gap: 6px; color: var(--ember-light); font-size: 0.8125rem; font-weight: 600; }
+.own-mark svg { flex: none; }
+
+/* Tables of players and fighters (blocks.js): they keep their columns and
+   scroll sideways in their box, a stop for the keyboard, when the window is
+   narrower. */
+.data-scroll { overflow-x: auto; }
+.data-scroll:focus-visible { outline: 2px solid var(--ivory); outline-offset: 2px; }
+.data-table { width: 100%; min-width: 520px; border-collapse: collapse; }
+.data-table th, .data-table td { padding: 8px 12px; text-align: left; vertical-align: middle; border-bottom: 1px solid var(--hairline); }
+.data-table thead th { padding-top: 0; color: var(--muted); font-size: 0.8125rem; font-weight: 600; white-space: nowrap; }
+.data-table tbody tr:last-child > * { border-bottom: 0; }
+.data-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.data-table thead .num .own-mark { justify-content: flex-end; }
+.data-table tbody th { font-weight: 600; }
+.data-who { display: flex; align-items: center; gap: 12px; min-width: 0; }
+
+.site-footer {
+  width: 100%;
+  max-width: calc(var(--max) + 2 * var(--gutter));
+  margin: 0 auto;
+  padding: 28px var(--gutter) 32px;
+  border-top: 1px solid var(--hairline);
+  color: var(--meta);
   font-size: 0.85rem;
-  line-height: 1.3;
-  white-space: nowrap;
-  pointer-events: none;
 }
-.rank-chart-tip span { color: var(--muted); font-size: 0.8rem; }
-@media (prefers-reduced-motion: reduce) { .rank-chart-bar { transition: none; } }
+.site-footer p { max-width: 60rem; margin: 0 0 6px; }
+.site-footer a, .site-footer a:visited { color: var(--muted); }
+.site-footer a:hover { color: var(--ivory); }
+.footer-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: 20px 32px; margin-bottom: 24px; }
+.footer-columns div { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.footer-columns h2 { margin-bottom: 2px; color: var(--ivory); font-size: 0.9rem; }
+.footer-columns a { font-size: 0.9rem; text-decoration: none; }
 
-.rank-skeleton { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15.5rem), 1fr)); gap: 6px; }
-.rank-skeleton span { display: block; height: 36px; background: var(--skeleton); border-radius: 4px; animation: room-pulse 1.6s ease-in-out infinite; }
-@media (prefers-reduced-motion: reduce) { .rank-skeleton span { animation: none; opacity: 0.35; } }
-
-@media (max-width: 700px) {
-  .rank-field { flex: 1 1 calc(50% - 6px); min-width: 0; max-width: none; }
-  .rank-search { flex-basis: 100%; }
-  .rank-actions { width: 100%; }
-  .rank-actions .room-refresh { flex: 1 1 auto; }
+/* A narrow window: the brand and the download on one line, the places in a
+   row under them that scrolls sideways when it does not fit. */
+@media (max-width: 860px) {
+  /* Two rows of header are too much of a phone's window to keep in view: it scrolls with the page. */
+  :root { --header: 0px; }
+  .site-header { position: static; }
+  .site-bar { flex-wrap: wrap; justify-content: space-between; gap: 0 16px; padding-top: 10px; }
+  .site-nav { order: 3; flex: 1 0 100%; margin: 0 -9px; overflow-x: auto; scrollbar-width: none; }
+  .site-nav::-webkit-scrollbar { display: none; }
+  .site-nav a, .site-nav a:visited { height: 44px; padding: 0 9px; font-size: 0.9rem; }
+  .site-account, .site-account:visited { margin-left: auto; max-width: 9rem; }
+  h1 { font-size: 1.75rem; }
+  .page-head { padding-top: 28px; }
+  .panel { padding: 16px; }
+}
+/* A phone has no room for the card link beside the brand and the download:
+   it ends the row of places, which scroll beside it. */
+@media (max-width: 520px) {
+  .site-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "brand get" "nav account"; }
+  .brand { grid-area: brand; justify-self: start; }
+  .site-get { grid-area: get; }
+  .site-nav { grid-area: nav; margin-right: 0; }
+  .site-account, .site-account:visited { grid-area: account; max-width: 7.5rem; font-size: 0.9rem; }
 }
 
 /* Street Fighter V's view (?game=sfv, assets/game.js): SFV Ember's own look,
@@ -739,8 +443,10 @@ footer a:hover { color: var(--ivory); }
    left of what has focus. Arcade and King of the hill keep their colours. */
 html[data-game="sfv"] {
   --ink: #100f0d;
-  --panel: rgba(30, 29, 26, 0.96);
+  --panel: #1e1d1a;
+  --raised: #282824;
   --border: #373530;
+  --hairline: #2a2925;
   --ivory: #edece0;
   --muted: #c0beb4;
   --ember: #ddb961;
@@ -752,27 +458,25 @@ html[data-game="sfv"] {
   --accent-wash-strong: rgba(221, 185, 97, 0.12);
   --strong: #f7f6ee;
   --meta: #999892;
-  --well: rgba(8, 7, 6, 0.9);
+  --well: #080706;
   --chip: #31302c;
   --count: #282824;
   --track: #34332f;
   --face: #45433d;
-  --card-dim: rgba(22, 21, 19, 0.96);
+  --card-dim: #161513;
+  --row-alt: #161513;
   --skeleton: #57554f;
-  --placeholder: #73726b;
+  --placeholder: #85847c;
   --option: #1e1d1a;
   --grid: #34332f;
   --tip: #282824;
   --ready: #a2d3a2;
 }
-html[data-game="sfv"] body::before {
-  background-image: linear-gradient(180deg, #1e1d1a 0, #100f0d 22rem);
-  background-position: 0 0;
-  background-size: auto;
-}
-html[data-game="sfv"] :is(.panel, .button, button, .game-switch, .room-filter, .room-refresh, .room-card, .room-action,
+html[data-game="sfv"] body::before { background-image: linear-gradient(180deg, #1e1d1a 0, #100f0d 100%); background-position: 0 0; background-size: auto; }
+html[data-game="sfv"] .site-header { background: rgba(16, 15, 13, 0.96); }
+html[data-game="sfv"] :is(.panel, .button, .game-switch, .game-switch button, .room-filter, .room-refresh, .room-card, .room-action,
   .room-chip, .room-count, .room-bar, .room-bar-fill, .rank-row, .rank-chart, .rank-chart-tip, .rank-chip,
-  .rank-chip-count, .rank-class, .rank-search input, .rank-field select, .rank-flag, .rank-name mark, .site-nav a,
+  .rank-chip-count, .rank-class, .rank-search input, .rank-field select, .rank-flag, .rank-name mark,
   .room-skeleton span, .rank-skeleton span) {
   border-radius: 0;
 }
@@ -780,18 +484,3 @@ html[data-game="sfv"] h1 { text-transform: uppercase; letter-spacing: 0.06em; }
 html[data-game="sfv"] :is(.panel h2, .room-group-title) { text-transform: uppercase; letter-spacing: 0.05em; font-size: 1rem; }
 html[data-game="sfv"] .room-card:focus-within { box-shadow: inset 3px 0 0 var(--ember); }
 html[data-game="sfv"] .game-switch button { text-transform: uppercase; }
-
-/* SFV's leagues, Rookie to Warlord (rankings.js GAMES.sfv.tiers): the metal
-   leagues in their metals, Master to Ultimate Grand Master in colours of their
-   own, and Warlord filled, as Grand Master is in SF4's view. */
-.tier-rookie { color: #a8a69c; }
-.tier-bronze { color: #cf966a; }
-.tier-silver { color: #c6cad0; }
-.tier-gold { color: #e0bb55; }
-.tier-platinum { color: #9fd8cc; }
-.tier-diamond { color: #8cc4ee; }
-.tier-master { color: #ee8a7f; }
-.tier-grand { color: #c9a2ef; }
-.tier-ultimate { color: #f2dd9d; }
-.tier-warlord { color: #ff7a59; }
-.rank-class.tier-warlord { color: var(--ink); background: #ff7a59; border-color: #ff7a59; }

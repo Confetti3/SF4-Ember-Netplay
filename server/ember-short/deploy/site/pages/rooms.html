@@ -1,0 +1,59 @@
+<!--
+file: rooms.html
+path: /rooms
+title: Public rooms
+description: The public rooms open right now in SF4 Ember Netplay, with a button to join each one in Ember.
+nav: rooms
+styles: faces rooms
+scripts: site rooms
+head-scripts: game
+body: rooms-page
+-->
+<div class="page-head">
+<div>
+<h1>Public rooms</h1>
+<p class="lead" data-game-text="usf4">Rooms open to anyone with an Ember ID. Choose <strong>Join in Ember</strong> and Ember asks for a seat in that room.</p>
+<p class="lead" data-game-text="sfv">Street Fighter V rooms open to anyone with an Ember ID. Choose <strong>Join in SFV Ember</strong> and SFV Ember asks for a seat in that room.</p>
+</div>
+<div class="game-switch" id="games" role="group" aria-label="Game" data-game-switch>
+<button type="button" data-game="usf4" aria-pressed="true" title="Ultra Street Fighter IV">SF4</button>
+<button type="button" data-game="sfv" aria-pressed="false" title="Street Fighter V">SFV</button>
+</div>
+</div>
+
+<div class="room-toolbar" role="group" aria-label="Filter rooms">
+<div class="room-filters" id="areas">
+<button type="button" class="room-filter" data-area="" aria-pressed="true">All areas</button>
+</div>
+<div class="room-filters room-types" id="types" role="group" aria-label="Room type" hidden>
+<button type="button" class="room-filter" data-type="" aria-pressed="true">All types</button>
+</div>
+<label class="room-toggle"><input type="checkbox" id="open-only"> Open seats only</label>
+<button type="button" class="room-refresh" id="refresh">Refresh</button>
+</div>
+<p class="room-summary" id="summary" role="status" aria-live="polite">Loading rooms...</p>
+
+<div class="room-list" id="rooms" aria-busy="true">
+<div class="room-card room-skeleton" aria-hidden="true"><span></span><span></span><span></span></div>
+<div class="room-card room-skeleton" aria-hidden="true"><span></span><span></span><span></span></div>
+<div class="room-card room-skeleton" aria-hidden="true"><span></span><span></span><span></span></div>
+</div>
+<p class="status room-status" id="status" role="status" aria-live="polite"></p>
+
+<section class="panel" id="help">
+<h2>Joining from this page</h2>
+<ol>
+<li data-game-text="usf4">You need <a href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/latest" rel="noopener">SF4 Ember Netplay</a> 1.1.0 or newer and an Ember ID. Start <strong>Launcher.exe</strong> once so your browser knows how to open Ember.</li>
+<li data-game-text="usf4">Choose <strong>Join in Ember</strong> on a room. Your browser may ask first whether to open Ember.</li>
+<li data-game-text="usf4">Ember opens <strong>Public rooms</strong> and asks for a seat. If you are in a game or another room, it waits until you leave.</li>
+<li data-game-text="sfv">You need <a href="https://github.com/Confetti3/SFV-Ember/releases/latest" rel="noopener">SFV Ember</a> 0.1.0 or newer and an Ember ID. Start SFV Ember once so your browser knows how to open it.</li>
+<li data-game-text="sfv">Choose <strong>Join in SFV Ember</strong> on a room. Your browser may ask first whether to open SFV Ember.</li>
+<li data-game-text="sfv">SFV Ember opens <strong>Public rooms</strong> and asks for a seat. If you are in a game or another room, it waits until you leave.</li>
+</ol>
+<p class="note" data-game-text="usf4">On Linux or Steam Deck, or if Ember does not open, choose <strong>Copy link</strong> and paste it in Ember under <strong>Online play</strong>, <strong>Public rooms</strong>, <strong>Paste room link</strong>.</p>
+<p class="note" data-game-text="sfv">On Linux or Steam Deck, or if SFV Ember does not open, choose <strong>Copy link</strong> and paste it in SFV Ember under <strong>Online play</strong>, <strong>Public rooms</strong>, <strong>Paste room link</strong>.</p>
+<p class="note"><strong>Classic</strong> rooms have tables with a queue. In an <strong>Arcade</strong> room everyone has a cabinet and plays whoever has waited longest; <strong>King of the hill</strong> is the same, and each set's winner stays on.</p>
+<p class="note" data-game-text="usf4">A room on another Ember version can only be joined from that version.</p>
+<p class="note" data-game-text="sfv">A room on another SFV Ember version can only be joined from that version.</p>
+</section>
+<noscript><div class="panel"><p>This page needs JavaScript to list the rooms. In Ember, choose <strong>Online play</strong>, then <strong>Public rooms</strong>, to see them there.</p></div></noscript>

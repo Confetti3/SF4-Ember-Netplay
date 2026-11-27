@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#141312">
+<title>{{title}}</title>
+{{head}}
+</head>
+<body class="{{body}}">
+<a class="skip" href="#main">Skip to the page</a>
+<header class="site-header">
+<div class="site-bar">
+<a class="brand" href="{{site}}/" aria-label="SF4 Ember Netplay home"><img class="mark-usf4" src="{{assets}}/ember-emblem.png" width="36" height="36" alt=""><img class="mark-sfv" src="{{assets}}/sfv-ember-mark.png" width="36" height="36" alt="" loading="lazy"><span class="brand-text"><span class="brand-name">EMBER</span><span class="brand-sub"><span data-game-text="usf4">SF4 rollback netplay</span><span data-game-text="sfv">SFV rollback netplay</span></span></span></a>
+<nav class="site-nav" aria-label="Site">
+<a href="{{site}}/rooms" data-sfv-href="{{site}}/rooms?game=sfv" data-nav="rooms">Rooms</a>
+<a href="{{site}}/rankings" data-sfv-href="{{site}}/rankings?game=sfv" data-nav="rankings">Rankings</a>
+<a href="{{replays}}" data-nav="replays">Replays</a>
+<a href="{{site}}/frame-data" data-nav="frame-data">Frame data</a>
+<a href="{{site}}/docs" data-nav="docs">Guides</a>
+</nav>
+<a class="site-account" href="{{site}}/me" data-nav="me" data-game-text="usf4">Your card</a>
+<a class="button primary small site-get" href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/latest" data-sfv-href="https://github.com/Confetti3/SFV-Ember/releases/latest" rel="noopener">Download</a>
+</div>
+</header>
+<main id="main">
+{{content}}
+</main>
+<footer class="site-footer">
+<div class="footer-columns">
+<div>
+<h2>Play</h2>
+<a href="{{site}}/rooms" data-sfv-href="{{site}}/rooms?game=sfv">Public rooms</a>
+<a href="{{site}}/rankings" data-sfv-href="{{site}}/rankings?game=sfv">Rankings</a>
+<a href="{{replays}}">Replays</a>
+<a href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/latest" data-sfv-href="https://github.com/Confetti3/SFV-Ember/releases/latest" rel="noopener">Download</a>
+</div>
+<div>
+<h2>Learn</h2>
+<a href="{{site}}/docs/install">Install</a>
+<a href="{{site}}/docs/player-guide">Player guide</a>
+<a href="{{site}}/docs/troubleshooting">Troubleshooting</a>
+<a href="{{site}}/frame-data">Frame data</a>
+</div>
+<div>
+<h2>Community</h2>
+<a href="https://discord.gg/uPNqF5A5uq" rel="noopener">Discord</a>
+<a href="https://x.com/kabiefox" rel="noopener">Twitter</a>
+<a href="https://ko-fi.com/confetti3" rel="noopener">Support Ember on Ko-fi</a>
+<a href="https://github.com/Confetti3/SF4-Ember-Netplay/issues" rel="noopener">Report a bug</a>
+</div>
+<div>
+<h2>Project</h2>
+<a href="https://github.com/Confetti3/SF4-Ember-Netplay" data-sfv-href="https://github.com/Confetti3/SFV-Ember" rel="noopener">Source on GitHub</a>
+<a href="https://github.com/Confetti3/SF4-Ember-Netplay/releases" data-sfv-href="https://github.com/Confetti3/SFV-Ember/releases" rel="noopener">Release notes</a>
+<a href="https://github.com/Confetti3/SF4-Ember-Netplay/blob/HEAD/ATTRIBUTION.md" rel="noopener">Attribution</a>
+</div>
+</div>
+<p>Ember is an unofficial port of <a href="https://codeberg.org/adanducci/sf4e" rel="noopener">sf4e</a> by Anthony Danducci and contributors. It is not affiliated with Capcom or Valve; Street Fighter and its characters belong to Capcom.</p>
+<p>Text set in Inter by the Inter Project Authors, under the <a href="{{assets}}/fonts/OFL.txt">SIL Open Font License</a>. Flags from flag-icons by Panayiotis Lipiridis, under the <a href="{{assets}}/flags-LICENSE.txt">MIT License</a>.</p>
+</footer>
+</body>
+</html>

@@ -146,14 +146,78 @@ pub fn choose(
     standing(tx, ember_id, classes_shown, developers, now)
 }
 
+/// An account that takes part in ranking and sent the name the boards list
+/// it under: who the class board and the points boards are made of.
+pub struct Listed {
+    pub account: String,
+    /// The Ember ID its Discord account is connected to.
+    pub ember_id: String,
+    pub listing: Listing,
+    /// The class the boards show it with today. None while its rating is
+    /// placing or faint (not played lately; it comes back after a few
+    /// games), and for a developer, whose mark stands in place of a class.
+    pub class: Option<Class>,
+}
+
+/// A listed account's class today.
+#[derive(Clone, Copy)]
+pub struct Class {
+    /// The band its next ticket would show (`shown_band`), so a player who
+    /// settled since their last ticket has it already.
+    pub band: u8,
+    /// Its last rated game.
+    pub played_at: u64,
+}
+
+/// Every listed account, in no order. Read only, so a page anyone can open
+/// never moves a stored class.
+pub(super) fn listed(tx: &Transaction<'_>, developers: &[String], now: u64) -> Result<Vec<Listed>> {
+    let mut statement = tx.prepare(
+        "SELECT c.discord_user_id, d.ember_id, c.name, c.country,
+                r.rating, r.deviation, r.volatility, r.played_at, r.band
+         FROM ranking_choices c
+         JOIN discord_accounts d ON d.user_id = c.discord_user_id
+         LEFT JOIN skill_ratings r ON r.game = c.game AND r.discord_user_id = c.discord_user_id
+         WHERE c.game = 'usf4' AND c.ranked AND c.name IS NOT NULL",
+    )?;
+    let mut rows = statement.query([])?;
+    let mut listed = Vec::new();
+    while let Some(row) = rows.next()? {
+        let account: String = row.get(0)?;
+        // Without a rated game the join has no rating to read.
+        let class = match row.get::<_, Option<u64>>(7)? {
+            Some(played_at) if !developers.contains(&account) => {
+                let rating = Rating {
+                    rating: row.get(4)?,
+                    deviation: row.get(5)?,
+                    volatility: row.get(6)?,
+                };
+                (aged(rating, played_at, now).deviation <= SETTLED_DEVIATION).then_some(Class {
+                    band: shown_band(row.get(8)?, rating.rating),
+                    played_at,
+                })
+            }
+            _ => None,
+        };
+        listed.push(Listed {
+            account,
+            ember_id: row.get(1)?,
+            listing: Listing {
+                name: row.get(2)?,
+                country: row.get(3)?,
+            },
+            class,
+        });
+    }
+    Ok(listed)
+}
+
 /// The board as the player as `ember_id` sees it, or as a web page sees it
-/// without one (no entry is `own`): every listed account that takes part and has a settled class, the highest first. The class is the
-/// one their next ticket would show (`shown_band`), so a player who settled
-/// since their last ticket is on it already. Within a class the most recent
-/// to play comes first, so the board is about who plays. It lists at most
-/// `most` players, so a cap drops the lowest classes first; the caller's own
-/// entry is always on it. No rating, position or number is on it, and
-/// no developer: their mark stands in place of a class.
+/// without one (no entry is `own`): every listed account with a class
+/// (`Listed::class`), the highest first. Within a class the most recent to
+/// play comes first, so the board is about who plays. It lists at most `most`
+/// players, so a cap drops the lowest classes first; the caller's own entry is
+/// always on it. No rating, position or number is on it.
 pub fn board(
     tx: &Transaction<'_>,
     ember_id: Option<&EmberId>,
@@ -161,38 +225,18 @@ pub fn board(
     now: u64,
     most: usize,
 ) -> Result<Board> {
-    let mut statement = tx.prepare(
-        "SELECT r.rating, r.deviation, r.volatility, r.played_at, r.band, c.name, c.country,
-                COALESCE(d.ember_id = ?1, 0), r.discord_user_id
-         FROM skill_ratings r
-         JOIN ranking_choices c ON c.game = r.game AND c.discord_user_id = r.discord_user_id
-         JOIN discord_accounts d ON d.user_id = r.discord_user_id
-         WHERE r.game = 'usf4' AND c.ranked AND c.name IS NOT NULL",
-    )?;
-    let mut rows = statement.query([ember_id.map(EmberId::as_str)])?;
-    let mut listed = Vec::new();
-    while let Some(row) = rows.next()? {
-        let rating = Rating {
-            rating: row.get(0)?,
-            deviation: row.get(1)?,
-            volatility: row.get(2)?,
-        };
-        let played_at: u64 = row.get(3)?;
-        // Placing, or faint: not played lately. It comes back after a few games.
-        let developer = developers.contains(&row.get::<_, String>(8)?);
-        if developer || aged(rating, played_at, now).deviation > SETTLED_DEVIATION {
-            continue;
-        }
-        let entry = BoardEntry {
-            band: shown_band(row.get(4)?, rating.rating),
-            listing: Listing {
-                name: row.get(5)?,
-                country: row.get(6)?,
-            },
-            own: row.get(7)?,
-        };
-        listed.push((played_at, entry));
-    }
+    let mut listed: Vec<(u64, BoardEntry)> = listed(tx, developers, now)?
+        .into_iter()
+        .filter_map(|player| {
+            let class = player.class?;
+            let entry = BoardEntry {
+                band: class.band,
+                own: ember_id.is_some_and(|own| own.as_str() == player.ember_id),
+                listing: player.listing,
+            };
+            Some((class.played_at, entry))
+        })
+        .collect();
     listed.sort_by(|(one_at, one), (other_at, other)| {
         other
             .band
@@ -219,39 +263,17 @@ pub fn board(
 }
 
 /// The class the public board shows today for every player on it, by Ember
-/// ID: the same players and classes as `board` (taking part, listed,
-/// settled, not a developer), without its cap. Read only, so a page anyone
-/// can open never moves a stored class. The archive's games carry these
-/// (`archive::classes`).
+/// ID: the same players and classes as `board`, without its cap. The
+/// archive's games carry these (`archive::classes`).
 pub fn public_classes(
     tx: &Transaction<'_>,
     developers: &[String],
     now: u64,
 ) -> Result<std::collections::HashMap<String, u8>> {
-    let mut classes = std::collections::HashMap::new();
-    let mut statement = tx.prepare(
-        "SELECT r.rating, r.deviation, r.volatility, r.played_at, r.band, d.ember_id, r.discord_user_id
-         FROM skill_ratings r
-         JOIN ranking_choices c ON c.game = r.game AND c.discord_user_id = r.discord_user_id
-         JOIN discord_accounts d ON d.user_id = r.discord_user_id
-         WHERE r.game = 'usf4' AND c.ranked AND c.name IS NOT NULL",
-    )?;
-    let mut rows = statement.query([])?;
-    while let Some(row) = rows.next()? {
-        let rating = Rating {
-            rating: row.get(0)?,
-            deviation: row.get(1)?,
-            volatility: row.get(2)?,
-        };
-        let played_at: u64 = row.get(3)?;
-        if developers.contains(&row.get::<_, String>(6)?)
-            || aged(rating, played_at, now).deviation > SETTLED_DEVIATION
-        {
-            continue;
-        }
-        classes.insert(row.get(5)?, shown_band(row.get(4)?, rating.rating));
-    }
-    Ok(classes)
+    Ok(listed(tx, developers, now)?
+        .into_iter()
+        .filter_map(|player| Some((player.ember_id, player.class?.band)))
+        .collect())
 }
 
 fn refuse(reason: &'static str, code: ErrorCode, message: &'static str) -> ApiFailure {

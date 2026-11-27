@@ -1,0 +1,49 @@
+/* The rating details on /me (rating.js): the three numbers, the classes along
+   the rating line, the rules of how much a game counts and the next games. */
+.rating-own { display: flex; align-items: center; gap: 10px; margin: 0 0 16px; padding: 12px 16px; color: var(--ember-light); background: var(--accent-wash); border: 1px solid var(--button-border); border-radius: 6px; font-size: 0.9375rem; }
+.rating-own svg { flex: none; }
+.rating-notice { margin-bottom: 16px; }
+
+.rating-three { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 16px; margin: 0 0 16px; }
+.rating-three .panel { margin: 0; }
+.rating-number .note { margin: 10px 0 0; }
+.rating-value { color: var(--strong); font-size: 2.5rem; font-weight: 600; line-height: 1.1; letter-spacing: -0.015em; font-variant-numeric: tabular-nums; }
+.panel .rating-yours { margin: 12px 0 0; padding: 10px 0 0; border-top: 1px solid var(--hairline); color: var(--ivory); font-size: 0.9375rem; }
+
+/* The rating line: the classes as segments as wide as their ratings, the
+   rating's mark over them, the 95% range under them and each class's floor
+   under that. rating.js places the mark, range and ticks along it. */
+.rating-ladder { position: relative; min-width: 700px; padding: 34px 0 54px; }
+.rating-segments { display: flex; }
+.rating-segment { flex: 1 1 0; min-width: 0; padding: 8px 0; background: var(--raised); box-shadow: inset -2px 0 0 var(--panel); font-size: 0.875rem; font-weight: 600; text-align: center; white-space: nowrap; overflow: hidden; }
+.rating-segment.on { background: var(--accent-wash-strong); box-shadow: inset 0 0 0 1px var(--ember); }
+.rating-mark { position: absolute; top: 0; width: 0; }
+.rating-mark b { position: absolute; top: 0; left: 0; transform: translateX(-50%); color: var(--strong); font-size: 0.875rem; font-weight: 600; white-space: nowrap; }
+.rating-mark i { position: absolute; top: 26px; left: -1px; width: 2px; height: 62px; background: var(--strong); }
+.rating-range { position: absolute; top: 80px; height: 6px; background: var(--ivory); opacity: 0.6; border-radius: 3px; }
+.rating-tick { position: absolute; top: 94px; transform: translateX(-50%); color: var(--muted); font-size: 0.75rem; font-variant-numeric: tabular-nums; }
+.rating-facts { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-top: 6px; padding-top: 16px; }
+.rating-facts dd { font-size: 1rem; }
+.panel .rating-after { margin: 14px 0 0; }
+
+.rating-cols { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 16px; margin: 0 0 16px; }
+.rating-cols > .panel { margin: 0; min-width: 0; }
+.rating-wide { flex: 3 1 480px; }
+.rating-narrow { flex: 2 1 320px; }
+.rating-wide .note { margin-bottom: 12px; }
+.rating-rules td { vertical-align: baseline; }
+.rating-rules td:first-child { width: 60%; }
+.rating-gain { color: var(--ready); }
+.rating-loss { color: var(--behind); }
+
+/* The gap rule's chart. */
+.rating-gap { display: block; width: 100%; height: auto; }
+.rating-gap-grid { stroke: var(--grid); stroke-width: 1; }
+.rating-gap-grid.dashed { stroke-dasharray: 3 4; }
+.rating-gap-axis { stroke: var(--face); stroke-width: 1; }
+.rating-gap-line { fill: none; stroke: var(--ember); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.rating-gap-text { fill: var(--muted); font-size: 11px; }
+
+@media (max-width: 700px) {
+  .rating-value { font-size: 2rem; }
+}

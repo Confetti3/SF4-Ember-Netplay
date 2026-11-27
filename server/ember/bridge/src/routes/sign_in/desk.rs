@@ -11,7 +11,7 @@
 //! account no Ember ID holds signs no one in: it is linked from the game.
 use axum::{
     extract::{Path, State},
-    http::{HeaderMap, HeaderValue, StatusCode, header},
+    http::{HeaderMap, StatusCode, header},
     response::{IntoResponse, Redirect, Response},
 };
 use ember_protocol::{
@@ -21,7 +21,6 @@ use ember_protocol::{
 };
 use rusqlite::{OptionalExtension, params};
 use serde_json::json;
-use subtle::ConstantTimeEq;
 
 use super::{
     Answer, OAuth, SignedIn, Starter, begin, budget, configured, offered, organizer_grant,
@@ -32,7 +31,7 @@ use crate::{
     auth::{self, DESK_COOKIE, DESK_IDLE_SECS, DESK_SECS},
     ctx::Ctx,
     error::{ApiFailure, Result},
-    http::{Body, PROOF_BODY, cookie, json as answer, ok, page},
+    http::{Body, Cookies, PROOF_BODY, cookie, cookie_is, json as answer, ok, page},
     linking::Site,
     routes::{
         organizer::Caller,
@@ -120,8 +119,7 @@ pub(super) async fn callback(
         .sign_in_site(site.id())
         .map(|site| site.display_name.clone())
         .unwrap_or_default();
-    let same_browser = cookie(headers, STATE_COOKIE)
-        .is_some_and(|started| bool::from(started.as_bytes().ct_eq(secret.as_bytes())));
+    let same_browser = cookie_is(headers, STATE_COOKIE, secret);
     let hash = state_hash(&state, &site, secret);
     let now = state.now();
     let site_id = site.id().to_owned();
@@ -329,16 +327,11 @@ fn finished(title: &str, text: &str) -> Response {
 /// top-level visit from the site's callback; Secure where the bridge's
 /// origin is https. `max_age` 0 removes it.
 fn set_cookie(state: &AppState, response: &mut Response, name: &str, value: &str, max_age: u64) {
-    let secure = if state.config.origin.starts_with("https://") {
-        "; Secure"
-    } else {
-        ""
+    let cookies = Cookies {
+        path: "/",
+        secure: state.config.origin.starts_with("https://"),
     };
-    if let Ok(cookie) = HeaderValue::from_str(&format!(
-        "{name}={value}; Path=/; HttpOnly; SameSite=Lax; Max-Age={max_age}{secure}"
-    )) {
-        response.headers_mut().append(header::SET_COOKIE, cookie);
-    }
+    cookies.set(response, name, value, max_age);
 }
 
 /// The browser a request came from, as the game shows it: its browser and
@@ -903,6 +896,8 @@ pub async fn approve(
 
 #[cfg(test)]
 mod tests {
+    use axum::http::HeaderValue;
+
     use super::*;
 
     fn read(agent: &str) -> String {

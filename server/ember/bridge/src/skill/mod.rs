@@ -14,6 +14,8 @@
 //! read the two classes of a game and nothing else of the rating: a win earns
 //! its bonus point only against the same class or a higher one
 //! (`levels::class_bonus`).
+pub mod boards;
+pub mod explain;
 mod glicko;
 pub mod levels;
 pub mod ranking;

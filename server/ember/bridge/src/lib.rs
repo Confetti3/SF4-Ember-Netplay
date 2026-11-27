@@ -23,6 +23,7 @@ mod mock;
 mod rate;
 mod routes;
 mod s3;
+mod sealed;
 mod secrets;
 mod skill;
 #[cfg(feature = "test-support")]
@@ -55,6 +56,8 @@ pub struct AppState {
     rate: Arc<rate::Limiter>,
     rooms: Arc<routes::rooms::Shared>,
     ranking_board: Arc<routes::ranking::PublicCache>,
+    /// The points boards as last read (`routes::boards`).
+    points_boards: Arc<routes::boards::Cache>,
     /// Friends' presence and invites, kept in memory only (`friends`).
     friends: Arc<friends::presence::Live>,
     /// When maintenance last refreshed the archive's classes.
@@ -80,6 +83,7 @@ impl AppState {
             rate: Arc::new(rate::Limiter::default()),
             rooms: Arc::new(routes::rooms::Shared::default()),
             ranking_board: Arc::new(routes::ranking::PublicCache::default()),
+            points_boards: Arc::new(routes::boards::Cache::default()),
             friends: Arc::new(friends::presence::Live::default()),
             archive_classes: Arc::new(archive::classes::Refreshed::default()),
             http: util::Outbound::default(),
@@ -153,6 +157,10 @@ pub fn start(state: AppState, listener: TcpListener) -> std::io::Result<Running>
             state.clone(),
             delivery::packs::Packs(bucket.clone()),
         )));
+        workers.push(tokio::spawn(delivery::rounds::run(
+            state.clone(),
+            bucket.clone(),
+        )));
         workers.push(tokio::spawn(delivery::run(
             state.clone(),
             delivery::duplicates::Duplicates(bucket),
@@ -175,6 +183,20 @@ pub fn start(state: AppState, listener: TcpListener) -> std::io::Result<Running>
 pub async fn maintain(state: &AppState) {
     routes::maintenance_once(state).await;
 }
+
+/// One sweep of reading the round scores of the archive's games kept before
+/// them back from its bucket (`delivery::rounds`), when the bridge has an
+/// archive: passes from the newest unread game until one finds fewer than
+/// `ARCHIVE_ROUNDS_PER_PASS`. `start` runs a pass every few seconds; tests
+/// call it.
+pub async fn read_archive_rounds(state: &AppState) {
+    if let Some(Ok(bucket)) = state.config.archive.as_ref().map(s3::Bucket::new) {
+        delivery::rounds::sweep(state, &bucket).await;
+    }
+}
+
+/// The most games one pass of `read_archive_rounds` reads back.
+pub const ARCHIVE_ROUNDS_PER_PASS: i64 = delivery::rounds::GAMES_PER_PASS;
 
 /// Marks the public rankings board as moved, as the bridge does itself when
 /// it writes a rating, the band shown, a ranking choice or a Discord account,

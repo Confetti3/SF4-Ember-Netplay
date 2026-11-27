@@ -1,6 +1,6 @@
 //! The ledger of what ran: the records of a bridge from before file names, the two
-//! files 055 has meant, the library's 057 to 059 adopted only when the schema shows
-//! them, and the refusal of another game's rows.
+//! files 055 has meant and the two 067 has, the library's 057 to 059 adopted only
+//! when the schema shows them, and the refusal of another game's rows.
 use rusqlite::Connection;
 
 use super::tests::has_table;
@@ -335,7 +335,7 @@ fn a_new_database_runs_the_librarys_files_then_the_1_6_files() {
     let versions: Vec<i64> = records(&connection).iter().map(|r| r.0).collect();
     assert_eq!(
         &versions[55..],
-        &[56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67]
+        &[56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68]
     );
     assert!(has_table(&connection, "fighter_levels"));
     assert!(has_table(&connection, "social_accounts"));
@@ -445,4 +445,110 @@ fn an_older_database_with_no_game_columns_is_not_refused_for_them() {
     as_an_older_bridge(&mut connection, &files_to(56));
     migrate(&mut connection, MIGRATIONS).unwrap();
     assert_every_file_recorded(&connection);
+}
+
+/// This bridge's files up to 066, then `name` as 067 with the SQL of this
+/// bridge's `sql_of`: what a bridge of one of the two lines listed.
+fn line_with_067(name: &'static str, sql_of: i64) -> Vec<Migration> {
+    let mut line: Vec<Migration> = MIGRATIONS
+        .iter()
+        .copied()
+        .take_while(|migration| migration.version <= 66)
+        .collect();
+    line.push(Migration {
+        version: 67,
+        name,
+        sql: file(sql_of).sql,
+    });
+    line
+}
+
+fn column_count(connection: &Connection, table: &str, column: &str) -> i64 {
+    connection
+        .query_row(
+            "SELECT COUNT(*) FROM pragma_table_info(?1) WHERE name = ?2",
+            [table, column],
+            |row| row.get(0),
+        )
+        .unwrap()
+}
+
+/// Nightly's bridge ran the quick-join columns as 067 (staging did). This
+/// bridge moves that record to 068, where the file is now, and runs the
+/// archive's rounds as 067.
+#[test]
+fn a_database_whose_067_was_the_quick_join_columns_moves_it_to_068_and_runs_the_rounds() {
+    let mut connection = Connection::open_in_memory().unwrap();
+    migrate(
+        &mut connection,
+        &line_with_067("067_room_quick_join.sql", 68),
+    )
+    .unwrap();
+    assert_eq!(column_count(&connection, "rooms", "classes"), 1);
+    assert_eq!(column_count(&connection, "archive_games", "rounds_a"), 0);
+    connection
+        .execute(
+            "UPDATE schema_migrations SET applied_at = 1000 WHERE version = 67",
+            [],
+        )
+        .unwrap();
+    migrate(&mut connection, MIGRATIONS).unwrap();
+    assert_every_file_recorded(&connection);
+    // 68 is when the columns came; 67 ran just now.
+    assert_eq!(applied_at(&connection, 68), 1000);
+    assert_ne!(applied_at(&connection, 67), 1000);
+    assert_eq!(column_count(&connection, "archive_games", "rounds_a"), 1);
+    assert_eq!(column_count(&connection, "rooms", "classes"), 1);
+    migrate(&mut connection, MIGRATIONS).unwrap();
+    assert_every_file_recorded(&connection);
+}
+
+/// Production ran the archive's rounds as 067: its record stays, and the
+/// quick-join columns run as 068.
+#[test]
+fn a_database_whose_067_was_the_archive_rounds_runs_the_quick_join_columns_as_068() {
+    let mut connection = Connection::open_in_memory().unwrap();
+    migrate(
+        &mut connection,
+        &line_with_067("067_archive_rounds.sql", 67),
+    )
+    .unwrap();
+    assert_eq!(column_count(&connection, "rooms", "classes"), 0);
+    connection
+        .execute(
+            "UPDATE schema_migrations SET applied_at = 1000 WHERE version = 67",
+            [],
+        )
+        .unwrap();
+    migrate(&mut connection, MIGRATIONS).unwrap();
+    assert_every_file_recorded(&connection);
+    assert_eq!(applied_at(&connection, 67), 1000);
+    assert_eq!(column_count(&connection, "rooms", "classes"), 1);
+    assert_eq!(column_count(&connection, "archive_games", "rounds_a"), 1);
+}
+
+/// Only the quick-join file as it shipped is moved: a 067 under its name
+/// with other contents is another line's, and is refused with nothing moved.
+#[test]
+fn a_067_named_quick_join_with_other_contents_is_refused() {
+    let mut connection = Connection::open_in_memory().unwrap();
+    migrate(
+        &mut connection,
+        &line_with_067("067_room_quick_join.sql", 68),
+    )
+    .unwrap();
+    connection
+        .execute(
+            "UPDATE schema_migrations SET checksum = 'another' WHERE version = 67",
+            [],
+        )
+        .unwrap();
+    let text = refusal(migrate(&mut connection, MIGRATIONS));
+    assert!(
+        text.contains("067") && text.contains("067_room_quick_join.sql"),
+        "{text}"
+    );
+    let versions: Vec<i64> = records(&connection).iter().map(|r| r.0).collect();
+    assert_eq!(versions.last(), Some(&67));
+    assert_eq!(column_count(&connection, "archive_games", "rounds_a"), 0);
 }

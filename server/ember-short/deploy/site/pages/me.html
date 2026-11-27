@@ -1,0 +1,39 @@
+<!--
+file: me.html
+path: /me
+title: Your card
+nav: me
+styles: card rating
+scripts: answers session blocks card rating me
+body: me-page
+index: no
+-->
+<div class="page-head">
+<div>
+<h1>Your card</h1>
+<p class="lead" id="lead">Your points, your place on every board and the numbers behind your class, in one place.</p>
+<nav class="page-tabs" id="tabs" aria-label="Your card" hidden><a href="#card" id="tab-card">Card</a><a href="#rating" id="tab-rating">Rating details</a></nav>
+</div>
+</div>
+
+<p class="status" id="status" role="status" aria-live="polite"></p>
+{{session}}
+
+<div class="page-cols" id="card-view" hidden>
+<div class="page-main" id="own-card"></div>
+<aside class="page-side">
+{{earning}}
+{{frames}}
+<section class="panel">
+<h2>Name and flag</h2>
+<p class="note">Your card shows the name and flag your game sends, the ones rooms show. Your Discord name is never shown. Change them in Ember under Profile, Edit card.</p>
+<p class="note"><button type="button" class="link-button" id="sign-out">Sign out</button></p>
+</section>
+</aside>
+</div>
+
+<div id="rating-view" hidden></div>
+<section class="panel rule" id="rating-missing" hidden>
+<p class="note">Rating details are not available right now.</p>
+</section>
+<noscript><div class="panel"><p>This page needs JavaScript to show your card. In Ember, choose <strong>Profile</strong> to see it there.</p></div></noscript>
