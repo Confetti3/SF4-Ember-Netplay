@@ -57,7 +57,7 @@ struct Command {
 	// SavePack: the set matchId's pack from its bridge, into the archive's packs folder.
 	enum class Op : std::uint8_t {
 		None, Refresh, Play, Stop, RoomList, RoomCreate, RoomTicket, Watch,
-		RankingStanding, RankingChoose, RankingBoard, SavePack, LevelsMe,
+		RankingStanding, RankingChoose, RankingBoard, PointsBoard, RankingRating, SavePack, LevelsMe,
 	} op = Op::None;
 	std::string bridgeId, matchId;
 	// RoomCreate names and sizes the new room; RoomTicket names the room to join.
@@ -70,6 +70,8 @@ struct Command {
 	// country code the board lists (no listing when the name is empty).
 	bool ranked = false;
 	std::string listingName, listingCountry;
+	// PointsBoard: whose points board to read; -1 for the account board.
+	int fighter = -1;
 	// The interface's identity for a public room or ranking choice request,
 	// increasing, chosen by its panel. The runtime carries it to the request's
 	// answer, and a newer one supersedes a create, ticket or choice in flight.

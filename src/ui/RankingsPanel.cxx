@@ -10,6 +10,7 @@
 #include "SignInSites.hxx"
 #include "Theme.hxx"
 #include "../common/Localization.hxx"
+#include "../common/FighterCatalog.hxx"
 #include <algorithm>
 #include <cmath>
 
@@ -103,13 +104,14 @@ void RankingsPanel::Update(const ShellView& v, const std::string& screen, const 
     // Rankings and its board are one visit: coming back from the board reads nothing again.
     if (owned && !Owns(lastScreen_)) { wantStanding_ = true; listingSent_ = false; }
     if (screen == BoardScreen && lastScreen_ != BoardScreen) wantBoard_ = true;
+    if (screen == PointsScreen && lastScreen_ != PointsScreen) wantPoints_ = true;
     // A profile opened from a row is a step aside, not leaving: Back is the visit again, which reads nothing.
     const bool aside = Owns(lastScreen_) && PlayerPage::Owns(screen);
     if (!aside) lastScreen_ = screen;
     if (owned) { bridge_ = bridge; own_ = own; }
     // Leaving drops what was not asked yet; a choice already on its way is
     // still answered, and said, wherever the player is.
-    else if (!aside) { wantStanding_ = wantBoard_ = false; if (pending_ && !pending_->sent) pending_.reset(); }
+    else if (!aside) { wantStanding_ = wantBoard_ = wantPoints_ = wantRating_ = false; if (pending_ && !pending_->sent) pending_.reset(); }
     TakeAnswers(v, owned);
     if (aside) return;
     if (!owned) { ReadForProfile(v, bridge, submit); return; }
@@ -126,11 +128,16 @@ void RankingsPanel::Update(const ShellView& v, const std::string& screen, const 
     }
     // A read waits for the choice in flight, whose answer is the standing after it.
     const bool standing = wantStanding_ && !status.standing.loading && !status.choosing,
-        board = wantBoard_ && screen == BoardScreen && !status.board.loading;
-    if (!standing && !board) return;
-    (standing ? wantStanding_ : wantBoard_) = false;
-    action.tournament.op = standing ? Command::Op::RankingStanding : Command::Op::RankingBoard;
+        board = wantBoard_ && screen == BoardScreen && !status.board.loading,
+        points = wantPoints_ && screen == PointsScreen && !status.points.loading,
+        rating = wantRating_ && !standing && !status.standing.loading && !status.rating.loading;
+    if (!standing && !board && !points && !rating) return;
+    if (standing) { wantStanding_ = false; wantRating_ = true; }
+    else if (board) wantBoard_ = false; else if (points) wantPoints_ = false; else wantRating_ = false;
+    action.tournament.op = standing ? Command::Op::RankingStanding : board ? Command::Op::RankingBoard
+        : points ? Command::Op::PointsBoard : Command::Op::RankingRating;
     action.tournament.bridgeId = bridge_;
+    if (points) action.tournament.fighter = pointsFighter_;
     if (!submit(std::move(action))) Say(loc::T("error.queue_failed"));
 }
 
@@ -175,6 +182,10 @@ void RankingsPanel::TakeAnswers(const ShellView& v, bool owned) {
         boardSeen_ = status.board.finished;
         if (ours && !status.board.error.empty() && status.board.loaded) Say(FailureText(status.board.error));
     }
+    if (status.points.finished != pointsSeen_) {
+        pointsSeen_ = status.points.finished;
+        if (ours && !status.points.error.empty() && status.points.loaded) Say(FailureText(status.points.error));
+    }
     if (!pending_ || !pending_->sent) return;
     if (status.chose == pending_->command.request) {
         const auto& failure = status.choiceFailure;
@@ -201,7 +212,7 @@ void RankingsPanel::Choose(bool ranked) {
 }
 
 std::vector<MenuEntry> RankingsPanel::Rows(const ShellView& v, const std::string& screen, bool identityPending, std::string& title) const {
-    title = loc::T(screen == BoardScreen ? "rankings.board_title" : "rankings.title");
+    title = loc::T(screen == BoardScreen ? "rankings.board_title" : screen == PointsScreen ? "rankings.points_title" : "rankings.title");
     if (bridge_.empty()) {
         // Rankings come from public room games: their setup makes the service usable.
         if (!v.identity.known || identityPending)
@@ -209,7 +220,7 @@ std::vector<MenuEntry> RankingsPanel::Rows(const ShellView& v, const std::string
         return {Card("rk-needs-setup", loc::T("rankings.needs_setup"), {}, StateCardHeight),
             Row("rk-setup", loc::T("screen.public_rooms"), loc::T("online.public_detail"))};
     }
-    return screen == BoardScreen ? BoardRows(v) : StandingRows(v, identityPending);
+    return screen == BoardScreen ? BoardRows(v) : screen == PointsScreen ? PointsRows(v) : StandingRows(v, identityPending);
 }
 
 std::vector<MenuEntry> RankingsPanel::StandingRows(const ShellView& v, bool identityPending) const {
@@ -256,6 +267,10 @@ std::vector<MenuEntry> RankingsPanel::StandingRows(const ShellView& v, bool iden
             standing->classesShown);
         players.quiet = !standing->classesShown; players.hint = loc::T("rankings.players");
         rows.push_back(std::move(players));
+        auto points = Row("rk-points", loc::T("rankings.points"), loc::T("rankings.points_detail"));
+        points.hint = loc::T("rankings.points");
+        rows.push_back(std::move(points));
+        if (const auto rating = RatingRow(v)) rows.push_back(*rating);
         rows.push_back(choice("rk-stop", "rankings.stop", loc::T("rankings.stop_detail")));
         break;
     }
@@ -264,6 +279,20 @@ std::vector<MenuEntry> RankingsPanel::StandingRows(const ShellView& v, bool iden
     how.reading = true; how.hint = loc::T("rankings.how");
     rows.push_back(std::move(how));
     return rows;
+}
+
+// Your rating as the bridge counts it, and how far the class is from moving.
+std::optional<MenuEntry> RankingsPanel::RatingRow(const ShellView& v) const {
+    const auto& status = v.rankings;
+    if (status.bridge != bridge_ || !status.rating.loaded || !status.rating.value.known) return std::nullopt;
+    const auto& r = status.rating.value;
+    const auto whole = [](double value) { return std::to_string(static_cast<long long>(std::lround(value))); };
+    std::string detail;
+    if (r.upAt && r.downBelow) detail = loc::Tf("rankings.rating_between", whole(*r.upAt), whole(*r.downBelow));
+    else if (r.upAt) detail = loc::Tf("rankings.rating_up", whole(*r.upAt));
+    else if (r.downBelow) detail = loc::Tf("rankings.rating_down", whole(*r.downBelow));
+    if (r.faintInDays) detail += (detail.empty() ? "" : " ") + loc::Tf("rankings.rating_faint", std::to_string(*r.faintInDays));
+    return InfoRow("rk-rating", loc::T("rankings.rating"), loc::Tf("rankings.rating_value", whole(r.rating), whole(r.deviation)), std::move(detail));
 }
 
 std::vector<MenuEntry> RankingsPanel::BoardRows(const ShellView& v) const {
@@ -323,10 +352,55 @@ std::vector<MenuEntry> RankingsPanel::BoardRows(const ShellView& v) const {
     return rows;
 }
 
+std::vector<MenuEntry> RankingsPanel::PointsRows(const ShellView& v) const {
+    const auto& status = v.rankings;
+    const auto* board = status.bridge == bridge_ && status.points.loaded && status.points.value && status.points.value->fighter == pointsFighter_ ? status.points.value.get() : nullptr;
+    std::string fighterName;
+    if (pointsFighter_ < 0) fighterName = loc::T("rankings.points_all");
+    else if (const auto* f = selection::FindFighter(pointsFighter_)) fighterName = f->name;
+    else fighterName = std::to_string(pointsFighter_);
+    std::vector<MenuEntry> rows{Value("rkp-fighter", loc::T("rankings.points_fighter"), fighterName, {})};
+    if (!board) {
+        const bool failed = status.bridge == bridge_ && !status.points.error.empty() && !status.points.loading;
+        if (!failed) { rows.push_back(Card("rkp-loading", loc::T("rankings.loading_points"), {}, StateCardHeight)); return rows; }
+        auto retry = Row("rkp-error", FailureText(status.points.error), {});
+        retry.height = StateCardHeight; retry.hint = loc::T("public.try_again");
+        rows.push_back(std::move(retry));
+        return rows;
+    }
+    if (board->lines.empty()) { rows.push_back(Card("rkp-empty", loc::T("rankings.points_empty"), {}, StateCardHeight)); return rows; }
+    for (std::size_t i = 0; i < board->lines.size(); ++i) {
+        const auto& line = board->lines[i];
+        std::string detail;
+        if (line.listing.country.Present()) detail = CountryName(line.listing.country);
+        auto player = Row("rkp-p:" + std::to_string(i), "#" + std::to_string(line.place) + "  " + line.listing.name, std::move(detail));
+        player.value = loc::Tf("rankings.points_value", line.points);
+        player.hint = loc::T("room.member_card");
+        player.userText = true; player.detailText = DetailText::Name; player.height = PlayerHeight;
+        player.key = i;
+        rows.push_back(std::move(player));
+    }
+    return rows;
+}
+
+bool RankingsPanel::Adjust(const MenuAction& a) {
+    if (a.id != "rkp-fighter") return false;
+    // All fighters first, then the roster in the order the select screen shows it.
+    const auto* order = selection::RosterDisplayOrder;
+    const auto* found = std::find(order, order + selection::FighterCount, pointsFighter_);
+    const int at = pointsFighter_ < 0 || found == order + selection::FighterCount ? 0 : static_cast<int>(found - order) + 1;
+    const int next = StepTab(at, a.delta, selection::FighterCount + 1);
+    pointsFighter_ = next == 0 ? -1 : order[next - 1];
+    wantPoints_ = true;
+    return true;
+}
+
 bool RankingsPanel::Activate(const MenuAction& a, const ShellView& v, MenuNavigation& nav) {
     if (a.id == "rk-setup") { nav.Push("public-rooms"); return true; }
     if (a.id == "rk-error") { wantStanding_ = true; return true; }
     if (a.id == "rkb-error") { wantBoard_ = true; return true; }
+    if (a.id == "rk-points") { nav.Push(PointsScreen); return true; }
+    if (a.id == "rkp-error") { wantPoints_ = true; return true; }
     if (a.id == "rk-stop" || a.id == "rk-join") { if (!pending_) Choose(a.id == "rk-join"); return true; }
     if (a.id == "rk-players") {
         nav.Push(BoardScreen);
@@ -340,6 +414,9 @@ bool RankingsPanel::Activate(const MenuAction& a, const ShellView& v, MenuNaviga
 }
 
 std::optional<player_opening::Opening> RankingsPanel::PlayerOf(const ShellView& v, const MenuAction& a) const {
+    const auto atPoints = RowKey<std::size_t>(a.id, "rkp-p:");
+    const auto* pboard = v.rankings.bridge == bridge_ && v.rankings.points.loaded && v.rankings.points.value && v.rankings.points.value->fighter == pointsFighter_ ? v.rankings.points.value.get() : nullptr;
+    if (atPoints && pboard && *atPoints < pboard->lines.size()) return player_opening::OpeningOf(pboard->lines[*atPoints]);
     const auto at = RowKey<std::size_t>(a.id, "rkb-p:");
     const auto* board = v.rankings.bridge == bridge_ && v.rankings.board.loaded ? v.rankings.board.value.get() : nullptr;
     if (!at || !board || *at >= board->size()) return std::nullopt;
@@ -348,7 +425,9 @@ std::optional<player_opening::Opening> RankingsPanel::PlayerOf(const ShellView& 
 
 bool RankingsPanel::Shortcut(const MenuAction& a) {
     if (a.delta != MenuInput::Options || !Refreshable()) return false;
-    (lastScreen_ == BoardScreen ? wantBoard_ : wantStanding_) = true;
+    if (lastScreen_ == PointsScreen) wantPoints_ = true;
+    else if (lastScreen_ == BoardScreen) wantBoard_ = true;
+    else wantStanding_ = true;
     return true;
 }
 
@@ -360,6 +439,12 @@ bool RankingsPanel::Status(const ShellView& v, const std::string& screen, std::s
     if (screen == Screen) {
         if (!rankings.standing.loading) return false;
         status = loc::T(Current(v) ? "public.updating" : "rankings.loading");
+        tone = Tone::Pending;
+        return true;
+    }
+    if (screen == PointsScreen) {
+        if (!rankings.points.loading) return false;
+        status = loc::T("rankings.loading_points");
         tone = Tone::Pending;
         return true;
     }
@@ -380,6 +465,6 @@ bool RankingsPanel::TakeSaid(std::string& text) {
 // A choice already sent is kept: its answer is taken, and said, when Ember shows again.
 void RankingsPanel::Conceal() {
     if (pending_ && !pending_->sent) pending_.reset();
-    wantStanding_ = wantBoard_ = false; lastScreen_.clear();
+    wantStanding_ = wantBoard_ = wantPoints_ = wantRating_ = false; lastScreen_.clear();
 }
 } }

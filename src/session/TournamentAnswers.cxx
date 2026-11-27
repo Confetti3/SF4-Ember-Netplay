@@ -1,9 +1,11 @@
 #include "TournamentAnswers.hxx"
 
 #include <algorithm>
+#include <cmath>
 #include <initializer_list>
 #include <stdexcept>
 
+#include "../common/FighterCatalog.hxx"
 #include "../common/RoomRules.hxx"
 #include "../common/SkillBadgeJson.hxx"
 #include "AnswerReading.hxx"
@@ -191,7 +193,7 @@ bool IsTournamentPlayOp(const std::string& op) {
 	return op == "match_claim" || op == "room_publish" || op == "game_prepare" || op == "game_report" ||
 		op == "match_leave" || op == "assignment_list" || op == "match_watch" || op == "match_unwatch" ||
 		op == "room_list" || op == "room_create" || op == "room_ticket" ||
-		op == "ranking_standing" || op == "ranking_choose" || op == "ranking_board" ||
+		op == "ranking_standing" || op == "ranking_choose" || op == "ranking_board" || op == "points_board" || op == "ranking_rating" ||
 		op == "points_me" || op == "cards_lookup" || op == "cards_search" || op == "card_save" || op == "friends_sync" || op == "friends_act" ||
 		op == "replay_send" || op == "replay_archive" || op == "replay_pack" || op == "archive_list" || op == "archive_fetch";
 }
@@ -433,6 +435,138 @@ std::optional<std::vector<netplay::rankings::BoardEntry>> DecodeBoard(const json
 			board.push_back(std::move(entry));
 		}
 		return board;
+	} catch (const std::exception&) {
+		return std::nullopt;
+	}
+}
+
+// Points board: the bridge sends at most MaxBoard lines; a line that cannot be
+// read is left out, so the board still comes back with the rest. A line with
+// no class shows no class (band 0), and a tier past this build's table shows
+// as the last it knows.
+std::optional<netplay::rankings::PointsBoard> DecodePointsBoard(const json& data) {
+	try {
+		const auto& rows = Strict(data, {"listed_at", "fighter", "total", "players"}).at("players");
+		if (!rows.is_array() || rows.size() > netplay::rankings::MaxBoard) return std::nullopt;
+		netplay::rankings::PointsBoard board;
+		if (data.find("fighter") != data.end()) {
+			const auto fighter = Count(data, "fighter");
+			if (fighter >= selection::FighterCount) return std::nullopt;
+			board.fighter = static_cast<int>(fighter);
+		}
+		if (data.find("total") != data.end()) board.total = Count(data, "total");
+		board.lines.reserve(rows.size());
+		for (const auto& row : rows) {
+			try {
+				const auto& object = Strict(row, {"place", "name", "country", "band", "points", "tier", "card"});
+				netplay::rankings::PointsLine line;
+				line.place = static_cast<std::uint32_t>(Small(object, "place", netplay::rankings::MaxBoard));
+				if (line.place == 0) throw std::invalid_argument("place");
+				// The bridge writes a line's name and country beside its numbers, as a listing's two members.
+				json named = {{"name", object.at("name")}};
+				if (const auto country = object.find("country"); country != object.end()) named["country"] = *country;
+				line.listing = DecodeListing(named);
+				if (const auto found = object.find("band"); found != object.end()) {
+					if (!found->is_number_unsigned()) throw std::invalid_argument("band");
+					line.band = static_cast<std::uint8_t>((std::min)(found->get<std::uint64_t>(), static_cast<std::uint64_t>(SkillBadge::Classes)));
+				}
+				line.points = Count(object, "points");
+				if (const auto found = object.find("tier"); found != object.end()) {
+					if (!found->is_number_unsigned()) throw std::invalid_argument("tier");
+					line.tier = static_cast<std::uint8_t>((std::min)(found->get<std::uint64_t>(), static_cast<std::uint64_t>(netplay::levels::TierCount - 1)));
+				}
+				if (const auto found = object.find("card"); found != object.end()) {
+					if (!found->is_string()) throw std::invalid_argument("card");
+					if (CardToken::Parsed(found->get<std::string>()).Present()) line.card = found->get<std::string>();
+				}
+				board.lines.push_back(std::move(line));
+			} catch (const std::exception&) {
+				// One line that cannot be read is left out, never a failed answer.
+			}
+		}
+		return board;
+	} catch (const std::exception&) {
+		return std::nullopt;
+	}
+}
+
+// Rating details: the bridge sends a "rating" object and "rules" beside it;
+// rules are an object whose members are not read. Every number must be finite
+// or the answer is refused, and an example whose weight is not in (0,1] is
+// dropped, never a failed answer. At most eight examples.
+std::optional<netplay::rankings::RatingDetails> DecodeRatingDetails(const json& data) {
+	try {
+		Strict(data, {"rating", "rules"});
+		if (data.find("rules") == data.end() || !data.at("rules").is_object()) return std::nullopt;
+		netplay::rankings::RatingDetails details;
+		const auto found = data.find("rating");
+		if (found == data.end()) return details;
+		const auto& rating = *found;
+		if (!rating.is_object()) return std::nullopt;
+		details.known = true;
+		auto finite = [](const json& object, const char* key) -> double {
+			const auto& value = object.at(key);
+			if (!value.is_number()) throw std::invalid_argument(key);
+			const auto number = value.get<double>();
+			if (!std::isfinite(number)) throw std::invalid_argument(key);
+			return number;
+		};
+		auto optionalFinite = [&](const json& object, const char* key) -> std::optional<double> {
+			const auto at = object.find(key);
+			if (at == object.end()) return std::nullopt;
+			if (!at->is_number()) throw std::invalid_argument(key);
+			const auto number = at->get<double>();
+			if (!std::isfinite(number)) throw std::invalid_argument(key);
+			return number;
+		};
+		details.takesPart = rating.at("takes_part").is_boolean() && rating.at("takes_part").get<bool>();
+		details.settled = rating.at("settled").is_boolean() && rating.at("settled").get<bool>();
+		details.rating = finite(rating, "rating");
+		details.deviation = finite(rating, "deviation");
+		details.volatility = finite(rating, "volatility");
+		const auto band = rating.at("band");
+		if (!band.is_number_unsigned()) throw std::invalid_argument("band");
+		details.band = static_cast<std::uint8_t>((std::min)(band.get<std::uint64_t>(), static_cast<std::uint64_t>(SkillBadge::Classes)));
+		details.upAt = optionalFinite(rating, "up_at");
+		details.downBelow = optionalFinite(rating, "down_below");
+		if (rating.find("faint_in_days") != rating.end()) {
+			const auto days = rating.at("faint_in_days");
+			if (!days.is_number_unsigned()) throw std::invalid_argument("faint_in_days");
+			details.faintInDays = days.get<std::uint64_t>();
+		}
+		if (!rating.at("played_at").is_number_unsigned()) throw std::invalid_argument("played_at");
+		details.playedAt = rating.at("played_at").get<std::uint64_t>();
+		const auto& examples = rating.at("examples");
+		if (!examples.is_array() || examples.size() > 8) return std::nullopt;
+		for (const auto& example : examples) {
+			try {
+				const auto& object = Strict(example, {"opponent", "band", "win", "loss"});
+				netplay::rankings::RatingExample entry;
+				entry.opponent = finite(object, "opponent");
+				const auto eband = object.find("band");
+				if (eband != object.end() && eband->is_number_unsigned())
+					entry.band = static_cast<std::uint8_t>((std::min)(eband->get<std::uint64_t>(), static_cast<std::uint64_t>(SkillBadge::Classes)));
+				auto outcome = [&](const char* key) {
+					const auto& value = object.at(key);
+					const auto& outcomeObject = Strict(value, {"weight", "change"});
+					const auto& weight = outcomeObject.at("weight");
+					if (!weight.is_number()) throw std::invalid_argument("weight");
+					const auto w = weight.get<double>();
+					if (!std::isfinite(w) || w <= 0.0 || w > 1.0) throw std::invalid_argument("weight");
+					const auto& change = outcomeObject.at("change");
+					if (!change.is_number()) throw std::invalid_argument("change");
+					const auto c = change.get<double>();
+					if (!std::isfinite(c)) throw std::invalid_argument("change");
+					return netplay::rankings::RatingOutcome{w, c};
+				};
+				entry.win = outcome("win");
+				entry.loss = outcome("loss");
+				details.examples.push_back(std::move(entry));
+			} catch (const std::exception&) {
+				// One example that cannot be read is dropped, never a failed answer.
+			}
+		}
+		return details;
 	} catch (const std::exception&) {
 		return std::nullopt;
 	}

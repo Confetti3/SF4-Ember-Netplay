@@ -517,3 +517,14 @@ async fn a_developer_shows_the_mark_for_builds_that_ask_and_is_not_on_the_board(
         .collect();
     assert_eq!(bands, vec![json!(5)]);
 }
+
+#[tokio::test]
+async fn rating_details_show_the_rules_before_a_rated_game() {
+    let (bridge, _fake) = start(true).await;
+    let one = player(&bridge, 1).await;
+    connect_discord(&bridge, "100", &one).await;
+    let (status, details) = call(&bridge, &one, Method::GET, "/v1/ranking/rating", None).await;
+    assert_eq!(status, StatusCode::OK, "{details}");
+    assert!(details.get("rating").is_none(), "{details}");
+    assert!(details["rules"].is_object(), "{details}");
+}

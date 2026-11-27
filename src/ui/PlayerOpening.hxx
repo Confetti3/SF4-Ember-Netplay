@@ -27,6 +27,8 @@ Opening OpeningOf(const netplay::friends::Friend& entry);
 Opening OpeningOf(const netplay::friends::Incoming& request);
 // A row of the rankings board: by name and flag, with the class the board lists them in.
 Opening OpeningOf(const netplay::rankings::BoardEntry& entry);
+// A row of the points board: by the card token when the line carries one, else by name and flag.
+Opening OpeningOf(const netplay::rankings::PointsLine& line);
 // A player Find a player found, by the card token the search gave.
 Opening OpeningOf(const netplay::profiles::Hit& hit);
 // A player this PC met lately, by the card token kept for them, shown with the fighter they played.

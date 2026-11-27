@@ -7,9 +7,8 @@
 //!
 //! Nothing here is ever served of another player: a card, a board and a
 //! ticket carry the class alone (`SKILL_BADGE.md`).
-use ember_protocol::skill::SKILL_BANDS;
+use ember_protocol::skill::{Example, Outcome, OwnRating, Rules};
 use rusqlite::{OptionalExtension, Transaction};
-use serde::Serialize;
 
 use super::{
     BAND_FLOORS, BAND_MARGIN, CLEAR_DEVIATIONS, FULL_REPEATS, FULL_WEIGHT_GAP, MIN_WEIGHT,
@@ -18,37 +17,6 @@ use super::{
     weights,
 };
 use crate::error::Result;
-
-/// The numbers the rating rules are made of, as they stand in this bridge.
-#[derive(Serialize)]
-pub struct Rules {
-    start_rating: f64,
-    start_deviation: f64,
-    start_volatility: f64,
-    /// The lowest rating of each class above the first, D+ to Grand Master.
-    floors: [f64; SKILL_BANDS as usize - 1],
-    /// How far past a class's edge a rating goes before the class follows.
-    margin: f64,
-    /// The deviation at or below which a rating stands behind a class.
-    settled_deviation: f64,
-    /// The deviation above which every game counts in full.
-    unsure_deviation: f64,
-    /// The deviations a loss to a lower-rated player must be clear of.
-    clear_deviations: f64,
-    /// Up to this many rating points apart a game counts in full.
-    full_gap: f64,
-    /// From this many apart it counts `min_weight`.
-    min_gap: f64,
-    min_weight: f64,
-    /// The least a lower-rated winner's game counts.
-    upset_weight: f64,
-    /// Games against one opponent in a sitting that count in full.
-    full_repeats: u32,
-    /// What each game past them counts.
-    repeat_weight: f64,
-    /// A sitting ends after this long without a game between the two.
-    sitting_secs: u64,
-}
 
 pub const RULES: Rules = Rules {
     start_rating: Rating::NEW.rating,
@@ -67,58 +35,6 @@ pub const RULES: Rules = Rules {
     repeat_weight: REPEAT_WEIGHT,
     sitting_secs: SITTING_SECS,
 };
-
-/// A player's rating as it stands now, for that player.
-#[derive(Serialize)]
-pub struct OwnRating {
-    /// False while the account does not take part in ranking: the rating is
-    /// kept as it was and games move nothing.
-    takes_part: bool,
-    rating: f64,
-    /// Grown by the days since the last game.
-    deviation: f64,
-    volatility: f64,
-    /// The class the next room ticket shows, 1 to `SKILL_BANDS`; 0 before one.
-    band: u8,
-    /// Whether the rating stands behind the class; a class that is not is
-    /// shown faint.
-    settled: bool,
-    /// The rating at which the class moves up; none at the top and before a
-    /// class.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    up_at: Option<f64>,
-    /// The rating under which the class moves down; none at the bottom and
-    /// before a class.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    down_below: Option<f64>,
-    /// Whole days without a game until the class shows faint; none while it
-    /// is not settled.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    faint_in_days: Option<u64>,
-    /// The last rated game, unix seconds.
-    played_at: u64,
-    examples: Vec<Example>,
-}
-
-/// What a next game against one kind of opponent would move.
-#[derive(Serialize)]
-pub struct Example {
-    /// The opponent's rating.
-    opponent: f64,
-    /// The class of that rating; 0 for a new player, who has none yet.
-    band: u8,
-    win: Outcome,
-    loss: Outcome,
-}
-
-/// One result of an example game.
-#[derive(Serialize)]
-pub struct Outcome {
-    /// How much of a game it counts as, above 0 and at most 1.
-    weight: f64,
-    /// What it adds to the player's rating; negative for a loss.
-    change: f64,
-}
 
 /// How far from the player's own rating the examples' settled opponents are:
 /// a peer, one above the gap that counts in full and one far below it.
@@ -228,6 +144,7 @@ fn tenth(value: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ember_protocol::skill::SKILL_BANDS;
 
     fn rating(rating: f64, deviation: f64) -> Rating {
         Rating {

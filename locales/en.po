@@ -2259,6 +2259,12 @@ msgstr "Ember website"
 msgid "about.website_detail"
 msgstr "Rooms, rankings and replays at {0}. Opens in your browser behind the game."
 
+msgid "about.guides"
+msgstr "Guides"
+
+msgid "about.guides_detail"
+msgstr "How to install, play online, record and more, at {0}. Opens in your browser behind the game."
+
 msgid "about.twitter"
 msgstr "Developer on Twitter"
 
@@ -8230,6 +8236,48 @@ msgstr "Nobody is on the board yet."
 
 msgid "rankings.status_board"
 msgstr "Players listed: {0}. Updated {1}."
+
+msgid "rankings.points_title"
+msgstr "Points board"
+
+msgid "rankings.points"
+msgstr "Points board"
+
+msgid "rankings.points_detail"
+msgstr "Who has played the most, overall or with one fighter."
+
+msgid "rankings.points_fighter"
+msgstr "Fighter"
+
+msgid "rankings.points_all"
+msgstr "All fighters"
+
+msgid "rankings.points_value"
+msgstr "{0} pts"
+
+msgid "rankings.loading_points"
+msgstr "Loading the points board…"
+
+msgid "rankings.points_empty"
+msgstr "Nobody has points here yet."
+
+msgid "rankings.rating"
+msgstr "Rating"
+
+msgid "rankings.rating_value"
+msgstr "{0} ± {1}"
+
+msgid "rankings.rating_between"
+msgstr "Your class moves up at {0} and down below {1}."
+
+msgid "rankings.rating_up"
+msgstr "Your class moves up at {0}."
+
+msgid "rankings.rating_down"
+msgstr "Your class moves down below {0}."
+
+msgid "rankings.rating_faint"
+msgstr "It shows faint after {0} days without a rated game."
 
 msgid "rankings.failure.unavailable"
 msgstr "This service does not offer rankings."

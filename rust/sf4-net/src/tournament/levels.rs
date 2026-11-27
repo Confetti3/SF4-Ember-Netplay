@@ -20,7 +20,8 @@ use super::{
 use ember_protocol::{
     levels::{
         CARDS_ME_PATH, CLASS_BONUS_POINTS_PATH, CardAnswers, CardLookup, CardSave, CardSearch,
-        CardSelector, LOOKUP_PATH, OwnLevels, POINTS_PATH, SEARCH_PATH, SearchAnswer,
+        CardSelector, FIGHTERS, LOOKUP_PATH, OwnLevels, POINTS_BOARD_PATH, POINTS_PATH,
+        PointsBoard, SEARCH_PATH, SearchAnswer,
     },
     skill::NO_ACCOUNT,
 };
@@ -63,6 +64,23 @@ pub async fn own(shared: &Arc<Shared>, bridge_id: &str) -> Outcome {
     let levels: OwnLevels = client::request_as(shared, bridge_id, &call).await?;
     levels.check().map_err(|_| invalid_response())?;
     to_json(&levels)
+}
+
+/// The public points board on `bridge_id`: the account's, or with a
+/// `fighter` that fighter's. The route needs no sign-in.
+pub async fn points_board(shared: &Arc<Shared>, bridge_id: &str, fighter: Option<u8>) -> Outcome {
+    if fighter.is_some_and(|fighter| fighter >= FIGHTERS) {
+        return Err(Failure::new(Code::InvalidRequest));
+    }
+    let bridge = client::approved(shared, bridge_id)?;
+    let path = match fighter {
+        Some(fighter) => format!("{POINTS_BOARD_PATH}?fighter={fighter}"),
+        None => POINTS_BOARD_PATH.to_owned(),
+    };
+    let call = BridgeCall::new(Verb::Get, &path, &[200]).refusals(REFUSALS);
+    let board: PointsBoard = client::fetch_as(shared, &bridge, None, &call).await?;
+    board.check().map_err(|_| invalid_response())?;
+    to_json(&board)
 }
 
 /// One card, or none, for each of `cards`, in order.
@@ -232,6 +250,36 @@ mod tests {
         // Well formed, it reaches the bridge it names, which was never approved.
         assert_eq!(
             refused(vec![CardSelector::Card(TOKEN.into())]).await,
+            "bridge_not_approved"
+        );
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    // A board with a fighter past the roster is refused before any bridge is
+    // asked; one that is well formed reaches the bridge it names.
+    #[tokio::test]
+    async fn a_board_past_the_roster_is_refused_before_it_is_asked() {
+        let dir = std::env::temp_dir().join(format!("sf4-net-board-{}", std::process::id()));
+        let shared = shared_pinning(&dir, &[]);
+        assert_eq!(
+            points_board(&shared, "brg_never_approved", Some(FIGHTERS))
+                .await
+                .unwrap_err()
+                .as_str(),
+            "invalid_request"
+        );
+        assert_eq!(
+            points_board(&shared, "brg_never_approved", Some(FIGHTERS - 1))
+                .await
+                .unwrap_err()
+                .as_str(),
+            "bridge_not_approved"
+        );
+        assert_eq!(
+            points_board(&shared, "brg_never_approved", None)
+                .await
+                .unwrap_err()
+                .as_str(),
             "bridge_not_approved"
         );
         let _ = std::fs::remove_dir_all(dir);

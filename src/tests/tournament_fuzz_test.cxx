@@ -259,7 +259,56 @@ static void TestRankings() {
 	json full = json::array();
 	for (std::size_t i = 0; i <= netplay::rankings::MaxBoard; ++i) full.push_back(entry("Player 1", 1u));
 	CHECK(!session::DecodeBoard({{"players", full}}));
-	for (const char* op : {"ranking_standing", "ranking_choose", "ranking_board"})
+
+	const auto pointsLine = [](const char* name, unsigned place, unsigned points) {
+		return json{{"place", place}, {"name", name}, {"points", points}};
+	};
+	const auto pointsBoard = session::DecodePointsBoard({
+		{"fighter", 3u}, {"total", 812u},
+		{"players", json::array({pointsLine("Player 1", 1u, 1234u), pointsLine("Player 2", 2u, 500u)})}});
+	CHECK(pointsBoard && pointsBoard->fighter == 3 && pointsBoard->total == 812 && pointsBoard->lines.size() == 2);
+	CHECK((*pointsBoard).lines[0].place == 1 && (*pointsBoard).lines[1].place == 2);
+	// A tier past the build's table is the last it knows, a band is clamped to Classes.
+	auto clamped = pointsLine("Player 1", 1u, 1u);
+	clamped["tier"] = 9u;
+	clamped["band"] = 99u;
+	auto clampedBoard = session::DecodePointsBoard({{"players", json::array({clamped})}});
+	CHECK(clampedBoard && clampedBoard->lines.size() == 1 && clampedBoard->lines[0].tier == 4 && clampedBoard->lines[0].band == SkillBadge::Classes);
+	// A line that cannot be read (no points) is left out, so the board still decodes with the rest.
+	auto dropped = session::DecodePointsBoard({{"players", json::array({json{{"place", 1u}, {"name", "Player 1"}}})}});
+	CHECK(dropped && dropped->lines.empty());
+
+	// A ranking_rating answer with no "rating" decodes as known=false.
+	const auto ratingMissing = session::DecodeRatingDetails({{"rules", json::object()}});
+	CHECK(ratingMissing && !ratingMissing->known && !ratingMissing->takesPart && !ratingMissing->settled && ratingMissing->rating == 0 && ratingMissing->examples.empty());
+	const auto ratingFull = session::DecodeRatingDetails({
+		{"rules", json::object()},
+		{"rating", {{"takes_part", true}, {"rating", 1612.4}, {"deviation", 61.2}, {"volatility", 0.06},
+			{"band", 5u}, {"settled", true}, {"up_at", 1700.0}, {"down_below", 1550.0}, {"faint_in_days", 12u},
+			{"played_at", 1700000000u},
+			{"examples", json::array({{{"opponent", 1500.0}, {"band", 4u},
+				{"win", {{"weight", 1.0}, {"change", 9.8}}}, {"loss", {{"weight", 1.0}, {"change", -9.6}}}}})}}}}});
+	CHECK(ratingFull && ratingFull->known && ratingFull->takesPart && ratingFull->settled && ratingFull->rating == 1612.4 &&
+		ratingFull->deviation == 61.2 && ratingFull->volatility == 0.06 && ratingFull->band == 5 &&
+		ratingFull->upAt == 1700.0 && ratingFull->downBelow == 1550.0 && ratingFull->faintInDays == 12 &&
+		ratingFull->playedAt == 1700000000u && ratingFull->examples.size() == 1);
+	CHECK(ratingFull->examples[0].opponent == 1500.0 && ratingFull->examples[0].band == 4 &&
+		ratingFull->examples[0].win.weight == 1.0 && ratingFull->examples[0].win.change == 9.8 &&
+		ratingFull->examples[0].loss.change == -9.6);
+	// An example whose weight is not in (0,1] is dropped.
+	auto badWeight = session::DecodeRatingDetails({
+		{"rules", json::object()},
+		{"rating", {{"takes_part", true}, {"rating", 1612.4}, {"deviation", 61.2}, {"volatility", 0.06},
+			{"band", 5u}, {"settled", true}, {"played_at", 1700000000u},
+			{"examples", json::array({{{"opponent", 1500.0},
+				{"win", {{"weight", 1.5}, {"change", 9.8}}}, {"loss", {{"weight", 1.0}, {"change", -9.6}}}}})}}}}});
+	CHECK(badWeight && badWeight->examples.empty());
+	// A non-number rating is refused.
+	CHECK(!session::DecodeRatingDetails({
+		{"rules", json::object()},
+		{"rating", {{"takes_part", true}, {"rating", "1612.4"}, {"deviation", 61.2}, {"volatility", 0.06},
+			{"band", 5u}, {"settled", true}, {"played_at", 1700000000u}, {"examples", json::array()}}}}));
+	for (const char* op : {"ranking_standing", "ranking_choose", "ranking_board", "points_board", "ranking_rating"})
 		CHECK(session::ReadTournamentAnswer({{"op", op}, {"request_id", 7u}, {"ok", true}, {"data", json::object()}}).has_value());
 }
 

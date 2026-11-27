@@ -10,7 +10,8 @@ use super::{
     client::{self, Body, BridgeCall, Refusals, Verb},
 };
 use ember_protocol::skill::{
-    BOARD_PATH, Board, CHOICE_TOO_SOON, NO_ACCOUNT, RankingChoice, STANDING_PATH, Standing,
+    BOARD_PATH, Board, CHOICE_TOO_SOON, NO_ACCOUNT, RATING_PATH, RatingDetails, RankingChoice,
+    STANDING_PATH, Standing,
 };
 
 /// Refusals of the ranking routes that the game words apart.
@@ -41,6 +42,14 @@ pub async fn choose(shared: &Arc<Shared>, bridge_id: &str, choice: RankingChoice
     let standing: Standing = client::request_as(shared, bridge_id, &call).await?;
     standing.check().map_err(|_| invalid_response())?;
     to_json(&standing)
+}
+
+/// The player's own rating details on `bridge_id`: the numbers behind the class and the rules they follow.
+pub async fn rating(shared: &Arc<Shared>, bridge_id: &str) -> Outcome {
+    let call = BridgeCall::new(Verb::Get, RATING_PATH, &[200]).refusals(REFUSALS);
+    let rating: RatingDetails = client::request_as(shared, bridge_id, &call).await?;
+    rating.check().map_err(|_| invalid_response())?;
+    to_json(&rating)
 }
 
 /// The board of classes on `bridge_id`.
@@ -80,11 +89,13 @@ mod tests {
         let opt_out =
             json!({ "op": "ranking_choose", "bridge_id": "brg_x", "choice": { "ranked": false } });
         let board = json!({ "op": "ranking_board", "bridge_id": "brg_x" });
+        let rating = json!({ "op": "ranking_rating", "bridge_id": "brg_x" });
         for (value, op) in [
             (standing, "ranking_standing"),
             (choose, "ranking_choose"),
             (opt_out, "ranking_choose"),
             (board, "ranking_board"),
+            (rating, "ranking_rating"),
         ] {
             let parsed: Request = serde_json::from_value(value.clone()).expect("a request");
             assert_eq!(parsed.op(), op);

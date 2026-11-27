@@ -140,8 +140,9 @@ pub fn router(state: AppState) -> Router {
             get(ranking::standing).put(ranking::choose),
         )
         .route(ember_protocol::skill::BOARD_PATH, get(ranking::board))
+        .route(ember_protocol::skill::RATING_PATH, get(ranking::rating))
         .route("/v1/ranking/board/public", get(ranking::public_board))
-        .route("/v1/points/board/public", get(boards::public_board))
+        .route(ember_protocol::levels::POINTS_BOARD_PATH, get(boards::public_board))
         .route(ember_protocol::levels::POINTS_PATH, get(levels::own))
         .route(ember_protocol::levels::LOOKUP_PATH, post(levels::lookup))
         .route(ember_protocol::levels::CARDS_ME_PATH, put(profiles::save))

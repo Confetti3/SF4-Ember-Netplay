@@ -33,6 +33,11 @@ pub use crate::cards::*;
 pub const POINTS_FEATURE: &str = "points";
 /// `GET` the caller's `OwnLevels`.
 pub const POINTS_PATH: &str = "/v1/points/me";
+/// GET the public points board: the account's, or with ?fighter=<id> that fighter's (`PointsBoard`).
+pub const POINTS_BOARD_PATH: &str = "/v1/points/board/public";
+
+mod board;
+pub use board::*;
 /// The capability of a bridge whose points follow the class bonus: a win
 /// earns its second point only against the same class or a higher one, so
 /// points can be fewer than games plus wins. A build that reads such points

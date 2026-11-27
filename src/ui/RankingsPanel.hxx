@@ -33,7 +33,8 @@ public:
     using Submit = std::function<bool(ShellAction)>;
     static constexpr const char* Screen = "rankings";
     static constexpr const char* BoardScreen = "rankings-board";
-    static bool Owns(const std::string& screen) { return screen == Screen || screen == BoardScreen; }
+    static constexpr const char* PointsScreen = "rankings-points";
+    static bool Owns(const std::string& screen) { return screen == Screen || screen == BoardScreen || screen == PointsScreen; }
     // A refused request or a failed read, by its stable code, in words.
     static std::string FailureText(const std::string& code);
     // How this player is listed: the name and flag rooms show for them.
@@ -55,6 +56,8 @@ public:
     std::optional<player_opening::Opening> PlayerOf(const ShellView& view, const MenuAction& action) const;
     // The Options button or key (Y, T) reads the screen's answer again.
     bool Shortcut(const MenuAction& action);
+    // Left and Right on the points board's fighter step through all fighters, then the roster.
+    bool Adjust(const MenuAction& a);
     bool Refreshable() const { return Owns(lastScreen_) && !bridge_.empty(); }
     // What a request in flight or the board's own state says on `screen`.
     bool Status(const ShellView& view, const std::string& screen, std::string& status, Tone& tone) const;
@@ -74,6 +77,8 @@ private:
     const netplay::rankings::Standing* Current(const ShellView& view) const;
     std::vector<MenuEntry> StandingRows(const ShellView& view, bool identityPending) const;
     std::vector<MenuEntry> BoardRows(const ShellView& view) const;
+    std::vector<MenuEntry> PointsRows(const ShellView& view) const;
+    std::optional<MenuEntry> RatingRow(const ShellView& view) const;
     void Choose(bool ranked);
     void TakeAnswers(const ShellView& view, bool owned);
     void ReadForProfile(const ShellView& view, const std::string& bridge, const Submit& submit);
@@ -83,7 +88,11 @@ private:
     // The service and Ember ID whose standing ReadForProfile asked for, or found loaded.
     std::string profileRead_;
     netplay::rankings::Listing own_;
-    bool wantStanding_ = false, wantBoard_ = false;
+    // The rating details follow every standing read, so they never describe an older standing.
+    bool wantStanding_ = false, wantBoard_ = false, wantPoints_ = false, wantRating_ = false;
+    std::uint64_t pointsSeen_ = 0;
+    // -1: all fighters, else a native fighter id.
+    int pointsFighter_ = -1;
     // The visit sent its listing already, so an answer that still differs cannot loop.
     bool listingSent_ = false;
     std::optional<Pending> pending_;

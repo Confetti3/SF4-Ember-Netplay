@@ -53,12 +53,15 @@ std::string RoundLabel(const std::string& round) {
 }
 // A tournament set's round as its games name it: "Top 8 · Winners".
 std::string RoundOf(const Game& game) { return Joined({game.round, game.phase}, kDot); }
+// A game's own round score, as the replay gives it: "2-1", the first side first.
+std::string RoundScoreText(const Game& game) { return game.rounds ? std::to_string((*game.rounds)[0]) + "-" + std::to_string((*game.rounds)[1]) : std::string(); }
 // What a row adds to its players: a tournament set's event and round, and its games' count when there are several (a session's
-// heading already says its count).
+// heading already says its count), and a lone game's round score when the replay gives one: several games have no one score.
 std::string ContextText(const Entry& entry) {
     std::vector<std::string> parts;
     if (entry.Tournament()) { parts.push_back(entry.First().event); parts.push_back(RoundOf(entry.First())); }
     if (entry.games.size() > 1 && !entry.Tournament() && entry.kind != Entry::Kind::Session) parts.push_back(GamesText(entry.games.size()));
+    if (entry.games.size() == 1) parts.push_back(RoundScoreText(entry.First()));
     return Joined(parts, kDot);
 }
 std::string FightersLine(const Entry& entry) {
