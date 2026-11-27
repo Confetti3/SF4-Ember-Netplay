@@ -1,3 +1,4 @@
+// needs: site marks
 // The public rooms page: lists the rooms the Ember bridge reports
 // (/rooms.json, nginx's proxy of the bridge's GET /v1/rooms/public) as cards
 // like Ember's own Public rooms screen, and refreshes while the tab is shown.
@@ -17,12 +18,8 @@
   'use strict';
   var site = window.EmberSite;
   var REFRESH_MS = 15000;
-  // Native fighter IDs, as src/common/FighterMetadata.inc orders them and
-  // assets/faces.css places their faces (class f0 to f43).
-  var FIGHTERS = ['Ryu', 'Ken', 'Chun-Li', 'E. Honda', 'Blanka', 'Zangief', 'Guile', 'Dhalsim', 'Balrog', 'Vega',
-    'Sagat', 'M. Bison', 'C. Viper', 'Rufus', 'El Fuerte', 'Abel', 'Seth', 'Akuma', 'Gouken', 'T. Hawk', 'Cammy',
-    'Fei Long', 'Dee Jay', 'Sakura', 'Rose', 'Gen', 'Dan', 'Guy', 'Cody', 'Ibuki', 'Makoto', 'Dudley', 'Adon',
-    'Hakan', 'Juri', 'Yun', 'Yang', 'Evil Ryu', 'Oni', 'Rolento', 'Elena', 'Poison', 'Hugo', 'Decapre'];
+  var marks = window.EmberMarks;
+  var FIGHTERS = marks.FIGHTERS;
   // Where a room's creator plays from, by the code a room carries as `area`, in
   // the order the filter lists them: Ember's own list (src/common/Area.hxx,
   // ember_protocol::area::Area, whose tests check this one against them).
@@ -100,7 +97,7 @@
 
   function face(id) {
     var tile = el('span', 'face small');
-    if (Number.isInteger(id) && id >= 0 && id < FIGHTERS.length) {
+    if (marks.isFighter(id)) {
       tile.className += ' f' + id;
       tile.title = FIGHTERS[id];
       tile.setAttribute('role', 'img');

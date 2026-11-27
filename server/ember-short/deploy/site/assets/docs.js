@@ -1,3 +1,4 @@
+// needs: nothing
 // The guides' search, over /docs/search.json (scripts/site/guides.py writes
 // it: an entry for each guide and each of its headings, with the heading's
 // address and the words under it). The index loads when the box is first used.

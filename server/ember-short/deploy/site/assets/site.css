@@ -166,6 +166,24 @@ ol > li::marker { color: var(--ember); font-weight: 600; }
 .site-nav a:hover { color: var(--ivory); }
 .site-nav a[aria-current="page"] { color: var(--ivory); box-shadow: inset 0 -3px 0 var(--ember); }
 .site-nav a:focus-visible { outline-offset: -4px; }
+/* The visitor's own card: "Your card", or their main's face and name once
+   this browser has seen them signed in (account.js). SF4's alone. */
+.site-account, .site-account:visited {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 14rem;
+  min-height: 44px;
+  padding: 0 4px;
+  color: var(--ivory);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.site-account:hover { color: var(--ember-light); }
+.site-account[aria-current="page"] { box-shadow: inset 0 -3px 0 var(--ember); }
+.site-account-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Words, marks and pictures that are one game's: assets/game.js marks the
    page's game on html before the first paint, and SF4's is the default. */
@@ -261,6 +279,9 @@ body.narrow h1 { margin-bottom: 20px; }
 .note { color: var(--muted); font-size: 0.9375rem; }
 .version { color: var(--ivory); padding-left: 10px; border-left: 2px solid var(--ember); }
 .status { min-height: 1.6em; margin: 0 0 8px; color: var(--ember-light); }
+/* Something on its way: the pulse of the shapes that stand in for it
+   (rooms.css, rankings.css, card.css). */
+@keyframes room-pulse { 0%, 100% { opacity: 0.2; } 50% { opacity: 0.5; } }
 
 /* A fighter's face from faces.webp, which holds one square a fighter in native
    ID order; faces.css places each (class f0 to f43). */
@@ -276,6 +297,7 @@ body.narrow h1 { margin-bottom: 20px; }
 .face.none { background-image: none; }
 .face.small { width: 32px; height: 32px; border-radius: 3px; }
 .face.large { width: 96px; height: 96px; border-radius: 6px; }
+.face.tiny { width: 28px; height: 28px; border-radius: 3px; }
 
 /* A player's class as a text pill, since the game's emblems are read from each
    player's install and never served here; each pair of classes shares a
@@ -300,6 +322,77 @@ body.narrow h1 { margin-bottom: 20px; }
 .tier-m { color: #ffb16f; }
 .tier-gm { color: #ff8738; }
 .rank-class.tier-gm { color: var(--ink); background: var(--ember); border-color: var(--ember); }
+/* A class the rating is not sure of yet shows faint, as in the game; a player
+   still placing shows a question mark, and a developer the Dev mark. */
+.rank-class.faint { opacity: 0.55; }
+.rank-class.placing { min-width: 1.6rem; color: var(--muted); }
+.rank-class.dev { color: var(--ivory); }
+
+/* A player's flag (marks.js): an image from assets/flags.png (flag-icons),
+   sized and placed from assets/flags.json, or the country's code until the
+   index loads or where the atlas has none. */
+.rank-flag {
+  flex: none;
+  width: 2.1rem;
+  padding: 0 4px;
+  color: var(--ivory);
+  background: var(--chip);
+  border-radius: 3px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 18px;
+  text-align: center;
+}
+.rank-flag.none { background: transparent; }
+.rank-flag.image {
+  padding: 0;
+  background: url("flags.png") no-repeat;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+/* What the card, rating and points pages share. The frame of a points count,
+   Ash to Ember (marks.js FRAMES): a tier colours a picture's frame or a dot,
+   never the number. */
+.frame-0 { --frame: #8e8894; }
+.frame-1 { --frame: #d9824b; }
+.frame-2 { --frame: #d5dce3; }
+.frame-3 { --frame: #f2c55c; }
+.frame-4 { --frame: #ff4d2e; }
+.frame-dot { display: inline-block; flex: none; width: 10px; height: 10px; margin-right: 8px; background: var(--frame); border-radius: 2px; }
+.frame-name { display: inline-flex; align-items: center; white-space: nowrap; }
+.face.framed { box-shadow: 0 0 0 2px var(--ink), 0 0 0 4px var(--frame); }
+.face.row { width: 40px; height: 40px; }
+.face.board { width: 64px; height: 64px; }
+.frame-legend { display: flex; flex-direction: column; gap: 6px; margin: 0 0 10px; padding: 0; list-style: none; }
+.frame-legend li { display: flex; align-items: center; margin: 0; padding: 0; }
+.pts { color: var(--strong); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* The page under its head: the card or board, and the notes beside it, which
+   go under it in a narrow window. */
+.page-cols { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 16px 24px; }
+.page-main { flex: 999 1 560px; min-width: 0; }
+.page-side { flex: 1 1 280px; min-width: 0; }
+.page-side .note + .note { margin-top: 10px; }
+
+/* What only the player sees carries the lock (blocks.js). */
+.own-mark { display: inline-flex; align-items: center; gap: 6px; color: var(--ember-light); font-size: 0.8125rem; font-weight: 600; }
+.own-mark svg { flex: none; }
+
+/* Tables of players and fighters (blocks.js): they keep their columns and
+   scroll sideways in their box, a stop for the keyboard, when the window is
+   narrower. */
+.data-scroll { overflow-x: auto; }
+.data-scroll:focus-visible { outline: 2px solid var(--ivory); outline-offset: 2px; }
+.data-table { width: 100%; min-width: 520px; border-collapse: collapse; }
+.data-table th, .data-table td { padding: 8px 12px; text-align: left; vertical-align: middle; border-bottom: 1px solid var(--hairline); }
+.data-table thead th { padding-top: 0; color: var(--muted); font-size: 0.8125rem; font-weight: 600; white-space: nowrap; }
+.data-table tbody tr:last-child > * { border-bottom: 0; }
+.data-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.data-table thead .num .own-mark { justify-content: flex-end; }
+.data-table tbody th { font-weight: 600; }
+.data-who { display: flex; align-items: center; gap: 12px; min-width: 0; }
 
 .site-footer {
   width: 100%;
@@ -328,9 +421,19 @@ body.narrow h1 { margin-bottom: 20px; }
   .site-nav { order: 3; flex: 1 0 100%; margin: 0 -9px; overflow-x: auto; scrollbar-width: none; }
   .site-nav::-webkit-scrollbar { display: none; }
   .site-nav a, .site-nav a:visited { height: 44px; padding: 0 9px; font-size: 0.9rem; }
+  .site-account, .site-account:visited { margin-left: auto; max-width: 9rem; }
   h1 { font-size: 1.75rem; }
   .page-head { padding-top: 28px; }
   .panel { padding: 16px; }
+}
+/* A phone has no room for the card link beside the brand and the download:
+   it ends the row of places, which scroll beside it. */
+@media (max-width: 520px) {
+  .site-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "brand get" "nav account"; }
+  .brand { grid-area: brand; justify-self: start; }
+  .site-get { grid-area: get; }
+  .site-nav { grid-area: nav; margin-right: 0; }
+  .site-account, .site-account:visited { grid-area: account; max-width: 7.5rem; font-size: 0.9rem; }
 }
 
 /* Street Fighter V's view (?game=sfv, assets/game.js): SFV Ember's own look,

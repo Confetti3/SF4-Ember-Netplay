@@ -1,7 +1,8 @@
-// What the rooms, rankings and open pages share: the release data that is
-// edited at each release, and the two small helpers they used to carry each.
-// A page loads this before its own script (both deferred, so in order) and
-// reads window.EmberSite.
+// needs: nothing
+// What every page with scripts shares: the release data that is edited at
+// each release, and the small helpers the pages would otherwise each carry.
+// Every such page loads this first (scripts/site/shell.py; all deferred, so in
+// order) and reads window.EmberSite.
 (function () {
   'use strict';
 
@@ -51,6 +52,22 @@
     return node;
   }
 
+  // An SVG element with its attributes, appended to parent when one is given.
+  function svg(tag, attributes, parent) {
+    var node = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    Object.keys(attributes).forEach(function (name) { node.setAttribute(name, attributes[name]); });
+    if (parent) parent.appendChild(node);
+    return node;
+  }
+
+  function plural(count, one, many) { return count + ' ' + (count === 1 ? one : many); }
+  // A place as words say it: 1st, 2nd, 3rd, 11th, 212th.
+  function ordinal(place) {
+    var tens = place % 100;
+    if (tens >= 11 && tens <= 13) return place + 'th';
+    return place + (['th', 'st', 'nd', 'rd'][place % 10] || 'th');
+  }
+
   // Copies text and says so in the status element: done on success, failed
   // when neither the clipboard nor the old copy command works. The fallback
   // textarea is hidden by the offscreen class, or by inline style when the
@@ -80,5 +97,8 @@
     }
   }
 
-  window.EmberSite = { STABLE_VERSION: STABLE_VERSION, VERSIONS: VERSIONS, el: el, copy: copy };
+  window.EmberSite = {
+    STABLE_VERSION: STABLE_VERSION, VERSIONS: VERSIONS,
+    el: el, svg: svg, plural: plural, ordinal: ordinal, copy: copy
+  };
 }());

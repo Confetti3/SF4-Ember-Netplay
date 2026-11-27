@@ -18,13 +18,17 @@
 #   /usr/local/lib/ember-short/ember-short      the service binary (root-owned)
 #   /etc/systemd/system/ember-short.service     runs it as a transient user on 127.0.0.1:47810
 #   /etc/nginx/conf.d/ember-short.conf          request rate zones for /s/, /rooms.json,
-#                                               /rankings.json and /link/, the five-second cache of the room
-#                                               list and the one-minute cache of the board
-#   /var/lib/nginx/ember-rooms/, ember-rankings/  those caches (owned by nginx's www-data)
+#                                               /rankings.json, /points.json, /account/ and /link/, the
+#                                               five-second cache of the room list, the fifteen-second
+#                                               cache of the class board and the thirty-second cache of
+#                                               the points boards
+#   /var/lib/nginx/ember-rooms/, ember-rankings/, ember-points/  those caches (owned by nginx's www-data)
 #   /etc/nginx/snippets/ember-short.conf        /s/ proxy, the /j, /m, /r and /start page, the landing,
 #                                               rooms, rankings and 404 pages, the guides (/docs) and
-#                                               the frame data (/frame-data), the /rooms.json and
-#                                               /rankings.json proxies to the Ember bridge
+#                                               the frame data (/frame-data), the points, own card and
+#                                               player card pages (/points, /me, /players), the
+#                                               /rooms.json, /rankings.json, /points.json and /account/
+#                                               proxies to the Ember bridge
 #                                               (127.0.0.1:47820), the /link/ proxies to it and
 #                                               to the staging bridge (127.0.0.1:47821), the
 #                                               /rooms-sfv.json, /rankings-sfv.json and /link-sfv/
@@ -34,10 +38,11 @@
 #                                               and each of those locations include
 #   /etc/nginx/sites-available/embernetplay.link  one include line in the 443 server
 #   /var/www/embernetplay.link/open.html         the page room, match and public room links open
-#   /var/www/embernetplay.link/index.html, rooms.html, rankings.html, 404.html, favicon.ico, assets/
+#   /var/www/embernetplay.link/index.html, rooms.html, rankings.html, points.html, me.html,
+#                                               players.html, 404.html, favicon.ico, assets/
 #                                               the landing page, the public rooms page, the
-#                                               rankings page, the 404 page and their scripts,
-#                                               styles, fonts and images
+#                                               rankings, points and card pages, the 404 page and
+#                                               their scripts, styles, fonts and images
 #   /var/www/embernetplay.link/docs/, frame-data/  the guides with their pictures, and the frame
 #                                               data pages
 #   /usr/local/lib/ember-short/site.manifest     the files of the site this script installed, so the
@@ -83,7 +88,7 @@ for file in "${FILES[@]}"; do LISTED["$file"]=1; done
 listed() {
     [[ -n ${LISTED[$1]-} ]]
 }
-for file in open.html index.html rooms.html rankings.html 404.html docs.html frame-data.html favicon.ico assets/site.css; do
+for file in open.html index.html rooms.html rankings.html points.html me.html players.html 404.html docs.html frame-data.html favicon.ico assets/site.css; do
     if ! listed "$file"; then
         echo "The site's MANIFEST lacks $file: site/ must be the built site." >&2
         exit 1
@@ -125,7 +130,7 @@ restore() {
     if [ -f "$backup/headers" ]; then cp -a "$backup/headers" /etc/nginx/snippets/ember-short-headers.conf; else rm -f /etc/nginx/snippets/ember-short-headers.conf; fi
 }
 
-install -d -o www-data -g www-data -m 0700 /var/lib/nginx/ember-rooms /var/lib/nginx/ember-rankings
+install -d -o www-data -g www-data -m 0700 /var/lib/nginx/ember-rooms /var/lib/nginx/ember-rankings /var/lib/nginx/ember-points
 install -o root -g root -m 0644 "$SRC/nginx/ember-short-zone.conf" /etc/nginx/conf.d/ember-short.conf
 install -o root -g root -m 0644 "$SRC/nginx/ember-short-locations.conf" /etc/nginx/snippets/ember-short.conf
 install -o root -g root -m 0644 "$SRC/nginx/ember-short-headers.conf" /etc/nginx/snippets/ember-short-headers.conf
@@ -201,7 +206,7 @@ for attempt in 1 2 3 4 5; do
 done
 echo "service: $(curl -fsS http://127.0.0.1:47810/s/health || echo 'no answer')"
 echo "public:  $(curl -fsS --resolve $DOMAIN:443:127.0.0.1 https://$DOMAIN/s/health || echo 'no answer')"
-for page in '' rooms rooms.json rooms-sfv.json rooms.html rankings rankings.json rankings-sfv.json rankings.html assets/rankings.js assets/game.js assets/sfv-ember-mark.png assets/og.jpg j j/K7QM-4XRT-9PZD v v/K7QM-4XRT-9PZD m r start open.html assets/site.css assets/fonts/inter-latin-400.woff2 \
+for page in '' rooms rooms.json rooms-sfv.json rooms.html rankings rankings.json rankings-sfv.json rankings.html points points.json 'points.json?fighter=20' 'points.json?fighter=44' points.html me me.html players account/me.json assets/points.js assets/rankings.js assets/game.js assets/sfv-ember-mark.png assets/og.jpg j j/K7QM-4XRT-9PZD v v/K7QM-4XRT-9PZD m r start open.html assets/site.css assets/fonts/inter-latin-400.woff2 \
     assets/ember-background.webp docs docs/ docs.html docs/install docs/install.html docs/search.json docs/no-such-guide frame-data frame-data/ryu assets/docs.css no-such-page; do
     echo "/$page:  $(curl -sS -o /dev/null -w '%{http_code} %{content_type}' --resolve $DOMAIN:443:127.0.0.1 https://$DOMAIN/$page)"
 done

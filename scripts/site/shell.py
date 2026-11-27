@@ -14,6 +14,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "server/ember-short/deploy/site"
 MARK = re.compile(r"\{\{(\w+)\}\}")
+# What every page of the main site that runs scripts runs first (`scripts`).
+SHARED_SCRIPTS = ["site", "marks", "account"]
 
 
 @dataclass(frozen=True)
@@ -81,10 +83,12 @@ def source_page(path, host, **parts):
     """A page written by hand (site/pages/*.html) as a `Page`.
 
     Its content may use the layout's {{site}}, {{assets}} and {{replays}}, and a mark for each of `parts`:
-    content the build makes for it, such as the home page's list of fighters.
+    content the build makes for it or that several pages share, such as the home page's list of fighters
+    or the Connect Discord panel. A part may use the layout's marks too.
     """
     values, content = front_matter(path.read_text(encoding="utf-8"))
-    content = place(content, {"site": host.site, "assets": host.assets, "replays": host.replays, **parts})
+    links = {"site": host.site, "assets": host.assets, "replays": host.replays}
+    content = place(content, {**links, **{name: place(part, links) for name, part in parts.items()}})
     names = lambda key: values.pop(key, "").split()
     page = Page(file=values.pop("file"), title=values.pop("title"), content=content,
                 description=values.pop("description", ""), path=values.pop("path", ""), nav=values.pop("nav", ""),
@@ -119,7 +123,7 @@ def render(page, host, layout):
              for weight in (400, 600)]
     head += [f'<link rel="stylesheet" href="{asset(name + ".css")}">' for name in stylesheets(page, host)]
     head += [f'<script src="{asset(name + ".js")}"></script>' for name in page.head_scripts]
-    head += [f'<script src="{asset(name + ".js")}" defer></script>' for name in page.scripts]
+    head += [f'<script src="{asset(name + ".js")}" defer></script>' for name in scripts(page, host)]
     values = {"title": escape(page.title), "head": "\n".join(head), "body": page.body, "content": page.content.strip(),
               "site": host.site, "assets": host.assets, "replays": host.replays}
 
@@ -132,6 +136,24 @@ def render(page, host, layout):
     return text
 
 
+def shared(names, first):
+    """`first`, then each of `names` that is not among them."""
+    return first + [name for name in names if name not in first]
+
+
+def scripts(page, host):
+    """The scripts a page runs, deferred and in order. On the main site a page that runs any also runs the
+    ones every such page shares: the release data and helpers (site.js), the player marks (marks.js) and
+    the header's account link (account.js), which draws the player's main fighter's face. A page without
+    scripts (the 404 page, whose policy allows none) and the archive's page run only their own."""
+    if host.bundle or not page.scripts:
+        return page.scripts
+    return shared(page.scripts, SHARED_SCRIPTS)
+
+
 def stylesheets(page, host):
-    """The stylesheets a page loads: the host's bundle, or site.css and the page's own."""
-    return [host.bundle] if host.bundle else ["site"] + page.styles
+    """The stylesheets a page loads: the host's bundle, or site.css and the page's own, with the faces'
+    places on a page that runs the shared scripts."""
+    if host.bundle:
+        return [host.bundle]
+    return shared(page.styles, ["site", "faces"] if page.scripts else ["site"])

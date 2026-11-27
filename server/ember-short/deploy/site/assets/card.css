@@ -1,0 +1,83 @@
+/* A player's card (card.js) on /me and /players, and the session's panels
+   (parts/session.html). The frames, the page's columns and the tables are
+   site.css's, which the points boards share. */
+
+/* Tabs of a page's own views (/me's Card and Rating details). */
+.page-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 22px 0 0; }
+.page-tabs a, .page-tabs a:visited { display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px; color: var(--muted); font-weight: 600; text-decoration: none; }
+.page-tabs a:hover { color: var(--ivory); }
+.page-tabs a[aria-current] { color: var(--ivory); box-shadow: inset 0 -3px 0 var(--ember); }
+.page-tabs a:focus-visible { outline-offset: -4px; }
+
+.pts.big { font-size: 2rem; line-height: 1.15; letter-spacing: -0.01em; }
+.pts.mid { font-size: 1.125rem; }
+.card-k { color: var(--muted); font-size: 0.875rem; }
+.card-unlisted { color: var(--meta); }
+
+.card-hero { display: flex; flex-wrap: wrap; align-items: center; gap: 24px 32px; }
+.face.hero { width: 144px; height: 144px; border-radius: 6px; }
+.face.hero.framed { box-shadow: 0 0 0 3px var(--panel), 0 0 0 6px var(--frame); }
+.face.none.hero { display: block; }
+.card-who { flex: 1 1 320px; min-width: 0; }
+.card-nameline { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 0 4px; }
+.panel .card-name { margin: 0; min-width: 0; color: var(--ivory); font-size: 1.75rem; line-height: 1.2; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.card-since { margin: 0; }
+.card-lines { display: flex; flex-wrap: wrap; gap: 16px 48px; margin-top: 18px; }
+.card-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 14px 24px; margin: 22px 0 0; padding: 18px 0 0; border-top: 1px solid var(--hairline); }
+.card-facts dt { color: var(--muted); font-size: 0.8125rem; }
+.card-facts dd { margin: 0; color: var(--strong); font-size: 1.125rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.card-actions { margin: 20px 0 0; }
+.card-status { margin: 8px 0 0; }
+
+.card-panel-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; margin: 0 0 14px; }
+.panel .card-panel-head h2 { margin: 0; }
+.card-three { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px 32px; }
+.card-meter { height: 8px; margin: 10px 0 8px; background: var(--track); border-radius: 4px; overflow: hidden; }
+.card-meter-fill { height: 100%; background: var(--ember); border-radius: 4px; }
+.card-rate-note { margin-top: 10px; }
+.card-versus { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 28px; }
+.card-versus .pts { font-size: 1.5rem; }
+.card-main-chip { padding: 0 8px; color: var(--ink); background: var(--ember-light); border-radius: 9px; font-size: 0.75rem; font-weight: 600; line-height: 18px; }
+.card-after { margin: 14px 0 0; }
+
+/* The owner's fighters carry two more columns. */
+.card-fighters.own { min-width: 680px; }
+
+/* Connect Discord, and the Discord account Ember has not seen (parts/session.html). */
+.connect-panel { padding: 24px 26px; }
+.panel .connect-title { color: var(--ivory); font-size: 1.375rem; }
+.connect-list { margin: 14px 0 22px; padding: 0; list-style: none; }
+.connect-list li { display: flex; gap: 14px; margin: 0; padding: 12px 0; border-top: 1px solid var(--hairline); }
+.connect-list li:last-child { border-bottom: 1px solid var(--hairline); }
+.connect-list svg { flex: none; margin-top: 3px; color: var(--ember); }
+.connect-list strong { display: block; }
+.connect-steps { margin: 12px 0 20px; }
+.connect-steps li { margin: 0 0 8px; }
+.connect-go { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+.connect-reads { padding-left: 1.2em; }
+.connect-reads li { margin: 0 0 8px; }
+.connect-notice { margin: 0 0 12px; }
+
+/* The players a name finds, to choose from (/players). */
+.player-choices { margin: 12px 0 0; padding: 0; list-style: none; }
+.player-choice { margin: 0; padding: 0; border-top: 1px solid var(--hairline); }
+.player-choice-link, .player-choice-link:visited { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 6px; color: var(--ivory); font-weight: 600; text-decoration: none; }
+.player-choice-link:hover { color: var(--ember-light); background: var(--accent-wash); }
+.player-choice-name { min-width: 0; overflow-wrap: anywhere; }
+.player-choice-since { margin-left: auto; font-weight: 400; }
+
+/* The card on its way: pulsing shapes where its panels will be. */
+.card-skeleton { display: grid; gap: 16px; }
+.card-skeleton span { display: block; height: 120px; background: var(--skeleton); border-radius: 6px; animation: room-pulse 1.6s ease-in-out infinite; }
+.card-skeleton span:first-child { height: 240px; }
+@media (prefers-reduced-motion: reduce) { .card-skeleton span { animation: none; opacity: 0.35; } }
+
+/* An action that reads as a link in a line of text (Sign out). */
+.link-button { color: var(--ember); font-weight: inherit; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.link-button:hover { color: var(--ember-light); }
+
+@media (max-width: 700px) {
+  .face.hero { width: 96px; height: 96px; }
+  .card-hero { gap: 16px 20px; }
+  .pts.big { font-size: 1.625rem; }
+}

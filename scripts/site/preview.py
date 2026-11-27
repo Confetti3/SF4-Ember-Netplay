@@ -11,6 +11,11 @@ guides or frame data, and both policies, are read from the two hosts' own nginx 
   /rooms.json, ...     the live site's public lists, fetched from embernetplay.link
   /replays/v1/archive  preview-archive.json, made-up games with every kind of result; --live-archive
                        fetches the live archive's listing instead
+  /points.json, /account/...
+                       made-up points boards and session answers (preview_accounts.py, preview-cards.json).
+                       --account STATE starts the session as one of preview_accounts.STATES; /account/sign-in
+                       signs in (as STATE when it is a signed-in one) and /account/sign-out signs out, in memory,
+                       when the request comes from the page itself (403 otherwise, as the bridge answers)
 """
 import argparse
 import mimetypes
@@ -22,6 +27,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import make
+import preview_accounts
 from shell import ROOT, Host
 
 LIVE = "https://embernetplay.link"
@@ -32,7 +38,8 @@ SITE_NGINX = ROOT / "server/ember-short/deploy/nginx/ember-short-locations.conf"
 ARCHIVE_NGINX = ROOT / "server/ember/archive-site/deploy/nginx/archive-locations.conf.in"
 MAIN = Host(site="", assets="/assets", replays="/replays/")
 ARCHIVE = Host(site="", assets="assets", replays="./", favicon=False, bundle="archive")
-PAGES = {"/": "index.html", "/rooms": "rooms.html", "/rankings": "rankings.html"}
+PAGES = {"/": "index.html", "/rooms": "rooms.html", "/rankings": "rankings.html", "/points": "points.html", "/me": "me.html",
+         "/players": "players.html"}
 OPENS = re.compile(r"/([jmrv](/.*)?|start/?)$")
 FILE = re.compile(r"/(assets|docs/files)/[\w./-]+$|/docs/search\.json$|/favicon\.ico$")
 
@@ -67,9 +74,13 @@ class Preview(BaseHTTPRequestHandler):
     site_policy: str
     archive_policy: str
     built: re.Pattern
+    accounts: preview_accounts.Accounts
 
     def do_GET(self):
         path, _, query = self.path.partition("?")
+        made_up = self.accounts.get(path, query)
+        if made_up:
+            return self.made(made_up)
         if path in LISTS:
             return self.passed_on(LIVE + path)
         if path == "/replays/v1/archive":
@@ -93,6 +104,18 @@ class Preview(BaseHTTPRequestHandler):
             return self.file(self.site / path.lstrip("/"))
         self.missing()
 
+    def do_POST(self):
+        path = self.path.partition("?")[0]
+        length = int(self.headers.get("Content-Length") or 0)
+        made_up = self.accounts.post(path, self.rfile.read(min(length, 1024)), self.headers)
+        if made_up:
+            return self.made(made_up)
+        self.send(405, b"", "text/plain")
+
+    def made(self, answer):
+        status, body, kind, headers = answer
+        self.send(status, body, kind, headers=headers)
+
     def file(self, path, policy=None):
         if not path.is_file():
             return self.missing()
@@ -108,9 +131,11 @@ class Preview(BaseHTTPRequestHandler):
         except (urllib.error.URLError, TimeoutError) as error:
             self.send(502, str(error).encode(), "text/plain; charset=utf-8")
 
-    def send(self, status, body, kind, policy=None):
+    def send(self, status, body, kind, policy=None, headers=None):
         self.send_response(status)
         self.send_header("Content-Type", kind)
+        for name, value in (headers or {}).items():
+            self.send_header(name, value)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         if policy:
@@ -130,13 +155,16 @@ def main():
     data.add_argument("--frame-data", type=Path, help="a folder with the frame data pages")
     data.add_argument("--wiki-frame-data", action="store_true", help="take the frame data pages from the published wiki")
     parser.add_argument("--live-archive", action="store_true", help="list the live archive's games instead of the made-up ones")
+    parser.add_argument("--account", choices=preview_accounts.STATES, default="signed_out",
+                        help="the session the account pages start with (default: signed_out)")
     args = parser.parse_args()
     out = ROOT / "build/preview"
     folder = make.wiki_frame_data(out) if args.wiki_frame_data else args.frame_data
     make.build(ROOT, out, folder, MAIN, ARCHIVE)
     Preview.site, Preview.archive, Preview.live_archive = out / "site", out / "archive-site", args.live_archive
+    Preview.accounts = preview_accounts.Accounts(args.account)
     (Preview.site_policy, Preview.built), Preview.archive_policy = site_rules(), archive_policy()
-    print(f"http://localhost:{args.port}/  (the replay archive at /replays/)", flush=True)
+    print(f"http://localhost:{args.port}/  (the replay archive at /replays/, the session {args.account})", flush=True)
     ThreadingHTTPServer(("127.0.0.1", args.port), Preview).serve_forever()
 
 

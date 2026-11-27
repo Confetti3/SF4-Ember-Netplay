@@ -3,16 +3,21 @@
 
 Builds the site from this checkout and a small made-up set of frame data pages, then checks what the
 live site's rules need of it: no inline style or script (its Content-Security-Policy refuses them), no
-link to a page or file the site lacks, the names the two setup scripts look for, and one shell.
+link to a page or file the site lacks, the names the two setup scripts look for, and one shell. Then the
+nginx locations the pages ask for, and the preview's made-up answers through the pages' own readers
+(check_samples.js, which needs node).
 """
 import json
 import re
+import shutil
+import subprocess
 import tempfile
 from pathlib import Path
 
 import frames
 import make
 import preview
+import preview_accounts
 import prose
 import shell
 from shell import ARCHIVE, MAIN, ROOT
@@ -99,9 +104,9 @@ with tempfile.TemporaryDirectory() as folder:
     # MANIFEST lists every file, and the pages nginx serves by name are there.
     assert files == (site / "MANIFEST").read_text(encoding="utf-8").split(), "MANIFEST is not the file list"
     assert all((site / file).is_file() for file in files)
-    needed = ["index.html", "rooms.html", "rankings.html", "open.html", "404.html", "docs.html", "docs/install.html",
-              "docs/troubleshooting.html", "frame-data.html", "frame-data/ryu.html", "frame-data/c-viper.html",
-              "docs/search.json", "assets/site.css", "assets/faces.css", "favicon.ico"]
+    needed = ["index.html", "rooms.html", "rankings.html", "points.html", "me.html", "players.html", "open.html", "404.html",
+              "docs.html", "docs/install.html", "docs/troubleshooting.html", "frame-data.html", "frame-data/ryu.html",
+              "frame-data/c-viper.html", "docs/search.json", "assets/site.css", "assets/faces.css", "favicon.ico"]
     assert not [file for file in needed if file not in files], [file for file in needed if file not in files]
     assert not [file for file in files if re.search(r"\s", file)], "a file name with a space"
 
@@ -119,7 +124,8 @@ with tempfile.TemporaryDirectory() as folder:
     # pages with a location of their own, the guides and frame data pages by the one location that
     # serves a path's own name with ".html", and every other file by its name.
     _, built = preview.site_rules()
-    served = {"/": "index.html", "/rooms": "rooms.html", "/rankings": "rankings.html", "/start": "open.html"}
+    served = {"/": "index.html", "/rooms": "rooms.html", "/rankings": "rankings.html", "/points": "points.html", "/me": "me.html",
+              "/players": "players.html", "/start": "open.html"}
     made = [file for file in files if file.endswith(".html") and file not in served.values() and file != "404.html"]
     assert not [file for file in made if not built.match("/" + file.removesuffix(".html"))], "a page nginx has no location for"
     served |= {"/" + file.removesuffix(".html"): file for file in made}
@@ -128,7 +134,8 @@ with tempfile.TemporaryDirectory() as folder:
         if file == "archive":
             continue
         for link in re.findall(r'(?:href|src)="(/[^"#?]*)', text):
-            assert link in served, f"{file}: {link} is not on the site"
+            # The account routes are the bridge's, which nginx passes on: checked against it below.
+            assert link in served or link.startswith("/account/"), f"{file}: {link} is not on the site"
         for link, heading in re.findall(r'href="(/docs/[a-z0-9-]+)#([^"]+)"', text):
             assert f'id="{heading}"' in pages[served[link]], f"{file}: no heading #{heading} on {link}"
 
@@ -169,5 +176,98 @@ with tempfile.TemporaryDirectory() as folder:
     bundle = (archive / "assets/archive.css").read_text(encoding="utf-8")
     assert ".site-header" in bundle and ".face.f43" in bundle and ".set-hero" in bundle
     assert not re.search(r"""url\(["']?/""", bundle), "the archive's sheet names a file from the host's root"
+
+    # The points and card pages: kept out of search results and every mark filled. Each script a page
+    # runs comes after the scripts it needs, as its first line says ("// needs: site marks"); the 404 page
+    # (no scripts allowed) and the archive's page run none of the site's.
+    for file in ("points.html", "me.html", "players.html", "rankings.html"):
+        assert '<meta name="robots" content="noindex">' in pages[file], f"{file}: not kept out of search results"
+        assert "{{" not in pages[file], f"{file}: a mark the build left"
+    needs = {}
+    for script in (shell.SOURCE / "assets").glob("*.js"):
+        first = script.read_text(encoding="utf-8").split("\n", 1)[0]
+        assert first.startswith("// needs: "), f"{script.name}: the first line does not say what it needs"
+        needs[script.stem] = [name for name in first.removeprefix("// needs: ").split() if name != "nothing"]
+    for file, text in pages.items():
+        if file == "archive":
+            continue
+        loaded = re.findall(r'<script src="[^"]*?([\w-]+)\.js"', text)
+        for at, name in enumerate(loaded):
+            lacking = [need for need in needs[name] if need not in loaded[:at]]
+            assert not lacking, f"{file}: {name}.js runs before {lacking}"
+    assert "<script" not in pages["404.html"] and "account.js" not in pages["archive"]
+    assert 'href="/me" data-nav="me" aria-current="page"' in pages["me.html"], "the account link is not current on /me"
+    for file, ids in {"me.html": ["signed-out", "unknown-account", "check-again", "use-another", "sign-in-failed", "own-card", "rating-view",
+                                  "rating-missing", "unavailable-title", "unavailable-note", "connect-title", "loading"],
+                      "players.html": ["signed-out", "unknown-account", "check-again", "use-another", "connect-title", "player-card",
+                                       "choices", "unavailable", "loading"],
+                      "points.html": ["view-bp", "view-fp", "picker", "board", "you", "search", "country", "region", "more", "share"]}.items():
+        lacking = [name for name in ids if f'id="{name}"' not in pages[file]]
+        assert not lacking, (file, lacking)
+    # points.html needs no stylesheet of the card or rooms pages.
+    assert "card.css" not in pages["points.html"] and "rooms.css" not in pages["points.html"]
+
+# Every account route and JSON answer the site asks for or links to, in a script, a page or a part, has a
+# location in the site's nginx file: its own (location = PATH) or a prefix it falls under (location ^~
+# PREFIX). The account routes take only their own method, pass the session cookie and the client's
+# address, and are never cached.
+conf = preview.SITE_NGINX.read_text(encoding="utf-8")
+blocks = dict(re.findall(r"location (?:= |\^~ )(\S+) \{(.*?)\n\}", conf, re.S))
+sources = [path.read_text(encoding="utf-8") for folder in ("assets", "pages", "parts")
+           for path in (shell.SOURCE / folder).glob("*.js" if folder == "assets" else "*.html")]
+asked = set()
+for text in sources:
+    asked |= set(re.findall(r"""['"](?:\{\{site\}\})?(/(?:account/[\w/.-]+|[\w/-]+\.json))[?'"]""", text))
+assert {"/points.json", "/account/me.json", "/account/card.json", "/account/sign-out", "/account/sign-in"} <= asked, asked
+for path in asked:
+    assert path in blocks or any(path.startswith(prefix) for prefix in blocks if prefix.endswith("/")), f"nginx has no location for {path}"
+for path, method in {"/account/sign-in": "GET", "/account/discord/callback": "GET", "/account/sign-out": "POST",
+                     "/account/me.json": "GET", "/account/card.json": "POST", "/points.json": "GET"}.items():
+    block = blocks[path]
+    assert f"limit_except {method} " in block and "127.0.0.1:47820/v1/" in block and "X-Real-IP" in block, path
+    if path.startswith("/account/"):
+        assert 'Cache-Control "no-store"' in block and 'proxy_set_header Cookie ""' not in block, path
+assert "$ember_points_query" in blocks["/points.json"] and 'proxy_set_header Cookie ""' in blocks["/points.json"]
+zone = (preview.SITE_NGINX.parent / "ember-short-zone.conf").read_text(encoding="utf-8")
+assert "keys_zone=ember_points_cache" in zone and "zone=ember_account" in zone and "map $arg_fighter $ember_points_query" in zone
+setup = (preview.SITE_NGINX.parents[1] / "setup.sh").read_text(encoding="utf-8")
+assert "/var/lib/nginx/ember-points" in setup, "setup.sh does not make the points boards' cache folder"
+
+# The preview's made-up answers in every session state go through the pages' own readers (check_samples.js
+# under node): a sample a page would refuse to draw fails here. The preview's routes answer as the
+# bridge does where a page tells the answers apart.
+samples = {}
+for state in preview_accounts.STATES:
+    accounts = preview_accounts.Accounts(state)
+    status, raw, _, _ = accounts.get("/account/me.json", "")
+    sample = {"me": json.loads(raw), "boards": {}, "cards": {}}
+    for fighter in [""] + [str(fighter) for fighter in range(preview_accounts.FIGHTERS)]:
+        sample["boards"][fighter] = json.loads(accounts.get("/points.json", f"fighter={fighter}")[1])
+    if state in preview_accounts.SIGNED_IN:
+        for asked_for in ({"name": "Player 2"}, {"name": "Mirror Match"}, {"name": "Nobody Here"}, {"card": "c1.preview-003"}):
+            status, raw, _, _ = accounts.post("/account/card.json", json.dumps(asked_for).encode(), {})
+            assert status == 200, (state, asked_for, status)
+            sample["cards"][json.dumps(asked_for)] = json.loads(raw)
+    samples[state] = sample
+with tempfile.TemporaryDirectory() as folder:
+    written = Path(folder, "samples.json")
+    written.write_text(json.dumps(samples), encoding="utf-8")
+    node = shutil.which("node")
+    assert node, "node is needed to run the pages' readers over the preview samples"
+    run = subprocess.run([node, str(Path(__file__).with_name("check_samples.js")), str(shell.SOURCE / "assets"), str(written)],
+                         capture_output=True, text=True)
+    assert run.returncode == 0, run.stderr or run.stdout
+assert all("players" in samples[state]["cards"]['{"name": "Mirror Match"}'] for state in preview_accounts.SIGNED_IN)
+assert samples["not_taking_part"]["me"]["places"]["fighters"] == [], "a player who stopped taking part is still on a board"
+assert any(len(board["players"]) > 50 for board in samples["signed_in"]["boards"].values()), "no board shows Show 50 more"
+signed_out = preview_accounts.Accounts("signed_out")
+assert signed_out.post("/account/card.json", b'{"name": "Player 2"}', {})[0] == 401
+assert json.loads(preview_accounts.Accounts("no_account").post("/account/card.json", b'{"name": "Player 2"}', {})[1])["error"]["details"] == {"reason": "no_ember_id"}
+accounts = preview_accounts.Accounts("signed_in")
+assert accounts.get("/points.json", "fighter=44")[0] == 400 and accounts.get("/points.json", "fighter=07")[0] == 400
+assert accounts.post("/account/sign-out", b"", {"Origin": "null", "Host": "localhost:18733"})[0] == 403 and accounts.state == "signed_in"
+assert accounts.post("/account/sign-out", b"", {"Origin": "http://localhost:18733", "Host": "localhost:18733"})[0] == 204
+assert accounts.state == "signed_out" and accounts.get("/account/sign-in", "")[0] == 302 and accounts.state == "signed_in"
+assert accounts.post("/account/sign-out", b"", {"Sec-Fetch-Site": "cross-site", "Origin": "http://localhost:18733", "Host": "localhost:18733"})[0] == 403
 
 print("site checks passed")

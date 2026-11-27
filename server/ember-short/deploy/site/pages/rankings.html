@@ -5,7 +5,7 @@ title: Rankings
 description: SF4 Ember Netplay players by class in public rooms, from D to Grand Master. Search by name, country and class.
 nav: rankings
 styles: rooms rankings
-scripts: site rankings
+scripts: site filters rankings
 head-scripts: game
 body: rankings-page
 index: no
@@ -13,8 +13,9 @@ index: no
 <div class="page-head">
 <div>
 <h1>Rankings</h1>
-<p class="lead" data-game-text="usf4">Players by their class in public rooms, from D to Grand Master. There are no points or positions, only the class. Within a class, whoever played most recently comes first.</p>
+<p class="lead" data-game-text="usf4">Players by their class in public rooms, from D to Grand Master. This board has no points or positions, only the class. Within a class, whoever played most recently comes first.</p>
 <p class="lead" data-game-text="sfv">Players by their league in SFV Ember's public rooms, from Rookie to Warlord. There are no points or positions, only the league. Within a league, whoever played most recently comes first.</p>
+<nav class="board-views" aria-label="Boards" data-game-text="usf4"><a href="{{site}}/rankings" aria-current="page">Class</a><a href="{{site}}/points#bp">Battle points</a><a href="{{site}}/points#fp">Fighter points</a></nav>
 </div>
 <div class="game-switch" id="games" role="group" aria-label="Game" data-game-switch>
 <button type="button" data-game="usf4" aria-pressed="true" title="Ultra Street Fighter IV">SF4</button>

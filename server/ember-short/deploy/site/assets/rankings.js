@@ -1,3 +1,4 @@
+// needs: site marks account filters
 // The rankings page: the board Ember shows under Online play, Rankings
 // (/rankings.json, nginx's proxy of the bridge's GET /v1/ranking/board/public),
 // with search, class, country and region filters, grouping and order kept in
@@ -7,6 +8,9 @@
 (function () {
   'use strict';
   var site = window.EmberSite;
+  var marks = window.EmberMarks;
+  var filters = window.EmberFilters;
+  var account = window.EmberAccount;
   // While the tab is shown the board is asked for again this often; nginx and
   // the bridge each keep it 15 s, so a change shows within about a minute.
   var REFRESH_MS = 30000;
@@ -15,7 +19,7 @@
   // /rankings.json and Street Fighter V's from /rankings-sfv.json, chosen by
   // the Game buttons and kept in the address as ?game=sfv. Every game is rated
   // in the same ten bands; each names them as its own ranks, band 1 to 10:
-  // USF4's classes (src/ui/NameMarks.cxx) and SFV's league tiers (SFV Ember's
+  // USF4's classes (marks.js) and SFV's league tiers (SFV Ember's
   // SfvProduct.cxx), each with its chart's short label, the colour each
   // band's pill and column take (the tier-* rules in site.css: USF4's colour
   // families, SFV's own league colours), what the game calls a rank and the
@@ -23,9 +27,7 @@
   var GAMES = {
     usf4: {
       key: 'usf4', board: '/rankings.json', app: 'Ember', rank: 'class', ranks: 'Classes',
-      classes: ['D', 'D+', 'C', 'C+', 'B', 'B+', 'A', 'A+', 'Master', 'Grand Master'],
-      short: ['D', 'D+', 'C', 'C+', 'B', 'B+', 'A', 'A+', 'M', 'GM'],
-      tiers: ['d', 'd', 'c', 'c', 'b', 'b', 'a', 'a', 'm', 'gm']
+      classes: marks.CLASSES, short: marks.SHORT, tiers: marks.TIERS
     },
     sfv: {
       key: 'sfv', board: '/rankings-sfv.json', app: 'SFV Ember', rank: 'league', ranks: 'Leagues',
@@ -38,29 +40,7 @@
   // The shown game's rank names and colours.
   var CLASSES = game.classes, SHORT = game.short, TIERS = game.tiers;
   var BANDS = CLASSES.length;
-  // Regions for the region filter, by the country codes the game sends.
-  var REGIONS = [
-    ['eu', 'Europe', 'AD AL AT AX BA BE BG BY CH CY CZ DE DK EE ES FI FO FR GB GG GI GR HR HU IE IM IS IT JE LI LT LU LV MC MD ME MK MT NL NO PL PT RO RS RU SE SI SJ SK SM UA VA XK'],
-    ['na', 'North America', 'BM CA GL PM US UM'],
-    ['la', 'Latin America and Caribbean', 'AG AI AR AW BB BL BO BQ BR BS BZ CL CO CR CU CW DM DO EC FK GD GF GP GT GY HN HT JM KN KY LC MF MQ MS MX NI PA PE PR PY SR SV SX TC TT UY VC VE VG VI'],
-    ['me', 'Middle East', 'AE BH IL IQ IR JO KW LB OM PS QA SA SY TR YE'],
-    ['as', 'Asia', 'AF AM AZ BD BN BT CN GE HK ID IN JP KG KH KP KR KZ LA LK MM MN MO MV MY NP PH PK SG TH TJ TL TM TW UZ VN'],
-    ['oc', 'Oceania', 'AS AU CK FJ FM GU KI MH MP NC NF NR NU NZ PF PG PN PW SB TK TO TV VU WF WS'],
-    ['af', 'Africa', 'AO BF BI BJ BW CD CF CG CI CM CV DJ DZ EG EH ER ET GA GH GM GN GQ GW KE KM LR LS LY MA MG ML MR MU MW MZ NA NE NG RE RW SC SD SH SL SN SO SS ST SZ TD TG TN TZ UG YT ZA ZM ZW']
-  ];
-  var REGION_OF = {};
-  REGIONS.forEach(function (region) {
-    region[2].split(' ').forEach(function (code) { REGION_OF[code] = region[0]; });
-  });
-  // The flags in assets/flags.png, laid out as assets/flags.json says (both
-  // copies of the repository's assets/flags, flag-icons under MIT, which
-  // scripts/check-flag-atlas.py keeps equal). Drawn FLAG_WIDTH wide. Until the
-  // index loads, or if it cannot, a country shows its code.
-  var FLAG_WIDTH = 20;
-  var flagAtlas = null;
-  var OTHER_REGION = 'other';
-  var NO_COUNTRY = 'none';
-  var COUNTRY = /^[A-Z]{2}$/;
+  var NO_COUNTRY = filters.NO_COUNTRY;
 
   var games = document.getElementById('games');
   var classesBox = document.getElementById('classes');
@@ -86,58 +66,19 @@
   // players: null until the first answer; each { name, country, band, index, folded }.
   // phase: 'loading', 'ready', 'off' (no rankings here), 'hidden' (classes not shown yet) or 'failed'.
   var data = { players: null, listedAt: 0, loadedAt: 0, phase: 'loading', failed: false, key: '' };
-  var view = { q: '', needle: '', classes: {}, country: '', region: '', group: 'class', order: 'recent' };
+  // The class, grouping and order; the name, country and region filters are filter's.
+  var view = { classes: {}, group: 'class', order: 'recent' };
   var loading = false;
   var timer = null;
-  var typingTimer = null;
 
-  var regionNames = {};
-  REGIONS.forEach(function (region) { regionNames[region[0]] = region[1]; });
-  regionNames[OTHER_REGION] = 'Other';
-  var graphemes = null;
-  try { graphemes = new Intl.Segmenter('en', { granularity: 'grapheme' }); } catch (error) { graphemes = null; }
-  var displayNames = null;
-  try { displayNames = new Intl.DisplayNames(['en'], { type: 'region' }); } catch (error) { displayNames = null; }
-  var countryNames = {};
-  function countryName(code) {
-    if (!code) return 'No flag';
-    if (!countryNames[code]) {
-      var name = null;
-      try { name = displayNames ? displayNames.of(code) : null; } catch (error) { name = null; }
-      countryNames[code] = name && name !== code ? name : code;
-    }
-    return countryNames[code];
-  }
-  function regionOf(player) { return player.country ? REGION_OF[player.country] || OTHER_REGION : OTHER_REGION; }
+  // The name, country and region filters (filters.js); every change draws the board again.
+  var filter = filters.controller({ search: search, country: countrySelect, region: regionSelect }, update);
+  var countryName = marks.countryName;
+  var flag = marks.flag;
 
-  // Case and accents fold away for search: "eric" finds "Éric". Folding a
-  // character at a time keeps a map back to the name for the highlight.
-  // One code point at a time, for the name and the query alike, so a name
-  // always matches itself; final sigma folds like any sigma.
-  function foldChar(ch) {
-    var folded = ch.normalize ? ch.normalize('NFKD').replace(/[\u0300-\u036f]/g, '') : ch;
-    return folded.toLowerCase().replace(/\u03c2/g, '\u03c3');
-  }
-  function fold(text) {
-    var chars = Array.from(text), folded = '', starts = [];
-    for (var i = 0; i < chars.length; i++) {
-      var piece = foldChar(chars[i]);
-      for (var j = 0; j < piece.length; j++) starts.push(i);
-      folded += piece;
-    }
-    return { text: folded, starts: starts, chars: chars };
-  }
-
-  // A query as kept: at most 64 characters, never half of one, and folded
-  // once for matching.
-  function setQuery(text) {
-    var clipped = Array.from(String(text)).slice(0, 64).join('');
-    view.q = clipped.toWellFormed ? clipped.toWellFormed() : clipped;
-    view.needle = fold(view.q).text.trim();
-  }
 
   var el = site.el;
-  function plural(count, one, many) { return count + ' ' + (count === 1 ? one : many); }
+  var plural = site.plural;
   function ago(seconds) {
     if (seconds < 60) return 'just now';
     var minutes = Math.floor(seconds / 60);
@@ -151,56 +92,29 @@
     node.title = (game.rank === 'league' ? 'League ' : 'Class ') + CLASSES[band - 1];
     return node;
   }
-  // A country's flag from the atlas, or its code where the atlas has none.
-  function flag(code) {
-    var atlas = flagAtlas;
-    var cell = atlas && code && Object.prototype.hasOwnProperty.call(atlas.countries, code) ? atlas.countries[code] : -1;
-    var node = el('span', 'rank-flag' + (code ? (cell >= 0 ? ' image' : '') : ' none'), cell >= 0 ? '' : code || '');
-    if (cell >= 0) {
-      var scale = FLAG_WIDTH / atlas.cellWidth;
-      var stepX = atlas.cellWidth + 2 * atlas.padding, stepY = atlas.cellHeight + 2 * atlas.padding;
-      node.style.width = FLAG_WIDTH + 'px';
-      node.style.height = atlas.cellHeight * scale + 'px';
-      node.style.backgroundSize = atlas.width * scale + 'px ' + atlas.height * scale + 'px';
-      node.style.backgroundPosition = -(cell % atlas.columns * stepX + atlas.padding) * scale + 'px ' +
-        -(Math.floor(cell / atlas.columns) * stepY + atlas.padding) * scale + 'px';
-      node.setAttribute('role', 'img');
-    }
-    if (code) {
-      node.title = countryName(code);
-      node.setAttribute('aria-label', countryName(code));
-    } else {
-      node.setAttribute('aria-hidden', 'true');
-    }
-    return node;
-  }
 
   // The view in the URL fragment, which browsers never send: q, class (bands
   // by comma), country (a code or "none"), region, group and order.
   function readHash() {
     var params;
     try { params = new URLSearchParams(location.hash.replace(/^#/, '')); } catch (error) { return; }
-    setQuery(params.get('q') || '');
+    filter.read(params);
     view.classes = {};
     (params.get('class') || '').split(',').forEach(function (value) {
       var band = parseInt(value, 10);
       if (band >= 1 && band <= BANDS) view.classes[band] = true;
     });
-    var country = (params.get('country') || '').toUpperCase();
-    view.country = COUNTRY.test(country) ? country : country === 'NONE' ? NO_COUNTRY : '';
-    var region = params.get('region') || '';
-    view.region = Object.prototype.hasOwnProperty.call(regionNames, region) ? region : '';
     var group = params.get('group');
     view.group = group === 'country' || group === 'none' ? group : 'class';
     view.order = params.get('order') === 'name' ? 'name' : 'recent';
   }
   function hashOf() {
-    var parts = [];
-    if (view.q) parts.push('q=' + encodeURIComponent(view.q));
+    var parts = [], set = filter.parts();
+    if (set.q) parts.push(set.q);
     var bands = selectedBands();
     if (bands.length) parts.push('class=' + bands.join(','));
-    if (view.country) parts.push('country=' + view.country);
-    if (view.region) parts.push('region=' + view.region);
+    if (set.country) parts.push(set.country);
+    if (set.region) parts.push(set.region);
     if (view.group !== 'class') parts.push('group=' + view.group);
     if (view.order !== 'recent') parts.push('order=' + view.order);
     return parts.length ? '#' + parts.join('&') : '';
@@ -214,54 +128,20 @@
     return Object.keys(view.classes).map(Number).sort(function (a, b) { return b - a; });
   }
   function filtered() {
-    return !!(view.q || selectedBands().length || view.country || view.region);
+    return filter.any() || selectedBands().length > 0;
   }
 
   // Each filter, and every filter but one: the counts beside a filter's
   // choices show what choosing it would list given the others.
   function passes(player, skip) {
     if (skip !== 'class' && selectedBands().length && !view.classes[player.band]) return false;
-    if (skip !== 'country' && view.country && (player.country || NO_COUNTRY) !== view.country) return false;
-    if (skip !== 'region' && view.region && regionOf(player) !== view.region) return false;
-    if (view.needle && player.folded.text.indexOf(view.needle) < 0) return false;
-    return true;
-  }
-
-  // Widens code points from..last to whole characters as the reader sees
-  // them, so a mark never splits an accent from its letter or a joined emoji.
-  function wholeCharacters(chars, from, last) {
-    if (!graphemes) return [from, last];
-    var start = 0, first = from, end = last;
-    for (var it = graphemes.segment(chars.join(''))[Symbol.iterator](), step = it.next(); !step.done; step = it.next()) {
-      var length = Array.from(step.value.segment).length;
-      if (from >= start && from < start + length) first = start;
-      if (last >= start && last < start + length) end = start + length - 1;
-      start += length;
-    }
-    return [first, end];
-  }
-
-  function name(player) {
-    var node = el('span', 'rank-name');
-    var needle = view.needle;
-    var at = needle ? player.folded.text.indexOf(needle) : -1;
-    if (at < 0) {
-      node.textContent = player.name;
-      return node;
-    }
-    var chars = player.folded.chars;
-    var span = wholeCharacters(chars, player.folded.starts[at], player.folded.starts[at + needle.length - 1]);
-    var from = span[0], last = span[1];
-    node.appendChild(document.createTextNode(chars.slice(0, from).join('')));
-    node.appendChild(el('mark', '', chars.slice(from, last + 1).join('')));
-    node.appendChild(document.createTextNode(chars.slice(last + 1).join('')));
-    return node;
+    return filter.passes(player, skip);
   }
 
   function row(player) {
     var item = el('li', 'rank-row');
     item.appendChild(flag(player.country));
-    item.appendChild(name(player));
+    item.appendChild(filter.name('span', 'rank-name', player));
     item.appendChild(pill(player.band));
     return item;
   }
@@ -273,16 +153,10 @@
   // is a click target for its class, like its chip; the chips carry the same
   // counts for keyboards and screen readers, so the drawing itself is hidden
   // from them and the plot is described in one line instead.
-  var SVG = 'http://www.w3.org/2000/svg';
   var CHART_HEIGHT = 170, CHART_TOP = 12, CHART_BOTTOM = 24, CHART_LEFT = 30, BAR_MAX = 24, SMOOTHING = 0.85, OUTLINE_STEPS = 80;
   var chartCounts = null;
+  var svg = site.svg;
 
-  function svg(tag, attributes, parent) {
-    var node = document.createElementNS(SVG, tag);
-    Object.keys(attributes).forEach(function (name) { node.setAttribute(name, attributes[name]); });
-    if (parent) parent.appendChild(node);
-    return node;
-  }
   // The top of the y axis: 1, 2 or 5 times a power of ten per tick, about four ticks.
   function niceTop(max) {
     var raw = Math.max(1, max) / 4, power = Math.pow(10, Math.floor(Math.log(raw) / Math.LN10));
@@ -422,51 +296,6 @@
     }
   }
 
-  function fillSelect(select, entries, current, allLabel) {
-    while (select.options.length) select.remove(0);
-    select.add(new Option(allLabel, ''));
-    entries.forEach(function (entry) {
-      var option = new Option(entry.label + ' (' + entry.count + ')', entry.value);
-      if (!entry.count) option.className = 'empty';
-      select.add(option);
-    });
-    select.value = current;
-    if (select.value !== current) select.value = '';
-  }
-
-  function countryOptions(players) {
-    var counts = {}, present = {};
-    players.forEach(function (player) {
-      var code = player.country || NO_COUNTRY;
-      present[code] = true;
-      if (passes(player, 'country')) counts[code] = (counts[code] || 0) + 1;
-    });
-    if (view.country) present[view.country] = true;
-    var entries = Object.keys(present).map(function (code) {
-      return { value: code, label: code === NO_COUNTRY ? 'No flag' : countryName(code), count: counts[code] || 0 };
-    }).sort(function (a, b) {
-      if (a.value === NO_COUNTRY) return 1;
-      if (b.value === NO_COUNTRY) return -1;
-      return a.label.localeCompare(b.label);
-    });
-    fillSelect(countrySelect, entries, view.country, 'All countries');
-  }
-
-  function regionOptions(players) {
-    var counts = {}, present = {};
-    players.forEach(function (player) {
-      var region = regionOf(player);
-      present[region] = true;
-      if (passes(player, 'region')) counts[region] = (counts[region] || 0) + 1;
-    });
-    if (view.region) present[view.region] = true;
-    var order = REGIONS.map(function (region) { return region[0]; }).concat([OTHER_REGION]);
-    var entries = order.filter(function (code) { return present[code]; }).map(function (code) {
-      return { value: code, label: regionNames[code], count: counts[code] || 0 };
-    });
-    fillSelect(regionSelect, entries, view.region, 'All regions');
-  }
-
   // Groups in board order: classes highest first, countries by name with
   // players without a flag last, or one group of everyone.
   function groupsOf(shown) {
@@ -590,16 +419,14 @@
     var counts = classCounts(players);
     classChips(counts);
     classChart(counts);
-    countryOptions(players);
-    regionOptions(players);
-    if (search.value !== view.q) search.value = view.q;
+    filter.fill(players, passes);
     groupSelect.value = view.group;
     orderSelect.value = view.order;
 
     var shown = players.filter(function (player) { return passes(player); });
     summary.textContent = summaryText(players, shown.length);
     if (shown.length === 0) {
-      board.appendChild(message('No players match these filters.', view.q ? 'Names are matched without case or accents. Players who have not opened Rankings lately may show an older name.' : '', true));
+      board.appendChild(message('No players match these filters.', filter.state.q ? 'Names are matched without case or accents. Players who have not opened Rankings lately may show an older name.' : '', true));
       return;
     }
     var groups = groupsOf(shown);
@@ -621,7 +448,7 @@
   }
 
   function update() {
-    clearTimeout(typingTimer);
+    filter.settle();
     writeHash();
     render();
   }
@@ -633,10 +460,8 @@
   }
 
   function clearFilters() {
-    setQuery('');
+    filter.clear();
     view.classes = {};
-    view.country = '';
-    view.region = '';
     update();
     search.focus();
   }
@@ -662,8 +487,7 @@
       var listing = entry && entry.listing;
       if (!listing || typeof listing.name !== 'string' || !listing.name) return;
       if (typeof entry.band !== 'number' || entry.band < 1 || entry.band > BANDS || entry.band % 1) return;
-      var country = typeof listing.country === 'string' && COUNTRY.test(listing.country) ? listing.country : '';
-      players.push({ name: listing.name, country: country, band: entry.band, index: players.length, folded: fold(listing.name) });
+      players.push({ name: listing.name, country: marks.country(listing.country), band: entry.band, index: players.length, folded: filters.fold(listing.name) });
     });
     return players;
   }
@@ -687,33 +511,27 @@
     loading = true;
     refreshButton.disabled = true;
     var asked = game;
-    fetch(asked.board, { cache: 'no-store', credentials: 'omit' })
-      .then(function (response) {
-        if (response.status === 404) return { off: true };
-        if (!response.ok) throw new Error('HTTP ' + response.status);
-        return response.json();
-      })
-      .then(function (body) {
+    account.ask(asked.board, { cache: 'no-store', credentials: 'omit' })
+      .then(function (answer) {
         // The other game was chosen while this board was on its way: it is
-        // not this page's board any more (the finally below loads that one).
+        // not this page's board any more (the next step loads that one).
         if (asked !== game) return;
-        if (body.off) {
+        var players = answer.kind === 'ok' ? valid(answer.body) : null;
+        if (answer.kind === 'off') {
           data.phase = 'off';
           data.players = null;
-        } else {
-          var players = valid(body);
-          if (!players) throw new Error('unexpected board');
-          data.phase = body.shown ? 'ready' : 'hidden';
+        } else if (players) {
+          data.phase = answer.body.shown ? 'ready' : 'hidden';
           data.players = players;
-          data.listedAt = typeof body.listed_at === 'number' ? body.listed_at : Math.floor(Date.now() / 1000);
+          data.listedAt = typeof answer.body.listed_at === 'number' ? answer.body.listed_at : Math.floor(Date.now() / 1000);
+        } else {
+          // Any other answer, none at all, or one this page cannot read: the last board stays.
+          data.failed = true;
+          if (!data.players) data.phase = 'failed';
+          return;
         }
         data.loadedAt = Date.now();
         data.failed = false;
-      })
-      .catch(function () {
-        if (asked !== game) return;
-        data.failed = true;
-        if (!data.players) data.phase = 'failed';
       })
       .then(function () {
         loading = false;
@@ -745,27 +563,11 @@
       update();
     }
   });
-  search.addEventListener('input', function () {
-    // The query is kept at once; only drawing the board waits for a pause.
-    setQuery(search.value);
-    clearTimeout(typingTimer);
-    typingTimer = setTimeout(update, 120);
-  });
-  search.addEventListener('keydown', function (event) {
-    if (event.key === 'Escape' && search.value) {
-      event.preventDefault();
-      search.value = '';
-      setQuery('');
-      update();
-    }
-  });
-  countrySelect.addEventListener('change', function () { view.country = countrySelect.value; update(); });
-  regionSelect.addEventListener('change', function () { view.region = regionSelect.value; update(); });
   groupSelect.addEventListener('change', function () { view.group = groupSelect.value; update(); });
   orderSelect.addEventListener('change', function () { view.order = orderSelect.value; update(); });
   clearButton.addEventListener('click', clearFilters);
   shareButton.addEventListener('click', function () {
-    copy('https://embernetplay.link/rankings' + gameQuery() + hashOf(), 'Link to this view copied.', 'Copy failed. Copy the address from the address bar.');
+    copy(location.origin + '/rankings' + gameQuery() + hashOf(), 'Link to this view copied.', 'Copy failed. Copy the address from the address bar.');
   });
   copyListButton.addEventListener('click', function () {
     var text = listText();
@@ -801,19 +603,9 @@
   });
   // The flag index, read once beside the board; the board is drawn again
   // with flags when it arrives.
-  function validAtlas(index) {
-    var whole = function (value) { return typeof value === 'number' && value >= 0 && value % 1 === 0; };
-    return index && whole(index.cellWidth) && index.cellWidth > 0 && whole(index.cellHeight) && whole(index.padding) &&
-      whole(index.columns) && index.columns > 0 && whole(index.width) && whole(index.height) &&
-      index.countries && typeof index.countries === 'object' ? index : null;
-  }
-  fetch('/assets/flags.json', { credentials: 'omit' })
-    .then(function (response) { return response.ok ? response.json() : null; })
-    .then(function (index) {
-      flagAtlas = validAtlas(index);
-      if (flagAtlas && data.players) render();
-    })
-    .catch(function () {});
+  marks.flagsReady().then(function (loaded) {
+    if (loaded && data.players) render();
+  });
 
   // The shown game in the address: nothing for USF4's, as before games.
   function gameQuery() { return game.key === 'usf4' ? '' : '?game=' + game.key; }

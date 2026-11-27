@@ -1,0 +1,60 @@
+<!--
+file: points.html
+path: /points
+title: Points boards
+description: SF4 Ember Netplay players by battle points and by fighter points from public room games. Search by name, country and fighter.
+nav: rankings
+styles: rankings points
+scripts: answers session blocks filters points
+body: points-page
+index: no
+-->
+<div class="page-head">
+<div>
+<h1>Rankings</h1>
+<p class="lead">Two counts of games played, beside the class board. BP counts every rated public room game on your account, FP counts them for each fighter. A game is 1 point and a win against your own class or higher is 1 more. Points only go up and say nothing about skill: the class does that.</p>
+<nav class="board-views" aria-label="Boards"><a href="{{site}}/rankings">Class</a><a href="#bp" id="view-bp">Battle points</a><a href="#fp" id="view-fp">Fighter points</a></nav>
+</div>
+</div>
+
+<div class="page-cols">
+<div class="page-main">
+<section class="panel" id="picker-panel" aria-labelledby="picker-title" hidden>
+<h2 id="picker-title">Choose a fighter</h2>
+<div class="fighter-picker" id="picker" role="radiogroup" aria-labelledby="picker-title"></div>
+</section>
+
+<section class="panel" aria-labelledby="board-title">
+<div class="board-head">
+<span class="board-face" id="board-face" hidden></span>
+<div class="board-titles">
+<h2 class="board-title" id="board-title">Battle points</h2>
+<p class="note board-count" id="board-count"></p>
+</div>
+<button type="button" class="button small" id="share" hidden>Copy link</button>
+</div>
+<div class="rank-toolbar" id="toolbar" hidden>
+<label class="rank-search"><span class="offscreen">Find a player</span><input type="search" id="search" placeholder="Find a player" autocomplete="off" spellcheck="false" maxlength="64"></label>
+<label class="rank-field"><span>Country</span><select id="country"><option value="">All countries</option></select></label>
+<label class="rank-field"><span>Region</span><select id="region"><option value="">All regions</option></select></label>
+</div>
+<div class="board-you" id="you" hidden></div>
+<p class="note board-summary" id="summary" role="status" aria-live="polite"></p>
+<div class="board-list" id="board" aria-busy="true">
+<p class="note">Loading players...</p>
+<div class="rank-skeleton" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+</div>
+<div class="board-more" id="more-box" hidden><button type="button" class="button small" id="more">Show 50 more</button></div>
+<p class="status board-status" id="status" role="status" aria-live="polite"></p>
+</section>
+</div>
+<aside class="page-side">
+{{earning}}
+{{frames}}
+<section class="panel">
+<h2>Who is listed</h2>
+<p class="note">Players who take part in rankings, with the name and flag their game sends. To leave the boards, choose <strong>Stop taking part</strong> in Ember under Online play, Rankings.</p>
+</section>
+</aside>
+</div>
+<noscript><div class="panel"><p>This page needs JavaScript to list the players. In Ember, choose <strong>Profile</strong> to see your points there.</p></div></noscript>

@@ -1,6 +1,27 @@
 /* The rankings page: the board Ember shows under Online play, Rankings
-   (src/ui/RankingsCards.cxx), with filters. The class pills are site.css's,
-   and the chips share the rooms page's (rooms.css). */
+   (src/ui/RankingsCards.cxx), with filters. The class pills and flags are
+   site.css's, and the chips share the rooms page's (rooms.css). The points
+   boards (points.css) take the toolbar, the names and the views from here. */
+
+/* The three boards under the page head: Class here, Battle points and
+   Fighter points on /points. The shown one is filled with the accent. */
+.board-views { display: flex; flex-wrap: wrap; gap: 6px; margin: 20px 0 0; }
+.board-views a, .board-views a:visited {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 4px 16px;
+  color: var(--ivory);
+  background: var(--button);
+  border: 1px solid var(--button-border);
+  border-radius: 20px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.board-views a:hover { color: var(--ivory); background: var(--button-hover); border-color: var(--ember); }
+.board-views a[aria-current] { color: var(--ink); background: var(--ember); border-color: var(--ember); }
+.board-views a[aria-current]:hover { color: var(--ink); background: var(--ember-light); }
 .rank-classes { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
 .rank-chip { gap: 8px; padding: 4px 8px 4px 14px; }
 .rank-chip.all { padding-right: 14px; }
@@ -94,28 +115,6 @@
 .rank-group.by-country .rank-row .rank-flag { display: none; }
 .rank-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rank-name mark { color: var(--ink); background: var(--ember-light); border-radius: 2px; }
-.rank-flag {
-  flex: none;
-  width: 2.1rem;
-  padding: 0 4px;
-  color: var(--ivory);
-  background: var(--chip);
-  border-radius: 3px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  line-height: 18px;
-  text-align: center;
-}
-.rank-flag.none { background: transparent; }
-/* A flag from assets/flags.png (flag-icons); rankings.js sizes and places
-   it from assets/flags.json. */
-.rank-flag.image {
-  padding: 0;
-  background: url("flags.png") no-repeat;
-  border-radius: 2px;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
-}
 
 /* The class distribution over the board: each column in its class's pill
    colour (the tier-* rules above), the smoothed outline in ivory, hairline

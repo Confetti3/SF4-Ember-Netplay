@@ -1,3 +1,4 @@
+// needs: site marks
 // The home page: names the Stable release on the download button, and shows
 // who is playing now from the same /rooms.json the rooms page reads, the
 // busiest rooms first. The section stays hidden when the list cannot be had.
@@ -6,10 +7,10 @@
   'use strict';
   var site = window.EmberSite;
   var el = site.el;
+  var marks = window.EmberMarks;
   var SHOWN = 4;
-  // Faces a room card has room for, and how many faces.webp holds.
+  // Faces a room card has room for.
   var FACES = 6;
-  var FIGHTERS = 44;
 
   document.getElementById('get').textContent = 'Download Ember ' + site.STABLE_VERSION;
 
@@ -22,7 +23,7 @@
     link.appendChild(el('span', 'live-room-name', room.name));
     var faces = el('span', 'live-room-faces');
     (Array.isArray(room.fighters) ? room.fighters : []).slice(0, FACES).forEach(function (id) {
-      if (Number.isInteger(id) && id >= 0 && id < FIGHTERS) faces.appendChild(el('span', 'face small f' + id));
+      if (marks.isFighter(id)) faces.appendChild(el('span', 'face small f' + id));
     });
     faces.setAttribute('aria-hidden', 'true');
     link.appendChild(faces);

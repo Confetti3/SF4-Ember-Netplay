@@ -156,7 +156,6 @@
 .room-skeleton span:nth-child(1) { width: 40%; height: 18px; }
 .room-skeleton span:nth-child(2) { width: 25%; }
 .room-skeleton span:nth-child(3) { width: 30%; height: 32px; border-radius: 3px; }
-@keyframes room-pulse { 0%, 100% { opacity: 0.2; } 50% { opacity: 0.5; } }
 @media (prefers-reduced-motion: reduce) { .room-skeleton span { animation: none; opacity: 0.35; } }
 
 @media (max-width: 700px) {

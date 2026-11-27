@@ -6,13 +6,14 @@
 
 Writes two folders under --out, each as its setup script installs it:
 
-  site/          the main site: the home, rooms, rankings and link pages (server/ember-short/deploy/site),
+  site/          the main site: the home, rooms, rankings, points, card and link pages (server/ember-short/deploy/site),
                  the guides (README.md and docs/guides) and the frame data pages. It is the site/ folder
                  server/ember-short/deploy/setup.sh expects, and MANIFEST lists every file in it.
   archive-site/  the replay archive's page (server/ember/archive-site/site), which
                  server/ember/archive-site/deploy/setup.sh expects as its site/ folder.
 
 Every page is the one layout (server/ember-short/deploy/site/layout.html) around its own content.
+What several pages hold alike is written once in site/parts/NAME.html, which a page names as {{NAME}}.
 Needs markdown-it-py and Pillow. test_site.py checks the result; preview.py serves it.
 """
 import argparse
@@ -92,7 +93,8 @@ def build_site(src, out, frame_folder, host):
     frame_site = frames.Site(frame_folder)
     guide_site = guides.Site(src)
     layout = (SOURCE / "layout.html").read_text(encoding="utf-8")
-    pages = [shell.source_page(path, host, roster=frame_site.roster()) for path in sorted((SOURCE / "pages").glob("*.html"))]
+    parts = {path.stem: path.read_text(encoding="utf-8").strip() for path in sorted((SOURCE / "parts").glob("*.html"))}
+    pages = [shell.source_page(path, host, roster=frame_site.roster(), **parts) for path in sorted((SOURCE / "pages").glob("*.html"))]
     for page in pages + guide_site.pages + frame_site.pages:
         write(out / page.file, shell.render(page, host, layout))
     for served, source in guide_site.media.items():
