@@ -8,17 +8,15 @@
 //! which `PUT /v1/cards/me` and a friends sync write, which a card look-up
 //! and a search read.
 //!
-//! A token is `c1.` and the unpadded base64url of the bridge's seal
-//! (`Keys::seal`, a fresh nonce each time) over 17 bytes: the purpose byte,
-//! the Discord user ID and the issue time, both little-endian u64. Only the
-//! bridge reads one, and two tokens of the same account cannot be matched by
-//! anyone else.
+//! A token is a sealed token of the account (`sealed`, `Sealed::Card`): `c1.`
+//! and the Discord user ID and the issue time under the bridge's seal. Only
+//! the bridge reads one, and two tokens of the same account cannot be matched
+//! by anyone else.
 use std::collections::HashMap;
 
 use ember_protocol::{
-    encoding::{b64u, decode_b64u},
     friends::PairRecord,
-    levels::{CARD_PREFIX, CARD_VALID_SECS, CardSave, PlayerCard, Relation, Style, Worn},
+    levels::{CardSave, PlayerCard, Relation, Style, Worn},
     skill::{Listing, SkillBadge},
 };
 use rusqlite::{OptionalExtension, Row, Transaction, params};
@@ -27,41 +25,23 @@ use crate::{
     db::select_in,
     error::Result,
     friends::{Classes, store},
+    sealed::Sealed,
     secrets::Keys,
     skill::{self, levels},
 };
 
-/// Marks the sealed bytes as a card, so nothing else sealed under the same
-/// key (room invitations, organizer grants) opens as one.
-const PURPOSE: u8 = 0x01;
-const PLAIN_LEN: usize = 17;
-/// The nonce, the plain bytes and the tag.
-const SEALED_LEN: usize = 24 + PLAIN_LEN + 16;
-
 /// A token for Discord account `account`, issued at `now`. None for an
 /// account that is not a Discord user ID as Discord writes one.
 pub fn issue(keys: &Keys, account: &str, now: u64) -> Option<String> {
-    let id = account
-        .parse::<u64>()
-        .ok()
-        .filter(|id| id.to_string() == account)?;
-    let mut plain = [0; PLAIN_LEN];
-    plain[0] = PURPOSE;
-    plain[1..9].copy_from_slice(&id.to_le_bytes());
-    plain[9..].copy_from_slice(&now.to_le_bytes());
-    Some(format!("{CARD_PREFIX}{}", b64u(&keys.seal(&plain))))
+    Sealed::Card.name(keys, account, now)
 }
 
 /// The Discord account `token` names, if it opens under `keys` as a card
-/// and was issued at most `CARD_VALID_SECS` before `now`.
+/// and was issued at most `CARD_VALID_SECS` before `now`. Nothing else sealed
+/// under the same key (a session, a room invitation, an organizer grant)
+/// opens as one.
 pub fn open(keys: &Keys, token: &str, now: u64) -> Option<String> {
-    let sealed: [u8; SEALED_LEN] = decode_b64u(token.strip_prefix(CARD_PREFIX)?, "card").ok()?;
-    let plain: [u8; PLAIN_LEN] = keys.open(&sealed)?.as_slice().try_into().ok()?;
-    let [purpose, rest @ ..] = plain;
-    let (id, issued_at) = rest.split_at(8);
-    let id = u64::from_le_bytes(id.try_into().ok()?);
-    let issued_at = u64::from_le_bytes(issued_at.try_into().ok()?);
-    (purpose == PURPOSE && now.saturating_sub(issued_at) <= CARD_VALID_SECS).then(|| id.to_string())
+    Some(Sealed::Card.open(keys, token, now)?.account())
 }
 
 /// What `player_cards` holds of an account.
@@ -461,7 +441,10 @@ pub fn month_start(secs: u64) -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use ember_protocol::levels::is_card_token;
+    use ember_protocol::{
+        encoding::b64u,
+        levels::{CARD_PREFIX, CARD_VALID_SECS, is_card_token},
+    };
 
     use super::*;
 
@@ -500,12 +483,9 @@ mod tests {
         let keys = Keys::generate();
         let token = issue(&keys, ACCOUNT, NOW).unwrap();
         assert!(open(&Keys::generate(), &token, NOW).is_none());
-        // Another purpose under the same key.
-        let mut plain = [0; PLAIN_LEN];
-        plain[0] = 0x02;
-        plain[1..9].copy_from_slice(&123_u64.to_le_bytes());
-        plain[9..].copy_from_slice(&NOW.to_le_bytes());
-        let other = format!("{CARD_PREFIX}{}", b64u(&keys.seal(&plain)));
+        // Another purpose under the same key, named a card.
+        let session = Sealed::Session.seal(&keys, 123, NOW);
+        let other = format!("{CARD_PREFIX}{}", session.split_once('.').unwrap().1);
         assert!(is_card_token(&other));
         assert!(open(&keys, &other, NOW).is_none());
         // Sealed bytes of another length, such as a room invitation.

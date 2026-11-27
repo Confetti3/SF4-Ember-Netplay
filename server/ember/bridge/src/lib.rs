@@ -23,6 +23,7 @@ mod mock;
 mod rate;
 mod routes;
 mod s3;
+mod sealed;
 mod secrets;
 mod skill;
 #[cfg(feature = "test-support")]
@@ -55,6 +56,8 @@ pub struct AppState {
     rate: Arc<rate::Limiter>,
     rooms: Arc<routes::rooms::Shared>,
     ranking_board: Arc<routes::ranking::PublicCache>,
+    /// The points boards as last read (`routes::boards`).
+    points_boards: Arc<routes::boards::Cache>,
     /// Friends' presence and invites, kept in memory only (`friends`).
     friends: Arc<friends::presence::Live>,
     /// When maintenance last refreshed the archive's classes.
@@ -80,6 +83,7 @@ impl AppState {
             rate: Arc::new(rate::Limiter::default()),
             rooms: Arc::new(routes::rooms::Shared::default()),
             ranking_board: Arc::new(routes::ranking::PublicCache::default()),
+            points_boards: Arc::new(routes::boards::Cache::default()),
             friends: Arc::new(friends::presence::Live::default()),
             archive_classes: Arc::new(archive::classes::Refreshed::default()),
             http: util::Outbound::default(),

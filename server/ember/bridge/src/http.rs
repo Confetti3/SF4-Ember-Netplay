@@ -8,6 +8,7 @@ use axum::{
 };
 use ember_protocol::json;
 use serde::{Serialize, de::DeserializeOwned};
+use subtle::ConstantTimeEq;
 
 use crate::{
     error::{ApiFailure, Result},
@@ -62,6 +63,26 @@ pub fn bearer(headers: &HeaderMap) -> Option<&str> {
         .map(str::trim)
 }
 
+/// Where a site's cookies go: to the requests under `path`, and only over
+/// https where `secure`.
+pub struct Cookies<'a> {
+    pub path: &'a str,
+    pub secure: bool,
+}
+
+impl Cookies<'_> {
+    /// Sets cookie `name`, held from scripts and sent on a top-level visit
+    /// from a sign-in's callback. `max_age` 0 removes it.
+    pub fn set(&self, response: &mut Response, name: &str, value: &str, max_age: u64) {
+        let (path, secure) = (self.path, if self.secure { "; Secure" } else { "" });
+        if let Ok(cookie) = HeaderValue::from_str(&format!(
+            "{name}={value}; Path={path}; HttpOnly; SameSite=Lax; Max-Age={max_age}{secure}"
+        )) {
+            response.headers_mut().append(header::SET_COOKIE, cookie);
+        }
+    }
+}
+
 pub fn cookie(headers: &HeaderMap, name: &str) -> Option<String> {
     headers
         .get_all(header::COOKIE)
@@ -72,6 +93,12 @@ pub fn cookie(headers: &HeaderMap, name: &str) -> Option<String> {
             let (key, value) = pair.trim().split_once('=')?;
             (key == name).then(|| value.to_owned())
         })
+}
+
+/// Whether the request holds cookie `name` with exactly `value`, compared in
+/// constant time: how a sign-in's callback knows the browser that started it.
+pub fn cookie_is(headers: &HeaderMap, name: &str, value: &str) -> bool {
+    cookie(headers, name).is_some_and(|held| bool::from(held.as_bytes().ct_eq(value.as_bytes())))
 }
 
 /// Whether `key` is one a write route takes as an `Idempotency-Key`: 1 to 128

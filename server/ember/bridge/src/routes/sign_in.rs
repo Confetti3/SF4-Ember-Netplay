@@ -42,7 +42,7 @@ mod provider;
 
 pub use self::{
     budget::spend,
-    provider::{OAuth, Tournament},
+    provider::{OAuth, SignedIn, Tournament},
 };
 
 use axum::{
@@ -64,7 +64,7 @@ use serde_json::json;
 
 use self::{
     pages::Pages,
-    provider::{SignedIn, Step, Tokens},
+    provider::{Step, Tokens},
 };
 use crate::{
     AppState, auth,

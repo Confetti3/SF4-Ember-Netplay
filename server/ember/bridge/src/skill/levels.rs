@@ -306,19 +306,61 @@ fn award_counts(tx: &Transaction<'_>, account: &str, counted: &Counted) -> Resul
 /// The points of the player as `ember_id`, for themselves, as they are
 /// earned: the account's and every fighter's.
 pub fn own(tx: &Transaction<'_>, ember_id: &EmberId) -> Result<OwnLevels> {
-    let Some(account) = account(tx, ember_id)? else {
-        return Ok(OwnLevels::NoAccount {});
-    };
-    let counted = account_count(tx, &account)?;
+    match account(tx, ember_id)? {
+        Some(account) => own_of(tx, &account),
+        None => Ok(OwnLevels::NoAccount {}),
+    }
+}
+
+/// The points of Discord account `account`, for its own player.
+pub fn own_of(tx: &Transaction<'_>, account: &str) -> Result<OwnLevels> {
+    let counted = account_count(tx, account)?;
     Ok(OwnLevels::Counted {
-        account: counted.own_account(award_counts(tx, &account, &counted)?),
-        fighters: fighter_counts(tx, &account)?
+        account: counted.own_account(award_counts(tx, account, &counted)?),
+        fighters: fighter_counts(tx, account)?
             .into_iter()
             .map(|(fighter, count)| count.own_fighter(fighter))
             .collect(),
         // The route that knows the keys and the classes fills it in.
         rival: None,
     })
+}
+
+/// One count of points as a points board lists it (`boards::Snapshot`): an
+/// account's own, or one of its fighters'.
+pub(super) struct BoardPoints {
+    pub account: String,
+    /// None for the account's own points.
+    pub fighter: Option<u8>,
+    pub points: u64,
+    /// The frame they reach, on the account's or the fighters' thresholds.
+    pub tier: u8,
+}
+
+/// Every account's points and every played fighter's.
+pub(super) fn all_points(tx: &Transaction<'_>) -> Result<Vec<BoardPoints>> {
+    let mut statement = tx.prepare(
+        "SELECT discord_user_id, NULL, games, wins, lower_wins, first_at FROM account_points
+         UNION ALL
+         SELECT discord_user_id, fighter, games, wins, lower_wins, first_at FROM fighter_levels",
+    )?;
+    let rows = statement
+        .query_map([], |row| {
+            let fighter: Option<u8> = row.get(1)?;
+            let points = counted_in(row, 2)?.points();
+            let tiers = match fighter {
+                Some(_) => &FIGHTER_TIERS,
+                None => &ACCOUNT_TIERS,
+            };
+            Ok(BoardPoints {
+                account: row.get(0)?,
+                fighter,
+                points,
+                tier: tiers.tier(points),
+            })
+        })?
+        .collect::<rusqlite::Result<_>>()?;
+    Ok(rows)
 }
 
 /// How many of `account`'s pairs the most played opponent is picked from.

@@ -42,7 +42,7 @@ const SEARCHES: Bucket = Bucket {
 /// Accounts a name search reads before it stops: the most that can be listed
 /// after the callers' own and blockers' are left out, with one more to say
 /// that more matched.
-const SCAN: usize = 200;
+pub(crate) const SCAN: usize = 200;
 
 /// `PUT /v1/cards/me`: replaces what the caller's card shows. 204.
 pub async fn save(
@@ -112,29 +112,43 @@ pub(crate) fn find(
         }
         _ => Vec::new(),
     };
-    let accounts: Vec<&str> = found.iter().map(|hit| hit.account.as_str()).collect();
-    let read = Reader::read(tx, viewer, &accounts, Purpose::Hits)?;
-    let mut players = Vec::new();
-    let mut more = false;
-    for hit in &found {
-        if hit.account == viewer.caller || read.relation(&hit.account).is_none() {
-            continue;
-        }
-        let Some(card) = cards::issue(keys, &hit.account, viewer.now) else {
-            continue;
-        };
-        if players.len() == MAX_SEARCH {
-            more = true;
-            break;
-        }
-        players.push(SearchHit {
-            card,
-            badge: read.badge(&hit.account),
-            name: hit.name.clone(),
-            country: hit.country.clone(),
-            main: hit.main,
-            since: cards::month_start(hit.since),
-        });
-    }
+    let (shown, read) = shown_to(tx, viewer, found)?;
+    let mut hits = shown
+        .iter()
+        .filter_map(|found| hit(keys, &read, found, viewer.now));
+    let players: Vec<SearchHit> = hits.by_ref().take(MAX_SEARCH).collect();
+    let more = hits.next().is_some();
     Ok(SearchAnswer { players, more })
+}
+
+/// Of `found`, the players the viewer may be shown, in order, and what was
+/// read of them (`Purpose::Hits`): not the viewer, and not a player who
+/// blocked them.
+pub(crate) fn shown_to(
+    tx: &Transaction<'_>,
+    viewer: &Viewer<'_>,
+    found: Vec<cards::Found>,
+) -> Result<(Vec<cards::Found>, Reader)> {
+    let read = {
+        let accounts: Vec<&str> = found.iter().map(|hit| hit.account.as_str()).collect();
+        Reader::read(tx, viewer, &accounts, Purpose::Hits)?
+    };
+    let shown = found
+        .into_iter()
+        .filter(|hit| hit.account != viewer.caller && read.relation(&hit.account).is_some())
+        .collect();
+    Ok((shown, read))
+}
+
+/// `found` as a search lists them, with a fresh card token. None for an
+/// account no token names.
+pub(crate) fn hit(keys: &Keys, read: &Reader, found: &cards::Found, now: u64) -> Option<SearchHit> {
+    Some(SearchHit {
+        card: cards::issue(keys, &found.account, now)?,
+        badge: read.badge(&found.account),
+        name: found.name.clone(),
+        country: found.country.clone(),
+        main: found.main,
+        since: cards::month_start(found.since),
+    })
 }

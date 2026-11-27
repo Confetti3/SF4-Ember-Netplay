@@ -41,6 +41,15 @@ impl Rating {
         }
     }
 
+    /// The rating periods without a game after which the deviation reaches
+    /// `deviation`: none when it is there already, or never gets there (it
+    /// stops growing at a new player's, `idle`).
+    pub fn idle_until(self, deviation: f64) -> Option<f64> {
+        let (phi, target) = (self.deviation / SCALE, deviation / SCALE);
+        (target > phi && deviation <= Self::NEW.deviation && self.volatility > 0.0)
+            .then(|| (target * target - phi * phi) / (self.volatility * self.volatility))
+    }
+
     /// This rating after one game against `opponent`: `score` is 1 for a
     /// win and 0 for a loss. `weight`, above 0 and at most 1, is how much of
     /// a game it counts as: a fraction of a rating period, whose information

@@ -463,6 +463,10 @@ writes none of the selectors' answers or those fields.
   never served, and no win rate is sent or shown to others.
 - No private room shows points: its host writes its own snapshot, so a token
   there is dropped like a class.
+- On embernetplay.link a player who takes part in ranking and is listed has
+  their account's and each fighter's points and tier on the points boards,
+  which anyone reads (`SITE_PLAYER_CARDS.md`); their card there opens only to
+  a signed-in player, by the rules above.
 - A card token says nothing by itself; it is unreadable without the bridge's
   key and unlinkable between joins. It is no more than a room member can see.
 
@@ -601,5 +605,5 @@ without changing anything that slice stored.
 | Should a player who does not take part in ranking count as without a class for the bonus? | No: the stored class is read as it is. Counting them as without a class would give a strong player the bonus on every win just for stepping out of ranking. A new account has no class for its first games either way. | One condition in `levels::class_bonus`; points already counted stay. |
 | Points in the match HUD? | No for 1.6.0: the HUD has no room, and the class is the skill mark there. | A HUD layout change and a settings row. |
 | Points in private rooms? | No: no authority vouches for anything there. | Would need a private host attestation, a new trust path. |
-| Points on embernetplay.link? | Not in 1.6.0. | A public read route and page; the data is there. |
+| Points on embernetplay.link? | Yes, since the site's player cards: a board for the account's points and one for each fighter's, and each player's card (`SITE_PLAYER_CARDS.md`). | None: the routes read what is stored. |
 | Count games of a tournament's bound room? | The same games as the rating, whatever `RecordWonGame` counts. | None. |
