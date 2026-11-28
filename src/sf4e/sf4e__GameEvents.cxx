@@ -478,7 +478,7 @@ bool fVsPreBattle::SetSides(const rVsMode::ConfirmedCharaConditions (&sides)[2],
 	}
 	(rVsMode::GetStageName(mode)->*Dimps::Platform::dString::publicMethods.assign)(Dimps::stageCodes[stage], 4);
 	*rVsMode::GetStageCode(mode) = stage;
-	sf4e::battleload::Note(sf4e::loadwatch::LoadSource::EmberVersus, sides, stage);
+	sf4e::battleload::NoteEmberSetUp();
 	return true;
 }
 
@@ -524,7 +524,7 @@ static std::optional<sf4e::GameEvents::TrainingSides> TrainingNow() {
 	rTrainingMode* mode = (rTrainingMode*)EventBaseWithEC::FindForegroundEvent(Dimps::App::GetRootEvent(), query, 1);
 	if (!mode) return std::nullopt;
 	sf4e::GameEvents::TrainingSides sides;
-	for (int i = 0; i < 2; i++) sides.sides[i] = rTrainingMode::GetSelection(mode, i)->conditions;
+	if (!rTrainingMode::GetChosenSides(mode, sides.sides)) return std::nullopt;
 	return sides;
 }
 
@@ -565,7 +565,7 @@ void fTrainingMode::ReplaceCharaSelect(char*& eventName) {
 		side->cursorCharaID = sides.sides[i].charaID;
 		side->chosen = TRUE;
 	}
-	sf4e::battleload::Note(sf4e::loadwatch::LoadSource::EmberTraining, sides.sides, sides.stage);
+	sf4e::battleload::NoteEmberSetUp();
 	eventName = "VersusFromChr";
 }
 

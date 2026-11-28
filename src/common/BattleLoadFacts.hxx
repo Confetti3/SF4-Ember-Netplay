@@ -6,6 +6,7 @@
 // that moment (sf4e__BattleLoad.cxx), and says so when there is none.
 
 #include <cstdio>
+#include <optional>
 #include <string>
 
 namespace sf4e {
@@ -19,30 +20,43 @@ struct LoadSide {
 	int edition = 0;
 };
 
-enum class LoadSource {
-	// The game's own select screens chose the fighters; Ember does not hold them.
-	Native,
-	// A Versus battle Ember set up: a room's match, or the developer jump.
-	EmberVersus,
-	// Training on the picks of Ember's Training select, or a dummy change.
-	EmberTraining,
+enum class LoadMode {
+	Versus,
+	Training,
+	// The load is in a mode the event reader does not cover (Arcade and the
+	// like), or its event was not there: the fighters and stage are not read.
+	Unread,
 };
 
 struct BattleLoadFacts {
-	LoadSource source = LoadSource::Native;
+	LoadMode mode = LoadMode::Unread;
+	// Ember put this battle's picks into the game's event; false when the
+	// game's own select did.
+	bool emberSetUp = false;
 	LoadSide sides[2];
-	int stage = 0;
+	// Empty when the load cannot say.
+	std::optional<int> stage;
 };
 
+inline const char* LoadModeName(LoadMode mode) {
+	switch (mode) {
+	case LoadMode::Versus: return "versus";
+	case LoadMode::Training: return "training";
+	case LoadMode::Unread: return "unread";
+	}
+	return "unread";
+}
+
 inline std::string FormatBattleLoad(const BattleLoadFacts& facts) {
-	if (facts.source == LoadSource::Native) return "mode=native select, fighters and stage not read";
+	const char* who = facts.emberSetUp ? "" : "native ";
+	if (facts.mode == LoadMode::Unread) return std::string("mode=") + (facts.emberSetUp ? "unread" : "native select") + ", fighters and stage not read";
 	char line[256];
 	const auto& a = facts.sides[0];
 	const auto& b = facts.sides[1];
+	const std::string stage = facts.stage ? std::to_string(*facts.stage) : "not read";
 	std::snprintf(line, sizeof(line),
-		"mode=%s P1 fighter=%d costume=%d color=%d ultra=%d edition=%d, P2 fighter=%d costume=%d color=%d ultra=%d edition=%d, stage=%d",
-		facts.source == LoadSource::EmberTraining ? "training" : "versus",
-		a.fighter, a.costume, a.color, a.ultra, a.edition, b.fighter, b.costume, b.color, b.ultra, b.edition, facts.stage);
+		"mode=%s%s P1 fighter=%d costume=%d color=%d ultra=%d edition=%d, P2 fighter=%d costume=%d color=%d ultra=%d edition=%d, stage=%s",
+		who, LoadModeName(facts.mode), a.fighter, a.costume, a.color, a.ultra, a.edition, b.fighter, b.costume, b.color, b.ultra, b.edition, stage.c_str());
 	return line;
 }
 
