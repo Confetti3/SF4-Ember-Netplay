@@ -869,12 +869,18 @@ async fn a_sets_copy_takes_back_a_duplicates_row() {
         send(&f, &f.a, &kept, "a=Ann&b=&side=0").await,
         StatusCode::CREATED
     );
-    keep_duplicate(&f, &set_copy, &f.b, f.bridge.state().now() + 3600).await;
+    let until = f.bridge.state().now() + 3600;
+    keep_duplicate(&f, &set_copy, &f.b, until).await;
     assert_eq!(
         send_to_set(&f, &f.b, &id, &set_copy, "side=1").await,
         StatusCode::CREATED
     );
+    // The row taken back is not sent before the folded file's wait ends
+    // (`admit`), so it is stored only once the clock reaches `until`.
+    let waits = "SELECT next_attempt_at FROM archive_games WHERE digest = ?1";
+    assert!(count(&f, waits, &digest(&set_copy)).await >= until as i64);
     removed(&f, &kept).await;
+    f.bridge.clock.advance(3600);
     let list = listed_when(&f, "", |list| {
         games(list).len() == 1 && games(list)[0]["set"] == id.as_str()
     })
