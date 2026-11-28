@@ -284,6 +284,8 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__InputLag.cxx"
     "src/sf4e/sf4e__Platform.hxx"
     "src/sf4e/sf4e__Platform.cxx"
+    "src/sf4e/sf4e__RenderStream.hxx"
+    "src/sf4e/sf4e__RenderStream.cxx"
     "src/sf4e/sf4e__ReplayStore.hxx"
     "src/sf4e/sf4e__ReplayStore.cxx"
     "src/sf4e/sf4e__ReplayPlayback.hxx"

@@ -7,6 +7,7 @@ using Dimps::Eva::IEmSpriteNode;
 
 namespace Platform = Dimps::Platform;
 using Platform::Allocator;
+using Platform::BattleCommandBuffer;
 using Platform::dDeque_0x10;
 using Platform::dString;
 using Platform::D3D;
@@ -28,9 +29,13 @@ Main::__staticMethods Main::staticMethods;
 GFxApp::__publicMethods GFxApp::publicMethods;
 GFxApp::__staticMethods GFxApp::staticMethods;
 Sound::__staticMethods Sound::staticMethods;
+Platform::CommandBuffer* BattleCommandBuffer::instance = nullptr;
+BYTE* BattleCommandBuffer::rangesPush = nullptr;
+BYTE* BattleCommandBuffer::dwordsPush = nullptr;
 
 void Platform::Locate(HMODULE peRoot) {
     Allocator::Locate(peRoot);
+    BattleCommandBuffer::Locate(peRoot);
     dDeque_0x10::Locate(peRoot);
     dString::Locate(peRoot);
     D3D::Locate(peRoot);
@@ -44,6 +49,13 @@ void Allocator::Locate(HMODULE peRoot) {
     *(PVOID*)&publicMethods.Allocate = (PVOID)(peRootOffset + 0x2b3240);
     *(PVOID*)&publicMethods.Free = (PVOID)(peRootOffset + 0x2b32a0);
     *(PVOID*)&staticMethods.GetSingleton = (PVOID)(peRootOffset + 0x2b2fd0);
+}
+
+void BattleCommandBuffer::Locate(HMODULE peRoot) {
+    unsigned int peRootOffset = (unsigned int)peRoot;
+    instance = (Platform::CommandBuffer*)(peRootOffset + 0x6ad778);
+    rangesPush = (BYTE*)(peRootOffset + 0x524b);
+    dwordsPush = (BYTE*)(peRootOffset + 0x5250);
 }
 
 void dDeque_0x10::Locate(HMODULE peRoot) {
