@@ -13,6 +13,9 @@
 #include <vector>
 #include <windows.h>
 #include <dbghelp.h>
+#include <tlhelp32.h>
+
+#include "CrashStackSupplement.hxx"
 
 namespace sf4e {
 namespace crash {
@@ -101,8 +104,14 @@ constexpr size_t DumpPathSize = MAX_PATH + 64;
 // Both artifacts use the same staging/publication primitive. The dump type,
 // fallback list, byte limit and deadline are explicit policy, not path rules.
 using DumpWriter = decltype(&MiniDumpWriteDump);
+// One try at the dump: its type and the extra streams it carries. A try that
+// fails or comes out over maxBytes is followed by the next one.
+struct DumpAttempt {
+    MINIDUMP_TYPE type;
+    MINIDUMP_USER_STREAM_INFORMATION* userStreams = nullptr;
+};
 struct DumpPolicy {
-    const MINIDUMP_TYPE* types;
+    const DumpAttempt* attempts;
     size_t count;
     ULONGLONG maxBytes = 0;
     ULONGLONG deadline = 0;
@@ -115,6 +124,15 @@ inline BOOL CALLBACK DumpDeadline(void* parameter, MINIDUMP_CALLBACK_INPUT* inpu
         output->Cancel = deadline && GetTickCount64() >= deadline;
     }
     return TRUE;
+}
+// The report dump's attempts: with the extra streams, then, if that fails or
+// is over the limit, without them. Capture and its test both use this list.
+struct ReportAttempts {
+	DumpAttempt list[2];
+	size_t count;
+};
+inline ReportAttempts MakeReportAttempts(MINIDUMP_USER_STREAM_INFORMATION* extra) {
+	return { { { ReportDumpType, extra }, { ReportDumpType } }, extra ? size_t(2) : size_t(1) };
 }
 inline HANDLE CreateDumpFile(const wchar_t* path) {
     // Report names add seven characters to a full dump's bounded path.
@@ -161,15 +179,17 @@ inline bool PublishDump(HANDLE file, const wchar_t* path, HANDLE process, DWORD 
         if (policy.deadline && GetTickCount64() >= policy.deadline) break;
 		LARGE_INTEGER start = {};
 		if (!SetFilePointerEx(file, start, nullptr, FILE_BEGIN) || !SetEndOfFile(file)) break;
-		written = policy.writer(process, processId, file, policy.types[index], pointers ? &exception : nullptr, nullptr,
-            policy.deadline ? &callback : nullptr);
+		const DumpAttempt& attempt = policy.attempts[index];
+		written = policy.writer(process, processId, file, attempt.type, pointers ? &exception : nullptr,
+            attempt.userStreams, policy.deadline ? &callback : nullptr);
+		LARGE_INTEGER size = {};
+		if (written && (!GetFileSizeEx(file, &size) || (policy.maxBytes && static_cast<ULONGLONG>(size.QuadPart) > policy.maxBytes))) written = FALSE;
 		if (written) break;
 	}
 	// Publish through the handle still held, so no other process can come
 	// between the write and the rename. It never replaces a file of that name.
 	bool published = false;
-	LARGE_INTEGER size = {};
-	if (written && GetFileSizeEx(file, &size) && (!policy.maxBytes || static_cast<ULONGLONG>(size.QuadPart) <= policy.maxBytes) && FlushFileBuffers(file)) {
+	if (written && FlushFileBuffers(file)) {
 		alignas(FILE_RENAME_INFO) unsigned char buffer[sizeof(FILE_RENAME_INFO) + (DumpPathSize + 8) * sizeof(wchar_t)] = {};
 		auto* rename = reinterpret_cast<FILE_RENAME_INFO*>(buffer);
 		rename->ReplaceIfExists = FALSE;
@@ -186,13 +206,63 @@ inline bool PublishDump(HANDLE file, const wchar_t* path, HANDLE process, DWORD 
 	return published;
 }
 
+// The stack bytes DbgHelp left out (CrashStackSupplement.hxx), read from a
+// game whose threads it is about to dump. Every thread is stopped for the
+// moment its stack pointer is read, as DbgHelp stops it. Launcher side only:
+// it allocates, and a thread or TEB it cannot read just adds nothing. Never
+// the launcher's own process, whose threads it would stop for good.
+// The launcher and the game are both x86: ThreadBasicInformation gives a
+// WOW64 caller the 32-bit TEB of a 32-bit thread, and the casts below keep
+// 32-bit addresses whole.
+static_assert(sizeof(void*) == 4, "ReadStackSupplement reads a 32-bit game's 32-bit TEBs");
+inline std::vector<unsigned char> ReadStackSupplement(HANDLE process, DWORD processId) {
+	if (processId == GetCurrentProcessId()) return {};
+	using QueryThread = LONG (NTAPI*)(HANDLE, ULONG, void*, ULONG, ULONG*);
+	struct BasicInformation { LONG status; void* teb; void* ids[2]; ULONG_PTR affinity; LONG priority; LONG basePriority; };
+	const auto query = reinterpret_cast<QueryThread>(reinterpret_cast<void*>(GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtQueryInformationThread")));
+	std::vector<ThreadStackBounds> threads;
+	HANDLE snapshot = query ? CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0) : INVALID_HANDLE_VALUE;
+	if (snapshot == INVALID_HANDLE_VALUE) return {};
+	THREADENTRY32 entry = { sizeof(entry) };
+	for (BOOL more = Thread32First(snapshot, &entry); more; more = Thread32Next(snapshot, &entry)) {
+		if (entry.th32OwnerProcessID != processId) continue;
+		HANDLE thread = OpenThread(THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT | THREAD_QUERY_INFORMATION, FALSE, entry.th32ThreadID);
+		if (!thread) continue;
+		BasicInformation info = {};
+		NT_TIB tib = {};
+		CONTEXT context = {};
+		context.ContextFlags = CONTEXT_CONTROL;
+		// The id may have been reused by another process since the snapshot.
+		const bool read = GetProcessIdOfThread(thread) == processId && query(thread, 0, &info, sizeof(info), nullptr) == 0 && info.teb &&
+			ReadProcessMemory(process, info.teb, &tib, sizeof(tib), nullptr);
+		if (read && SuspendThread(thread) != static_cast<DWORD>(-1)) {
+			if (GetThreadContext(thread, &context))
+				threads.push_back({ entry.th32ThreadID, static_cast<uint32_t>(context.Esp),
+					static_cast<uint32_t>(reinterpret_cast<uintptr_t>(tib.StackLimit)), static_cast<uint32_t>(reinterpret_cast<uintptr_t>(tib.StackBase)) });
+			ResumeThread(thread);
+		}
+		CloseHandle(thread);
+	}
+	CloseHandle(snapshot);
+	std::vector<StackCopy> copies;
+	for (const StackRange& range : PlanStackSupplement(threads)) {
+		StackCopy copy = { range.threadId, range.start, std::vector<unsigned char>(range.size) };
+		SIZE_T got = 0;
+		ReadProcessMemory(process, reinterpret_cast<void*>(static_cast<uintptr_t>(range.start)), copy.bytes.data(), copy.bytes.size(), &got);
+		if (!got) continue;
+		copy.bytes.resize(got);
+		copies.push_back(std::move(copy));
+	}
+	return EncodeStackSupplement(copies);
+}
+
 // Ordinary/heap dumps retain the canonical fallback sequence.
 inline bool WriteDump(HANDLE process, DWORD processId, const wchar_t* directory, DWORD threadId,
     EXCEPTION_POINTERS* pointers, bool clientPointers, wchar_t (&path)[DumpPathSize]) {
     const bool heap = ExceptionCodeForDump(process, pointers, clientPointers) == HeapCorruptionCode;
-    const MINIDUMP_TYPE types[] = { heap ? HeapDumpType : DumpType, DumpType, MiniDumpNormal };
+    const DumpAttempt attempts[] = { { heap ? HeapDumpType : DumpType }, { DumpType }, { MiniDumpNormal } };
     const HANDLE file = ReserveDump(process, processId, directory, pointers, clientPointers, path);
-    const bool saved = PublishDump(file, path, process, processId, threadId, pointers, clientPointers, { types, 3 });
+    const bool saved = PublishDump(file, path, process, processId, threadId, pointers, clientPointers, { attempts, 3 });
     if (!saved) path[0] = 0;
     return saved;
 }
@@ -328,14 +398,19 @@ struct DumpChannel {
 		reportWritten.clear();
 		const DWORD processId = GetProcessId(process);
 		HANDLE fullFile = ReserveDump(process, processId, directory, pointers, false, written);
+		auto supplement = ReadStackSupplement(process, processId);
+		MINIDUMP_USER_STREAM stream = { StackSupplementStream, static_cast<ULONG>(supplement.size()), supplement.data() };
+		MINIDUMP_USER_STREAM_INFORMATION streams = { 1, &stream };
+		MINIDUMP_USER_STREAM_INFORMATION* extra = supplement.empty() ? nullptr : &streams;
 		if (reportEnabled && written[0]) {
 			const auto path = ReportDumpPath(written);
-			const MINIDUMP_TYPE type = ReportDumpType;
+			// Over the limit with the stream, the report goes without it.
+			const ReportAttempts attempts = MakeReportAttempts(extra);
 			if (PublishDump(CreateDumpFile(path.c_str()), path.c_str(), process, processId, threadId, pointers, false,
-				{ &type, 1, ReportDumpLimit, deadline, writer })) reportWritten = path;
+				{ attempts.list, attempts.count, ReportDumpLimit, deadline, writer })) reportWritten = path;
 		}
-		const MINIDUMP_TYPE types[] = { exceptionCode == HeapCorruptionCode ? HeapDumpType : DumpType, DumpType, MiniDumpNormal };
-		const bool ok = PublishDump(fullFile, written, process, processId, threadId, pointers, false, { types, 3, 0, deadline, writer });
+		const DumpAttempt attempts[] = { { exceptionCode == HeapCorruptionCode ? HeapDumpType : DumpType, extra }, { DumpType, extra }, { MiniDumpNormal } };
+		const bool ok = PublishDump(fullFile, written, process, processId, threadId, pointers, false, { attempts, 3, 0, deadline, writer });
 		if (!ok) written[0] = L'\0';
 		return ok;
 	}

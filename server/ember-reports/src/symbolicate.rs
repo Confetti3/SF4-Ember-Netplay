@@ -271,14 +271,138 @@ pub(crate) fn raw_facts(bytes: &[u8]) -> Walk {
     result
 }
 
+// The launcher's live-stack stream (src/common/CrashStackSupplement.hxx):
+// version, count, {thread id, start, size} per range, then the range bytes.
+// DbgHelp under Wine stores a thread's outer stack only when its stack pointer
+// is below the TEB's StackLimit; the range here is the missing part up to it.
+const STACK_SUPPLEMENT: u32 = 0x5346_3401;
+const STACK_SUPPLEMENT_BYTES: usize = 2 * 1024 * 1024;
+
+// One thread's stack, replaced: MINIDUMP_THREAD record offset, new start and
+// the bytes the descriptor will point at.
+struct StackEdit {
+    record: usize,
+    start: u32,
+    blob: Vec<u8>,
+}
+
+// Plan, for each listed thread, the stack its descriptor should point at, so
+// the walk starts at the stack pointer. One rule, by the thread's stored stack
+// against the range [start, end):
+// - stored starts at or below the range: DbgHelp already kept esp; leave it;
+// - stored starts inside or at the end of the range: the bytes before the
+//   stored start, then the stored stack (adjacent and overlapping alike);
+// - a gap: the range alone;
+// and in the last two only if the context's esp lies in the range, or in the
+// range and the stored stack, so a range read at another moment than the
+// context is never used (the record stays).
+// Hostile dumps are bounded: no empty ranges, one edit per thread, and all
+// appended bytes within DUMP_BYTES. Any malformed field refuses the plan.
+fn plan_stack_splice(
+    bytes: &[u8],
+    thread_list: usize,
+    stream_offset: usize,
+    stream_size: usize,
+) -> Option<Vec<StackEdit>> {
+    if u32_at(bytes, stream_offset)? != 1 {
+        return None;
+    }
+    let count = u32_at(bytes, stream_offset + 4)? as usize;
+    if count > THREADS {
+        return None;
+    }
+    let table = stream_offset.checked_add(8)?;
+    let mut data = table.checked_add(count * 12)?;
+    let end = stream_offset.checked_add(stream_size)?;
+    let thread_count = u32_at(bytes, thread_list)? as usize;
+    let mut edits: Vec<StackEdit> = Vec::new();
+    let (mut supplied, mut appended) = (0usize, 0usize);
+    for i in 0..count {
+        let id = u32_at(bytes, table + i * 12)?;
+        let range_start = u32_at(bytes, table + i * 12 + 4)?;
+        let range_size = u32_at(bytes, table + i * 12 + 8)? as usize;
+        supplied = supplied.checked_add(range_size)?;
+        let next = data.checked_add(range_size)?;
+        if range_size == 0 || supplied > STACK_SUPPLEMENT_BYTES || next > end {
+            return None;
+        }
+        let supplement = bytes.get(data..next)?;
+        data = next;
+        let range_end = u64::from(range_start) + range_size as u64;
+        for t in 0..thread_count {
+            let record = thread_list + 4 + t * 48;
+            if u32_at(bytes, record)? != id {
+                continue;
+            }
+            if edits.iter().any(|e| e.record == record) {
+                break;
+            }
+            let stored = u64_at(bytes, record + 24)?;
+            let stored_size = u32_at(bytes, record + 32)? as usize;
+            let stored_rva = u32_at(bytes, record + 36)? as usize;
+            let stored_bytes = bytes.get(stored_rva..stored_rva.checked_add(stored_size)?)?;
+            if stored <= u64::from(range_start) {
+                break;
+            }
+            // x86 CONTEXT.Esp is at 0xC4, in the record's context.
+            let context = u32_at(bytes, record + 44)? as usize;
+            let esp = u64::from(u32_at(bytes, context.checked_add(0xC4)?)?);
+            let mut blob = Vec::new();
+            if stored <= range_end {
+                // A range from another moment than the context is never joined.
+                if esp < u64::from(range_start) || esp >= stored + stored_size as u64 {
+                    break;
+                }
+                blob.extend_from_slice(&supplement[..(stored - u64::from(range_start)) as usize]);
+                blob.extend_from_slice(stored_bytes);
+            } else {
+                if esp < u64::from(range_start) || esp >= range_end {
+                    break;
+                }
+                blob.extend_from_slice(supplement);
+            }
+            appended = appended.checked_add(blob.len())?;
+            if appended > crate::intake::DUMP_BYTES {
+                return None;
+            }
+            edits.push(StackEdit {
+                record,
+                start: range_start,
+                blob,
+            });
+            break;
+        }
+    }
+    Some(edits)
+}
+
+// Every field written was read by the plan, so this cannot fail.
+fn apply_stack_splice(bytes: &mut Vec<u8>, edits: Vec<StackEdit>) {
+    for edit in edits {
+        let rva = (bytes.len() as u32).to_le_bytes();
+        let len = (edit.blob.len() as u32).to_le_bytes();
+        bytes.extend_from_slice(&edit.blob);
+        bytes[edit.record + 24..edit.record + 32]
+            .copy_from_slice(&u64::from(edit.start).to_le_bytes());
+        bytes[edit.record + 32..edit.record + 36].copy_from_slice(&len);
+        bytes[edit.record + 36..edit.record + 40].copy_from_slice(&rva);
+    }
+}
+
 // Keep only the streams needed to walk Windows stacks. Bound entry counts and
-// module strings before rust-minidump allocates them; offsets still reference
-// the original bytes. Crashpad annotations and arbitrary extension streams are
-// deliberately excluded from the processor's view (the raw dump stays intact).
+// module strings before rust-minidump allocates them; offsets reference the
+// original bytes, except thread stacks the launcher's stack supplement
+// (0x53463401) is joined into, which point at bytes appended after them.
+// Crashpad annotations and other extension streams are deliberately excluded
+// from the processor's view (the raw dump stays intact).
 fn bounded_dump(mut bytes: Vec<u8>) -> Option<Vec<u8>> {
     let entries = directory(&bytes)?;
     let mut kept = Vec::new();
+    let mut supplement = None;
     for (kind, size, offset) in entries {
+        if kind == STACK_SUPPLEMENT && supplement.is_none() {
+            supplement = Some((size, offset));
+        }
         if !matches!(kind, 3..=7 | 9) {
             continue;
         }
@@ -320,6 +444,12 @@ fn bounded_dump(mut bytes: Vec<u8>) -> Option<Vec<u8>> {
             return None;
         }
         kept.push((kind, size, offset));
+    }
+    if let Some((size, offset)) = supplement
+        && let Some(threads) = kept.iter().find(|e| e.0 == 3)
+        && let Some(edits) = plan_stack_splice(&bytes, threads.2, offset, size)
+    {
+        apply_stack_splice(&mut bytes, edits);
     }
     let new_directory = bytes.len() as u32;
     bytes
@@ -769,5 +899,47 @@ mod tests {
         let mut rva = modules(false, 1, 16, 16);
         rva[44 + 4 + 80..44 + 4 + 84].copy_from_slice(&u32::MAX.to_le_bytes());
         assert!(bounded_dump(rva).is_none());
+    }
+
+    // One thread (id 7) whose stored stack is [0x800000, +16) and a range
+    // [0x7fffe0, 0x800000) adjacent to it, with the context's esp as given.
+    fn splice_fixture(esp: u32) -> (Vec<u8>, usize, usize) {
+        let mut bytes = vec![0u8; 700];
+        let put = |bytes: &mut Vec<u8>, at: usize, value: u32| {
+            bytes[at..at + 4].copy_from_slice(&value.to_le_bytes());
+        };
+        put(&mut bytes, 0, 1);
+        put(&mut bytes, 4, 7); // record: thread id
+        bytes[28..36].copy_from_slice(&0x800000u64.to_le_bytes()); // stack start
+        put(&mut bytes, 36, 16); // stack size
+        put(&mut bytes, 40, 400); // stack rva
+        put(&mut bytes, 44, 200); // context size
+        put(&mut bytes, 48, 100); // context rva
+        put(&mut bytes, 100 + 0xC4, esp);
+        let stream = 500;
+        for (i, v) in [1, 1, 7, 0x7fffe0, 32].into_iter().enumerate() {
+            put(&mut bytes, stream + i * 4, v);
+        }
+        (bytes, stream, 20 + 32)
+    }
+
+    #[test]
+    fn a_range_is_joined_only_while_the_context_esp_is_in_it() {
+        let (bytes, stream, size) = splice_fixture(0x7fffe8);
+        assert_eq!(plan_stack_splice(&bytes, 0, stream, size).unwrap().len(), 1);
+        // The context moved below the range since it was read: record stays.
+        let (bytes, stream, size) = splice_fixture(0x7fffd0);
+        assert!(
+            plan_stack_splice(&bytes, 0, stream, size)
+                .unwrap()
+                .is_empty()
+        );
+        // ... or past the stored stack.
+        let (bytes, stream, size) = splice_fixture(0x800010);
+        assert!(
+            plan_stack_splice(&bytes, 0, stream, size)
+                .unwrap()
+                .is_empty()
+        );
     }
 }

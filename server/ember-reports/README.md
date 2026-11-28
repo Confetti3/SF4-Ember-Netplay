@@ -132,8 +132,12 @@ leaves intake and outbox delivery running and emits fixed raw exception facts
 when available. Other platforms fail closed without in-process parsing.
 
 The processor view includes only Windows thread/module/memory/exception/system
-streams, excluding arbitrary extension streams and annotations. Input budgets
-are 64 directory entries, 128 threads, 256 modules and 1024 memory ranges. List
+streams, excluding arbitrary extension streams and annotations; the one
+exception is the launcher's stack supplement (0x53463401), which is joined into
+the stacks of the threads it names (a Wine game's live stack below StackLimit).
+Input budgets are 64 directory entries, 128 threads, 256 modules and 1024
+memory ranges; the supplement adds at most 2 MiB of ranges, no empty range, one
+edit per thread, and at most the dump size limit (4 MiB) of appended bytes. List
 streams must use the exact unpadded layout; module names and CodeView records
 are capped at 1024 bytes with their referenced ranges checked before parsing.
 Symbol files must be canonical paths within the symbol store, at most 64 MiB
