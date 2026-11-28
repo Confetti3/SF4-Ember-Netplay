@@ -87,9 +87,6 @@ struct Snap : sf4e::replaysnaps::Entry {
 };
 sf4e::replaysnaps::Ring<Snap> s_snaps;
 bool s_snapsBroken = false;
-// A jump back waiting for the battle update that loads its snapshot.
-bool s_loadWaiting = false;
-int s_loadRound = 0, s_loadFrame = 0;
 
 // How a snapshot the ring drops is given back: its payloads freed, or, once the engine is gone, only its records.
 void FreeSnap(Snap& snap) { if (snap.state.used) fSystem::SaveState::Free(&snap.state); }
@@ -97,7 +94,6 @@ void ReclaimSnap(Snap& snap) { fSystem::SaveState::Reclaim(&snap.state, "replay_
 
 void FreeSnaps(bool engineAlive) {
 	if (engineAlive) s_snaps.Clear(FreeSnap); else s_snaps.Clear(ReclaimSnap);
-	s_loadWaiting = false;
 }
 void Leave() {
 	s_view.playback = s_view.armed = s_view.exporting = false;
@@ -109,6 +105,8 @@ void Leave() {
 void BeginSession() {
 	// A "Play again" starts a battle without a close; its old states point into the battle that went.
 	FreeSnaps(false); s_snapsBroken = false;
+	// A jump belongs to the battle it was asked in.
+	camera::Phone().ClearGoal();
 	s_queue.Clear();
 	++s_view.session;
 	s_transport.Reset();
@@ -158,7 +156,7 @@ void Cadence::Run() {
 		// Netplay, Versus, Training: the game's function and nothing else.
 		if (s_view.playback) Leave();
 		camera::Phone().SetTotal(0);
-		if (camera::Phone().GetSeek() == camera::Seek::Forward) camera::Phone().ClearGoal();
+		if (camera::Phone().GetSeek() != camera::Seek::None) camera::Phone().ClearGoal();
 		NoteRoute(-1, "the game's (no replay playing)");
 		(this->*rSystem::publicMethods.ReplayCadence)();
 		return;
@@ -197,12 +195,12 @@ void Cadence::Run() {
 		}
 		++s_view.taken; s_view.device = queued.device;
 	}
-	// The timeline's jump (training/CameraControl.hxx: Seek): a frame ahead is played to at speed; a frame behind
-	// is a restart of the replay, then played to. SeekMore (below) does the playing.
+	// The timeline's jump (training/CameraControl.hxx: Seek): a frame ahead is played to at speed (Forward); a frame
+	// behind waits for its snapshot to load in BeforeUpdate (Back), then is played to. SeekMore (below) does the playing.
 	camera::Control& phone = camera::Phone();
 	phone.SetTotal(recorder ? static_cast<int>(recorder->streams[recorder->round].frames) : 0);
 	// A takeover owns the battle: a jump asked for during one is dropped, and one under way or waiting to load ends.
-	if (route == transport::Route::Takeover) { int dropped = 0; phone.TakeSeek(dropped); phone.ClearGoal(); s_loadWaiting = false; }
+	if (route == transport::Route::Takeover) { int dropped = 0; phone.TakeSeek(dropped); phone.ClearGoal(); }
 	// A loop plays the span from the picked key to the next over and over: at its end the playback jumps to its start.
 	if (route == transport::Route::Transport && !context.exporting && recorder && phone.GetSeek() == camera::Seek::None && !s_transport.Paused()) {
 		const camera::Settings now = phone.Get();
@@ -220,13 +218,12 @@ void Cadence::Run() {
 		if (want < phone.Frame() && phone.Floor() > want) want = phone.Floor();
 		if (want >= phone.Frame()) { phone.SetGoal(recorder->round, want, play); phone.SetSeek(camera::Seek::Forward); s_seekTicks = 0; }
 		else if (const Snap* best = s_snaps.Best(recorder->round, want)) {
-			s_loadWaiting = true; s_loadRound = best->round; s_loadFrame = best->frame;
-			phone.SetGoal(recorder->round, want, play); phone.SetSeek(camera::Seek::Forward); s_seekTicks = 0;
+			phone.SetGoal(recorder->round, want, play); phone.SetSeek(camera::Seek::Back); s_seekTicks = 0;
 			spdlog::info("Camera: jumping back to frame {} from the snapshot at {}", want, best->frame);
 		}
 		else spdlog::info("Camera: no snapshot reaches back to frame {}", want);
 	}
-	if (phone.GetSeek() == camera::Seek::Forward && ++s_seekTicks > kSeekGiveUp) { spdlog::warn("Camera: the jump did not reach its frame"); phone.ClearGoal(); }
+	if (phone.GetSeek() != camera::Seek::None && ++s_seekTicks > kSeekGiveUp) { spdlog::warn("Camera: the jump did not reach its frame"); phone.ClearGoal(); }
 	// Reaching the fight shows the strip once, so the controls are seen.
 	if (route == transport::Route::Transport && !s_reachedFight) { s_reachedFight = true; ++s_view.taken; }
 
@@ -249,9 +246,9 @@ void Cadence::Run() {
 		else *flags &= ~static_cast<DWORD>(transport::kReplayFreeze);
 		break;
 	case transport::Route::Transport:
-		if (s_transport.Hold() && phone.GetSeek() != camera::Seek::Forward) *flags |= transport::kReplayFreeze;
+		if (s_transport.Hold() && phone.GetSeek() == camera::Seek::None) *flags |= transport::kReplayFreeze;
 		else *flags &= ~static_cast<DWORD>(transport::kReplayFreeze);
-		*slow = s_transport.SlowFlag() && phone.GetSeek() != camera::Seek::Forward ? 1 : 0;
+		*slow = s_transport.SlowFlag() && phone.GetSeek() == camera::Seek::None ? 1 : 0;
 		break;
 	}
 
@@ -323,12 +320,12 @@ void sf4e::replayplayback::BeforeUpdate(Dimps::Game::Battle::System* system) {
 	s_view.refused += sf4e::replaytakeover::BeforeUpdate(system);
 	const sf4e::replay::Recorder* recorder = sf4e::replayplayback::OfflineRecorder();
 	if (!recorder || recorder->mode != transport::kRecorderPlaying || !s_view.playback || s_view.exporting) return;
-	if (s_loadWaiting) {
-		s_loadWaiting = false;
-		camera::Control& phone = camera::Phone();
-		// The one asked for, or the next earlier usable one: a state whose claim was taken away is refused by Load,
-		// so it is skipped and dropped, and the jump falls back.
-		Snap* snap = s_snaps.Best(s_loadRound, s_loadFrame);
+	camera::Control& phone = camera::Phone();
+	int goalRound = 0, goalFrame = 0;
+	if (phone.GetSeek() == camera::Seek::Back && phone.Goal(goalRound, goalFrame)) {
+		// The nearest snapshot at or before the goal that is still usable: a state whose claim was taken away is
+		// refused by Load, so it is skipped and dropped, and the jump falls back.
+		Snap* snap = s_snaps.Best(goalRound, goalFrame);
 		s_snaps.DropUnusable(FreeSnap);
 		if (!snap) {
 			spdlog::warn("Camera: no snapshot is left to jump back to");
@@ -339,11 +336,14 @@ void sf4e::replayplayback::BeforeUpdate(Dimps::Game::Battle::System* system) {
 			spdlog::error("Camera: the snapshot at frame {} did not load; leaving the battle", snap->frame);
 			phone.ClearGoal(); s_snapsBroken = true;
 			*rSystem::GetReadyState(system) = rSystem::RS_ISLEAVING;
+			return;
 		}
+		// Loaded: the update plays on from the snapshot to the goal.
+		phone.SetSeek(camera::Seek::Forward);
 		return;
 	}
 	// Only under Ember's controls, where the player is scrubbing; an export plays untouched.
-	if (!s_view.armed || s_snapsBroken || camera::Phone().GetSeek() == camera::Seek::Forward) return;
+	if (!s_view.armed || s_snapsBroken || phone.GetSeek() != camera::Seek::None) return;
 	const int frame = rSystem::GetNumFramesSimulated_FixedPoint(system)->integral;
 	if (frame < 0) return;
 	s_snaps.DropUnusable(FreeSnap);
@@ -362,12 +362,14 @@ void sf4e::replayplayback::BeforeUpdate(Dimps::Game::Battle::System* system) {
 
 bool sf4e::replayplayback::SeekMore(Dimps::Game::Battle::System* system, int done) {
 	camera::Control& phone = camera::Phone();
-	if (phone.GetSeek() != camera::Seek::Forward) return false;
+	const camera::Seek seek = phone.GetSeek();
+	if (seek == camera::Seek::None) return false;
 	int round = 0, frame = 0;
 	const sf4e::replay::Recorder* recorder = sf4e::replayplayback::OfflineRecorder();
 	if (!phone.Goal(round, frame) || !recorder || recorder->mode != transport::kRecorderPlaying) return false;
 	const int at = rSystem::GetNumFramesSimulated_FixedPoint(system)->integral;
-	if (recorder->round > round || (recorder->round == round && at >= frame)) {
+	// A jump back's snapshot loads in the next update (BeforeUpdate); the battle here is still the one it leaves.
+	if (camera::JumpLanded(seek, recorder->round, at, round, frame)) {
 		// Landed: the replay waits here.
 		const bool play = phone.GoalPlay();
 		phone.ClearGoal();

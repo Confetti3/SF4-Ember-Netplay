@@ -41,9 +41,14 @@ constexpr std::size_t ViewNameBytes = 40;
 // A time in ms as a number from an order or a file, kept to [low, MaxLegMs].
 inline int LegMs(double ms, int low) { return static_cast<int>((std::min)((std::max)(ms, static_cast<double>(low)), static_cast<double>(MaxLegMs))); }
 inline Ease EaseOf(int value) { return static_cast<Ease>((std::min)((std::max)(value, 0), 2)); }
-// Where a jump along a replay stands (sf4e__ReplayPlayback.cxx moves it): a jump ahead is played to at speed, a jump back
-// loads a snapshot and then plays to the frame.
-enum class Seek { None, Forward };
+// Where a jump along a replay stands (sf4e__ReplayPlayback.cxx moves it): a jump ahead is played to at speed (Forward); a
+// jump back waits for its snapshot to load before the next battle update (Back), then plays on to the frame (Forward).
+enum class Seek { None, Back, Forward };
+// Whether a jump under way has reached its goal, the battle at frame `at` of `round`: a jump back has not while its
+// snapshot waits, though the battle it leaves is past the goal.
+inline bool JumpLanded(Seek seek, int round, int at, int goalRound, int goalFrame) {
+    return seek == Seek::Forward && (round > goalRound || (round == goalRound && at >= goalFrame));
+}
 struct Settings {
     std::array<View, ViewSlots> views;
     int glideMs = 2000;         // how long a glide to a view or an effect takes
@@ -104,7 +109,7 @@ public:
     bool TakeCancelRender() { return cancelAsked_.exchange(false); }
     void SetRender(Render state) { render_ = static_cast<int>(state); }
     // A jump along the replay: the timeline asks for a frame of the current round, the game thread takes the ask once and
-    // then holds the goal (round, frame) until the replay has played to it. The goal outlives the restart a jump back needs.
+    // then holds the goal (round, frame) until the replay has played to it (Seek: Back while a jump back's snapshot waits).
     // `play`: the replay goes on playing there (a loop); otherwise it waits at the frame.
     void AskSeek(int frame, bool play = false) { seekFrame_ = (std::max)(frame, 0); seekPlay_ = play; seekAsked_ = true; }
     bool TakeSeek(int& frame, bool& play) { if (!seekAsked_.exchange(false)) return false; frame = seekFrame_; play = seekPlay_; return true; }

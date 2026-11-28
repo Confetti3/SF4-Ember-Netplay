@@ -149,6 +149,15 @@ int main() {
             Require(tl.Get().loop, "The loop must turn on");
             tl.ClearGoal();
             Require(!tl.Goal(round, frame) && tl.GetSeek() == Seek::None, "A cleared goal must be gone");
+            // A jump back, asked at frame 1140 for 1080: while its snapshot waits (Back) the battle is still the one it
+            // leaves, past the goal, and the jump has not landed; once the snapshot (1067) has loaded it plays on to 1080.
+            tl.SetGoal(0, 1080); tl.SetSeek(Seek::Back);
+            Require(!JumpLanded(tl.GetSeek(), 0, 1140, 0, 1080), "A jump back must not land before its snapshot loads");
+            tl.SetSeek(Seek::Forward);
+            Require(!JumpLanded(tl.GetSeek(), 0, 1067, 0, 1080), "A loaded jump back must play on from its snapshot");
+            Require(JumpLanded(tl.GetSeek(), 0, 1080, 0, 1080) && JumpLanded(tl.GetSeek(), 1, 10, 0, 1080), "A jump must land at its frame or in a later round");
+            tl.ClearGoal();
+            Require(!JumpLanded(tl.GetSeek(), 0, 1080, 0, 1080), "No jump must land");
         }
         {
             // Where the camera is in use: the overlay's offer (Training, a replay Ember plays) or a shot rendering; never over the network.
