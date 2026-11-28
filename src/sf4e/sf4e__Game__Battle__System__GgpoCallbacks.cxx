@@ -311,6 +311,14 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
         if (drainingSpectators) {
             break;
         }
+        // This PC could not send to that peer (send-errors port patch), so the
+        // peer did not leave: the match ends here, quietly once its result is in.
+        if (int sendError = 0; ggpo_get_send_error(ggpo, info->u.disconnected.player, &sendError) == GGPO_OK && sendError) {
+            spdlog::error("GGPO: this PC could not send to its peer (Winsock error {})", sendError);
+            AbortGgpoMatch(MatchResultKnown() ? "" :
+                sf4e::loc::T(!LocalFighter() ? "runtime.spectator_stream_lost" : "runtime.match_connection_lost"));
+            break;
+        }
         if (system) {
             *rSystem::GetReadyState(system) = rSystem::RS_ISLEAVING;
         }

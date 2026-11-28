@@ -67,6 +67,18 @@ host stops queueing frames for an endpoint whose pending output is full, so a
 slow spectator can be sent exactly that packet. The endpoint now raises the
 ordinary disconnect event and the spectator returns to the room.
 
+`send-errors.patch` (port-version 19) handles a socket that cannot bind or
+send. Upstream ignored a failed bind and asserted on every `sendto` error. A
+failed bind now fails `ggpo_start_session` / `ggpo_start_spectating` with no
+session and the Winsock error in `WSAGetLastError`, which `StartGGPO` /
+`StartSpectating` log before the ordinary failed start. A send error that a
+later send can get past (`send-errors.h`) loses only that datagram; any other
+disconnects only the endpoint that sent, so a spectator's address never ends
+the fighters' game. `ggpo_get_send_error` names that error for the endpoint's
+handle, and the disconnect callback for a fighter's peer or a spectator's host
+then aborts the match (deferred, as in any callback) instead of saying the
+other side left.
+
 ## Thread affinity
 
 **Everything below runs on the game's main thread.** There are no worker threads in

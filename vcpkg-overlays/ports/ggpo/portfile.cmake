@@ -21,6 +21,7 @@ vcpkg_from_github(
         "bound-input-decoding.patch"
         "sync-retry-timer.patch"
         "event-queue-size.patch"
+        "send-errors.patch"
 )
 
 # clang (the laptop's cross build) rejects the extra class qualification of this
@@ -32,6 +33,8 @@ configure_file("${CMAKE_CURRENT_LIST_DIR}/input-repair.h"
     "${SOURCE_PATH}/src/lib/ggpo/network/input-repair.h" COPYONLY)
 configure_file("${CMAKE_CURRENT_LIST_DIR}/input-bits.h"
     "${SOURCE_PATH}/src/lib/ggpo/network/input-bits.h" COPYONLY)
+configure_file("${CMAKE_CURRENT_LIST_DIR}/send-errors.h"
+    "${SOURCE_PATH}/src/lib/ggpo/network/send-errors.h" COPYONLY)
 
 vcpkg_cmake_configure(
     SOURCE_PATH ${SOURCE_PATH}
