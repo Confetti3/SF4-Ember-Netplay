@@ -22,7 +22,16 @@ fn native_wrapper_keeps_quote_heavy_json_below_frame_bound() {
 #[test]
 fn route_events_serialize_without_addresses_ports_or_urls() {
     use crate::invite::public_route;
-    let peer = iroh::SecretKey::generate().public();
+    // The id is part of every event and is random, so some ids contain a digit
+    // run that is also on the leak list below. The scan skips the id; a peer
+    // whose id has the run is tried on purpose.
+    let mut peers = vec![iroh::SecretKey::generate().public()];
+    peers.push(loop {
+        let peer = iroh::SecretKey::generate().public();
+        if serde_json::to_string(&peer).unwrap().contains("4433") {
+            break peer;
+        }
+    });
     let paths = [
         Some(TransportAddr::Ip("203.0.113.7:45760".parse().unwrap())),
         Some(TransportAddr::Ip("[2001:db8::1]:57845".parse().unwrap())),
@@ -34,7 +43,10 @@ fn route_events_serialize_without_addresses_ports_or_urls() {
         )),
         None,
     ];
-    for path in paths {
+    for (peer, path) in peers
+        .into_iter()
+        .flat_map(|peer| paths.clone().into_iter().map(move |path| (peer, path)))
+    {
         let route = public_route(path.as_ref());
         let events = [
             Event::ProbeResult {
@@ -85,7 +97,9 @@ fn route_events_serialize_without_addresses_ports_or_urls() {
         ];
         for event in &events {
             assert_no_address(event);
-            let json = serde_json::to_string(event).unwrap();
+            let mut value = serde_json::to_value(event).unwrap();
+            value.as_object_mut().unwrap().remove("peer");
+            let json = value.to_string();
             for leaked in [
                 "203.0.113",
                 "2001:db8",
