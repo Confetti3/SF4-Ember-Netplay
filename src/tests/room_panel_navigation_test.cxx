@@ -1856,6 +1856,24 @@ int main() try {
         // and a game keeps its versus card.
         Check(height("table-5") <= height("table-1") * .55f && height("table-1") >= (table_card::Head + table_card::Face + table_card::Foot) - .5f,
             "Eight tables at 1280x720 did not fall back to quiet lines beside full games");
+        // PointerLeavesTheFloorStill (B142): the pointer moving onto a card the
+        // view cuts at its foot focuses it and leaves the floor's scroll as it is.
+        {
+            focus("table-0"); ImGui::SetScrollY(tablesWindow(), 0); boxes.clear(); frame(); frame(); frame();
+            auto* w = tablesWindow();
+            const float foot = w->Pos.y + w->Size.y;
+            std::string cut;
+            for (const auto& [id, box] : boxes) if (id.compare(0, 6, "table-") == 0 && box.first.y < foot - 12 && box.second.y > foot + 1) cut = id;
+            Check(!cut.empty() && w->Scroll.y < 1, "Eight tables at 1280x720 cut no card at the floor's foot");
+            if (!cut.empty()) {
+                const ImVec2 at(targets.at(cut).x, foot - 6);
+                io.AddMousePosEvent(at.x, at.y - 2); frame();
+                io.AddMousePosEvent(at.x, at.y); frame(); frame(); frame();
+                Check(shell.Navigation().Focus() == cut, "The pointer on a cut table card did not focus it");
+                Check(w->Scroll.y < 1, "The pointer focusing a table card scrolled the floor");
+                io.AddMousePosEvent(-1e9f, -1e9f); frame();
+            }
+        }
         view.room.tableCount = tablesInPlay; ++view.room.revision; frame();
         // More...'s popout closes on a click outside it, and that click does nothing else.
         ApplyTheme(1.f); io.DisplaySize = ImVec2(1920, 1080);

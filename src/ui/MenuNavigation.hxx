@@ -294,7 +294,7 @@ public:
     // A screen opening (pushed, returned to, a modal closing): what is held
     // now counts once released, see PressGate. The rows placed so far were
     // the old screen's, and nothing is lit on a row of places.
-    void Rearm() { gate_.Rearm(); repeat_.Reset(); placing_.clear(); placed_.clear(); light_ = {}; }
+    void Rearm() { gate_.Rearm(); repeat_.Reset(); placing_.clear(); placed_.clear(); light_ = {}; pointed_ = {}; }
     // This frame's presses through the screen's gate, for a reader that
     // answers them in the screen's place (a focused toast). What it takes
     // stays held for the screen, so the next frame does not see it again:
@@ -360,6 +360,14 @@ public:
     // How many options an open choice shows on a row (MenuChoiceColumns); its owner sets it.
     std::size_t choiceColumns = 1;
     void ChoiceIndex(std::size_t index) { if (index < choiceIds_.size()) choiceIndex_ = index; }
+    // The pointer focused the row (moving onto it or pressing it), or
+    // highlighted the option: while the focus and option are still the ones it
+    // gave, lists leave their scroll alone (ScrollToFocus). Any other move ends
+    // the record at the next Read, so coming back to the row later scrolls; a
+    // press or a screen opening ends it too.
+    void Point(const std::string& id, const std::vector<MenuEntry>& entries) { Focus(id, entries); if (Focus() == id) pointed_ = Here(); }
+    void PointChoice(std::size_t index) { ChoiceIndex(index); pointed_ = Here(); }
+    bool Pointed() const { return !pointed_.first.empty() && pointed_ == Here(); }
     const std::string& EditingId() const { return Editing() ? modalId_ : NoId(); }
     // The entry an open confirmation or choice belongs to.
     const std::string& DialogId() const { return Asking() ? modalId_ : NoId(); }
@@ -412,7 +420,7 @@ public:
     // focus and the segment the light, as no question is open.
     void Light(const std::string& id, const std::string& segment, const std::vector<MenuEntry>& entries) {
         if (mode_ != Modal::None) return;
-        Focus(id, entries);
+        Point(id, entries);
         if (Focus() == id) light_ = {id, segment};
     }
     MenuAction Return() {
@@ -670,6 +678,7 @@ private:
         if((raw&12)==12) raw&=~12u;
         const bool opening=!gate_.Armed();
         held=gate_.Held(raw); pressed=gate_.Pressed(held);
+        if(pressed || pointed_!=Here()) pointed_={};
         return !opening;
     }
     const Placement* Placed(const std::string& id) const {
@@ -771,6 +780,9 @@ private:
     MenuAction pressed_;
     std::vector<std::string> choiceIds_;
     bool confirmSelected_=false, editAccept_=true, secret_=false;
+    // What the pointer last focused: the row, and the option while a question is open (Pointed).
+    std::pair<std::string, std::size_t> pointed_;
+    std::pair<std::string, std::size_t> Here() const { return {Focus(), Asking() ? choiceIndex_ : ~std::size_t(0)}; }
     PressGate gate_{true};
     std::size_t choiceIndex_=0;
     // The rows placed this frame, and those placed on the last, which this

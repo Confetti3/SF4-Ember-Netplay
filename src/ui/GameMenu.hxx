@@ -102,6 +102,10 @@ float MenuValueWidth(const MenuEntry& e);
 // goes under the label, and once more when the label alone is wider than the
 // row and wraps.
 v2::Share FitMenuRow(const MenuEntry& e, float room, float gap, bool grows = true);
+// Centres the last item, the focused row or option, in its scrolling list,
+// unless the pointer focused it (MenuNavigation::Pointed): the list would
+// slide under a still pointer and hand the focus to the next row.
+void ScrollToFocus(const MenuNavigation& nav);
 // A row's box on a board as a button: the moving pointer focuses the row,
 // and a press focuses it and is Select on it, or steps its value when it lands
 // on the value where `layout` put it (MenuValueStep; a row with no value

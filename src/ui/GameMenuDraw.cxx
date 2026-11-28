@@ -235,6 +235,7 @@ void DrawMenuRow(ImDrawList* d, const MenuEntry& e, const MenuRowLayout& at, boo
     }
     if (!e.info) Chevron(d, ImVec2(right - 6 * s, box.min.y + box.H() * .5f), 6 * s, enabled ? c.muted : v2::color::Alpha(c.muted, .5f));
 }
+void ScrollToFocus(const MenuNavigation& nav) { if (!nav.Pointed()) ImGui::SetScrollHereY(.5f); }
 EntryHit PressEntry(MenuNavigation& nav, const std::vector<MenuEntry>& rows, const MenuEntry& e, v2::Box b, MenuAction& action,
     bool scroll, const MenuRowLayout& layout, bool choose) {
     // Directions move between a board's rows by where they are drawn, and
@@ -245,13 +246,13 @@ EntryHit PressEntry(MenuNavigation& nav, const std::vector<MenuEntry>& rows, con
     const bool pressed = ImGui::InvisibleButton("##entry", ImVec2(b.W(), b.H())) && !nav.Asking() && !nav.Editing();
     const bool hovered = ImGui::IsItemHovered();
     ImGui::PopID();
-    if (scroll && e.id == nav.Focus()) ImGui::SetScrollHereY(.5f);
+    if (scroll && e.id == nav.Focus()) ScrollToFocus(nav);
     if (pressed && choose) {
-        nav.Focus(e.id, rows);
+        nav.Point(e.id, rows);
         // The value steps where it is drawn; anything else on the row is Select.
         const int step = StepAtPointer(e, layout);
         action = step ? MenuAction{MenuAction::Adjust, e.id, {}, step} : nav.Choose(rows);
-    } else if (hovered && PointerMoved() && !nav.Choosing()) nav.Focus(e.id, rows);
+    } else if (hovered && PointerMoved() && !nav.Choosing()) nav.Point(e.id, rows);
     return {pressed, hovered};
 }
 float BoardRowHeight(const MenuEntry& e, float width) {
@@ -538,14 +539,14 @@ v2::Box GameMenu::DrawCardList(Frame& f, v2::Box list, bool split) {
         ImGui::PopID();
         ReportMenuCard(e.id.c_str(), c.min, c.max);
         if (pressed && listEnabled && !f.modalAtStart && !navigation.Editing() && !navigation.Asking()) {
-            navigation.Focus(e.id, entries);
+            navigation.Point(e.id, entries);
             // The value steps where it is drawn; anything else on the card is Select.
             const int step = StepAtPointer(e, layout);
             f.action = step ? MenuAction{MenuAction::Adjust, e.id, {}, step} : navigation.Choose(entries);
-        } else if (listEnabled && pointerMoved && hovered && !navigation.Choosing()) navigation.Focus(e.id, entries);
+        } else if (listEnabled && pointerMoved && hovered && !navigation.Choosing()) navigation.Point(e.id, entries);
         if (focused) {
             focusCard = c;
-            if (lastFocus_ != e.id || changed) ImGui::SetScrollHereY(.5f);
+            if (lastFocus_ != e.id || changed) ScrollToFocus(navigation);
         }
         if (!ImGui::IsItemVisible()) continue;
         v2::CardGround(ld, c, focused, hovered, e.valueHighlighted);
@@ -576,8 +577,8 @@ void GameMenu::DrawHomePane(Frame& f, v2::Box pane) {
         navigation.Place(row->id, RectOf(card), WindowClip());
         ImGui::SetCursorScreenPos(card.min);
         const bool pressed = ImGui::InvisibleButton("##player-card", ImVec2(card.W(), card.H())), hovered = ImGui::IsItemHovered();
-        if (pressed && listEnabled && !f.modalAtStart && !navigation.Editing() && !navigation.Asking()) { navigation.Focus(row->id, f.entries); f.action = navigation.Choose(f.entries); }
-        else if (listEnabled && PointerMoved() && hovered && !navigation.Choosing()) navigation.Focus(row->id, f.entries);
+        if (pressed && listEnabled && !f.modalAtStart && !navigation.Editing() && !navigation.Asking()) { navigation.Point(row->id, f.entries); f.action = navigation.Choose(f.entries); }
+        else if (listEnabled && PointerMoved() && hovered && !navigation.Choosing()) navigation.Point(row->id, f.entries);
         if (row->id == navigation.Focus()) v2::Focus(d, card.min, card.max);
     }
     v2::CutTop(pane, cardHeight, 16 * s);
@@ -729,7 +730,7 @@ bool GameMenu::DrawValuePanel(Frame& f, v2::Box focusCard, v2::Box list) {
         const bool hovered = ImGui::IsItemHovered();
         ImGui::PopID();
         if (pressed && option.enabled) f.action = navigation.Pick(i, f.entries);
-        else if (hovered && pointerMoved) navigation.ChoiceIndex(i);
+        else if (hovered && pointerMoved) navigation.PointChoice(i);
         v2::CardGround(pd, c, selected, hovered, false);
         // The value in effect now is ticked, so the player sees where they start.
         const float tick = current ? 22 * s : 0;
@@ -737,7 +738,7 @@ bool GameMenu::DrawValuePanel(Frame& f, v2::Box focusCard, v2::Box list) {
         const std::string label = Fit(option.label, cw - 24 * s - tick, ImGui::GetFontSize(), ImGui::GetFont());
         pd->AddText(ImVec2(p.x + 12 * s + tick, p.y + (row - ImGui::GetFontSize()) * .5f), !option.enabled ? col.muted : col.text, label.c_str());
         if (selected) v2::Focus(pd, c.min, c.max, false);
-        if (selected && lastChoice_ != i) ImGui::SetScrollHereY(.5f);
+        if (selected && lastChoice_ != i) ScrollToFocus(navigation);
     }
     lastChoice_ = navigation.ChoiceIndex();
     // A click outside an open popout or value panel closes it.

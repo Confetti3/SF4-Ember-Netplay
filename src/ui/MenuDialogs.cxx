@@ -259,9 +259,9 @@ void GameMenu::DrawChoiceModal(const std::vector<MenuEntry>& entries,MenuAction&
                 const float full=ImGui::GetWindowContentRegionMax().x-ImGui::GetWindowContentRegionMin().x;
                 const float width=(full-ImGui::GetStyle().ItemSpacing.x*(columns-1))/columns,room=width-2*ImGui::GetStyle().FramePadding.x;
                 if(ImGui::Button((FitLabel(option.label,room)+"###Option").c_str(),ImVec2(width,row))) action=navigation.Pick(i,entries);
-                else if(moved&&ImGui::IsItemHovered()) navigation.ChoiceIndex(i);
+                else if(moved&&ImGui::IsItemHovered()) navigation.PointChoice(i);
                 FocusMark(selected);
-                if(selected&&(appearing||lastChoice_!=i)) ImGui::SetScrollHereY(.5f);
+                if(selected&&(appearing||lastChoice_!=i)) ScrollToFocus(navigation);
                 ImGui::PopStyleVar();ImGui::PopStyleColor();
                 if(MenuProbesActive()){
                     const auto measured=ImGui::CalcTextSize(option.label.c_str());
