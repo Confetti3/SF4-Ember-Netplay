@@ -14,6 +14,13 @@ bool PlainName(const std::string& name) {
     return !name.empty() && name != "." && name != ".." && name.size() < 100 && name.find_first_of("\\/:") == std::string::npos && IsWellFormedUtf8(name);
 }
 
+bool PlainPath(const std::string& file) {
+    // u8path throws on bytes that are not UTF-8; such a name is refused instead.
+    if (file.empty() || !IsWellFormedUtf8(file)) return false;
+    for (const auto& piece : fs::u8path(file)) if (!PlainName(WideToUtf8(piece.wstring()))) return false;
+    return true;
+}
+
 std::vector<std::string> Names(const std::wstring& gameDirectory, const wchar_t* part) {
     std::vector<std::string> names;
     std::error_code error;
@@ -94,10 +101,8 @@ Outcome Use(const std::wstring& gameDirectory, const wchar_t* part, const std::s
 
 bool WriteActive(const std::wstring& gameDirectory, const wchar_t* part, const std::string& file, const std::string& bytes, std::string& error) {
     error.clear();
+    if (!PlainPath(file)) { error = "not a plain file name"; return false; }
     const fs::path relative = fs::u8path(file);
-    bool plain = !file.empty() && file.find(':') == std::string::npos && relative.is_relative() && !relative.has_root_name();
-    for (const auto& piece : relative) plain = plain && piece != ".." && piece != ".";
-    if (!plain) { error = "not a plain file name"; return false; }
     const fs::path target = fs::path(gameDirectory) / ActiveFolder / part / relative;
     std::error_code failed;
     fs::create_directories(target.parent_path(), failed);

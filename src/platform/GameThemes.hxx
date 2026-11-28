@@ -54,6 +54,9 @@ Verdict Accept(const wchar_t* part, const std::wstring& partFolder, std::string&
 // A theme or file name is one plain name: nothing that leaves its folder (no separator, drive or
 // dot name), under 100 bytes, and UTF-8 a path can be made of. The phone and Settings both use this.
 bool PlainName(const std::string& name);
+// A file's place in a part, such as "CMN/cockpit.tex.emz": every piece of it a PlainName, so it has no drive, no
+// root (on Windows "\x" names the root of the drive) and nothing that climbs out.
+bool PlainPath(const std::string& file);
 // What Use did: the named part is in use (the game's own files for an empty
 // name); the game's own files are, because the theme is gone or its part could
 // not be copied, or was refused (PicturesMismatch, Unreadable: the refusals the player can
