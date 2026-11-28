@@ -1,9 +1,11 @@
 #include "TournamentAnswers.hxx"
 
 #include <algorithm>
+#include <cmath>
 #include <initializer_list>
 #include <stdexcept>
 
+#include "../common/FighterCatalog.hxx"
 #include "../common/RoomRules.hxx"
 #include "../common/SkillBadgeJson.hxx"
 #include "AnswerReading.hxx"
@@ -191,7 +193,7 @@ bool IsTournamentPlayOp(const std::string& op) {
 	return op == "match_claim" || op == "room_publish" || op == "game_prepare" || op == "game_report" ||
 		op == "match_leave" || op == "assignment_list" || op == "match_watch" || op == "match_unwatch" ||
 		op == "room_list" || op == "room_create" || op == "room_ticket" ||
-		op == "ranking_standing" || op == "ranking_choose" || op == "ranking_board" ||
+		op == "ranking_standing" || op == "ranking_choose" || op == "ranking_board" || op == "points_board" || op == "ranking_rating" ||
 		op == "points_me" || op == "cards_lookup" || op == "cards_search" || op == "card_save" || op == "friends_sync" || op == "friends_act" ||
 		op == "replay_send" || op == "replay_archive" || op == "replay_pack" || op == "archive_list" || op == "archive_fetch";
 }
@@ -433,6 +435,91 @@ std::optional<std::vector<netplay::rankings::BoardEntry>> DecodeBoard(const json
 			board.push_back(std::move(entry));
 		}
 		return board;
+	} catch (const std::exception&) {
+		return std::nullopt;
+	}
+}
+
+// Points board: the bridge sends at most MaxBoard lines; a line that cannot be
+// read is left out, so the board still comes back with the rest. A line with
+// no class shows no class (band 0), and a tier past this build's table shows
+// as the last it knows.
+std::optional<netplay::rankings::PointsBoard> DecodePointsBoard(const json& data) {
+	try {
+		const auto& rows = Strict(data, {"listed_at", "fighter", "total", "players"}).at("players");
+		if (!rows.is_array() || rows.size() > netplay::rankings::MaxBoard) return std::nullopt;
+		netplay::rankings::PointsBoard board;
+		if (data.find("fighter") != data.end()) {
+			const auto fighter = Count(data, "fighter");
+			if (fighter >= selection::FighterCount) return std::nullopt;
+			board.fighter = static_cast<int>(fighter);
+		}
+		if (data.find("total") != data.end()) board.total = Count(data, "total");
+		board.lines.reserve(rows.size());
+		for (const auto& row : rows) {
+			try {
+				const auto& object = Strict(row, {"place", "name", "country", "band", "points", "tier", "card"});
+				netplay::rankings::PointsLine line;
+				line.place = static_cast<std::uint32_t>(Small(object, "place", netplay::rankings::MaxBoard));
+				if (line.place == 0) throw std::invalid_argument("place");
+				// The bridge writes a line's name and country beside its numbers, as a listing's two members.
+				json named = {{"name", object.at("name")}};
+				if (const auto country = object.find("country"); country != object.end()) named["country"] = *country;
+				line.listing = DecodeListing(named);
+				line.band = static_cast<std::uint8_t>(CappedCount(object, "band", SkillBadge::Classes));
+				line.points = Count(object, "points");
+				line.tier = static_cast<std::uint8_t>(CappedCount(object, "tier", netplay::levels::TierCount - 1));
+				if (const auto found = object.find("card"); found != object.end()) {
+					if (!found->is_string()) throw std::invalid_argument("card");
+					if (CardToken::Parsed(found->get<std::string>()).Present()) line.card = found->get<std::string>();
+				}
+				board.lines.push_back(std::move(line));
+			} catch (const std::exception&) {
+				// One line that cannot be read is left out, never a failed answer.
+			}
+		}
+		return board;
+	} catch (const std::exception&) {
+		return std::nullopt;
+	}
+}
+
+// Rating details: the bridge sends a "rating" object, left out before a rated
+// game, and the rules beside it, which Ember does not show. The helper has
+// checked the answer against the protocol, so anything else is refused whole.
+std::optional<netplay::rankings::RatingDetails> DecodeRatingDetails(const json& data) {
+	try {
+		Strict(data, {"rating", "rules"});
+		netplay::rankings::RatingDetails details;
+		const auto found = data.find("rating");
+		if (found == data.end()) return details;
+		const auto& object = Strict(*found, {"takes_part", "rating", "deviation", "volatility", "band", "settled",
+			"up_at", "down_below", "faint_in_days", "played_at", "examples"});
+		auto& own = details.rating.emplace();
+		own.takesPart = object.at("takes_part").get<bool>();
+		own.settled = object.at("settled").get<bool>();
+		own.rating = Finite(object, "rating");
+		own.deviation = Finite(object, "deviation");
+		own.volatility = Finite(object, "volatility");
+		own.band = static_cast<std::uint8_t>(Small(object, "band", SkillBadge::Classes));
+		own.upAt = OptionalFinite(object, "up_at");
+		own.downBelow = OptionalFinite(object, "down_below");
+		if (object.find("faint_in_days") != object.end()) own.faintInDays = Count(object, "faint_in_days");
+		own.playedAt = Count(object, "played_at");
+		const auto& examples = object.at("examples");
+		if (!examples.is_array() || examples.size() > netplay::rankings::MaxRatingExamples) return std::nullopt;
+		const auto outcome = [](const json& value) {
+			const auto& read = Strict(value, {"weight", "change"});
+			const netplay::rankings::RatingOutcome outcome{Finite(read, "weight"), Finite(read, "change")};
+			if (outcome.weight <= 0.0 || outcome.weight > 1.0) throw std::invalid_argument("weight");
+			return outcome;
+		};
+		for (const auto& example : examples) {
+			const auto& read = Strict(example, {"opponent", "band", "win", "loss"});
+			own.examples.push_back({Finite(read, "opponent"), static_cast<std::uint8_t>(Small(read, "band", SkillBadge::Classes)),
+				outcome(read.at("win")), outcome(read.at("loss"))});
+		}
+		return details;
 	} catch (const std::exception&) {
 		return std::nullopt;
 	}

@@ -87,6 +87,8 @@ struct Game {
 	std::array<int, 2> classes{{0, 0}};
 	// The tournament set it was a game of, and that set's event, round and phase; empty for an online game.
 	std::string set, event, round, phase;
+	// The rounds each side won, player 1 first, when the replay says who won.
+	std::optional<std::array<unsigned, 2>> rounds;
 };
 
 // A tournament set the listing's games name: its score by wins, and its pack's address once the bridge holds one.

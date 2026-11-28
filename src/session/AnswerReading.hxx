@@ -5,7 +5,9 @@
 // exception the decoder turns into "malformed", unless the reader says
 // otherwise.
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
+#include <optional>
 #include <stdexcept>
 #include <string>
 
@@ -63,6 +65,19 @@ inline std::uint64_t CappedCount(const json& object, const char* key, std::uint6
 inline std::uint64_t LenientCount(const json& object, const char* key) {
 	const auto found = object.find(key);
 	return found != object.end() && found->is_number_unsigned() ? found->get<std::uint64_t>() : 0;
+}
+
+// A finite number, or an exception the decoder turns into "malformed".
+inline double Finite(const json& object, const char* key) {
+	const auto& value = object.at(key);
+	if (!value.is_number() || !std::isfinite(value.get<double>())) throw std::invalid_argument(key);
+	return value.get<double>();
+}
+
+// A finite number the bridge may leave out: absent is none.
+inline std::optional<double> OptionalFinite(const json& object, const char* key) {
+	if (object.find(key) == object.end()) return std::nullopt;
+	return Finite(object, key);
 }
 
 inline bool IsHex(const std::string& text, std::size_t length) {

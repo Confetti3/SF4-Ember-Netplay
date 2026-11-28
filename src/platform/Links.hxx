@@ -5,6 +5,9 @@
 namespace sf4e { namespace platform {
 // The mark a link wears on Home. The interface maps each to what draws it.
 enum class LinkMark { Discord, Coffee, Ember, Twitter };
+// Where a link is offered: every link is a Help & About row, and most are icons in Home's header too.
+// The guides are a Help & About row alone, beside the website's mark.
+enum class LinkPlaces { HomeAndAbout, AboutOnly };
 // One of Ember's outbound links. `address` is what the browser opens as https://<address>
 // and what the rows name; `label` and `detail` are catalog ids, `detail` taking the address as {0}.
 struct Link {
@@ -13,14 +16,16 @@ struct Link {
     LinkMark mark;
     const char* label;
     const char* detail;
+    LinkPlaces places;
 };
 // In the order Help & About lists them and Home's header draws them. Ko-fi has no logo in the
 // icon set, so its mark is the cup (LinkMark::Coffee).
-inline constexpr std::array<Link, 4> Links = {{
-    {"discord", "discord.gg/uPNqF5A5uq", LinkMark::Discord, "about.discord", "about.discord_detail"},
-    {"kofi", "ko-fi.com/confetti3", LinkMark::Coffee, "about.kofi", "about.kofi_detail"},
-    {"website", "embernetplay.link", LinkMark::Ember, "about.website", "about.website_detail"},
-    {"twitter", "x.com/kabiefox", LinkMark::Twitter, "about.twitter", "about.twitter_detail"},
+inline constexpr std::array<Link, 5> Links = {{
+    {"discord", "discord.gg/uPNqF5A5uq", LinkMark::Discord, "about.discord", "about.discord_detail", LinkPlaces::HomeAndAbout},
+    {"kofi", "ko-fi.com/confetti3", LinkMark::Coffee, "about.kofi", "about.kofi_detail", LinkPlaces::HomeAndAbout},
+    {"website", "embernetplay.link", LinkMark::Ember, "about.website", "about.website_detail", LinkPlaces::HomeAndAbout},
+    {"guides", "embernetplay.link/docs", LinkMark::Ember, "about.guides", "about.guides_detail", LinkPlaces::AboutOnly},
+    {"twitter", "x.com/kabiefox", LinkMark::Twitter, "about.twitter", "about.twitter_detail", LinkPlaces::HomeAndAbout},
 }};
 // The link named `id`, or null.
 inline const Link* FindLink(std::string_view id) {

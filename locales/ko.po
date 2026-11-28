@@ -2253,6 +2253,12 @@ msgstr "Ember 웹사이트"
 msgid "about.website_detail"
 msgstr "방, 랭킹, 리플레이: {0}. 게임 뒤에서 브라우저로 엽니다."
 
+msgid "about.guides"
+msgstr "가이드"
+
+msgid "about.guides_detail"
+msgstr "{0}에서 설치, 온라인 플레이, 녹화 등을 알아봅니다. 게임 뒤에서 브라우저로 열립니다."
+
 msgid "about.twitter"
 msgstr "개발자 Twitter"
 
@@ -8606,9 +8612,6 @@ msgstr "나"
 msgid "rankings.you_beyond_cap"
 msgstr "랭킹에는 최대 {0}명이 표시되며, 지금은 내가 포함되어 있지 않습니다."
 
-msgid "rankings.jump"
-msgstr "좌우로 클래스를 이동합니다."
-
 msgid "rankings.loading_board"
 msgstr "플레이어를 불러오는 중..."
 
@@ -8618,11 +8621,158 @@ msgstr "아직 랭킹에 아무도 없습니다."
 msgid "rankings.status_board"
 msgstr "표시된 플레이어: {0}명. 업데이트: {1}."
 
+msgid "rankings.points_title"
+msgstr "점수 랭킹"
+
+msgid "rankings.points"
+msgstr "점수 랭킹"
+
+msgid "rankings.points_detail"
+msgstr "누구든 가장 많이 플레이했는지, 전체 또는 특정 파이터로."
+
+msgid "rankings.points_all"
+msgstr "모든 파이터"
+
+msgid "rankings.points_value"
+msgstr "{0}점"
+
+msgid "rankings.loading_points"
+msgstr "점수 랭킹을 불러오는 중…"
+
+msgid "rankings.points_empty"
+msgstr "아직 여기에 점수가 있는 사람이 없습니다."
+
+msgid "rankings.rating"
+msgstr "레이팅"
+
+msgid "rankings.rating_value"
+msgstr "{0} ± {1}"
+
+msgid "rankings.rating_between"
+msgstr "내 클래스는 {0}에서 오르고 {1} 밑에서는 내려갑니다."
+
+msgid "rankings.rating_up"
+msgstr "내 클래스는 {0}에서 오릅니다."
+
+msgid "rankings.rating_down"
+msgstr "내 클래스는 {0} 밑에서는 내려갑니다."
+
+msgid "rankings.rating_faint"
+msgstr "{0}일 동안 랭크 게임이 없으면 흐리게 표시됩니다."
+
 msgid "rankings.failure.unavailable"
 msgstr "이 서비스는 랭킹을 제공하지 않습니다."
 
 msgid "rankings.failure.too_soon"
 msgstr "하루에 한 번 바꿀 수 있습니다."
+
+msgid "rankings.rating_title"
+msgstr "레이팅 상세"
+
+msgid "rankings.rating_private"
+msgstr "이 숫자는 당신만 볼 수 있습니다. 다른 플레이어는 당신의 클래스는 보지만 레이팅은 보지 않습니다."
+
+msgid "rankings.deviation"
+msgstr "편차"
+
+msgid "rankings.volatility"
+msgstr "변동성"
+
+msgid "rankings.rating_about"
+msgstr "Ember가 추정하는 당신의 강도입니다. 승리는 높이고 패배는 낮춥니다. 결과가 예상 밖일수록 더 많이 움직입니다. 클래스는 이것으로 읽힙니다."
+
+msgid "rankings.deviation_about"
+msgstr "레이팅이 얼마나 불확실한지 입니다. 플레이할수록 낮아지고 플레이하지 않는 날이 지날수록 조금 커집니다. 충분히 낮아지면 클래스가 표시됩니다."
+
+msgid "rankings.volatility_about"
+msgstr "결과가 얼마나 안정적인지 입니다. 예상 못한 승리와 나쁜 패배 사이를 오갈 때 오르고 레이팅이 더 빨리 움직이게 합니다."
+
+msgid "rankings.up_to"
+msgstr "{0}은 {1}에서"
+
+msgid "rankings.down_to"
+msgstr "{0}은 {1} 밑에서"
+
+msgid "rankings.next_game"
+msgstr "다음 판이 움직일 것"
+
+msgid "rankings.opponent"
+msgstr "상대"
+
+msgid "rankings.win"
+msgstr "승리"
+
+msgid "rankings.loss"
+msgstr "패배"
+
+msgid "rankings.rated"
+msgstr "랭크 {0}"
+
+msgid "rankings.example_new"
+msgstr "새 플레이어"
+
+msgid "rankings.points_bp_total"
+msgstr "{0}명의 플레이어, 모든 파이터가 합산됩니다."
+
+msgid "rankings.points_fp_total"
+msgstr "{0}명의 플레이어가 {1}로 점수를 가지고 있습니다."
+
+msgid "rankings.frames"
+msgstr "프레임"
+
+msgid "rankings.frames_about"
+msgstr "플레이어의 프레임은 점수가 얼마나 앞으로 왔는지 보여줍니다. 절대 되돌아가지 않습니다."
+
+msgid "rankings.place"
+msgstr "순위"
+
+msgid "rankings.place_of"
+msgstr "{0} / {1}"
+
+msgid "rankings.class"
+msgstr "클래스"
+
+msgid "rankings.your_place"
+msgstr "내 순위"
+
+msgid "rankings.frame"
+msgstr "프레임"
+
+msgid "rankings.player"
+msgstr "플레이어"
+
+msgid "rankings.points_column"
+msgstr "점수"
+
+msgid "rankings.players_count"
+msgstr "{0}명의 플레이어"
+
+msgid "rankings.players_one"
+msgstr "{0}명의 플레이어"
+
+msgid "rankings.classes"
+msgstr "클래스"
+
+msgid "rankings.fighters"
+msgstr "파이터"
+
+msgid "rankings.see_players"
+msgstr "플레이어 보기"
+
+msgid "rankings.show_board"
+msgstr "랭킹 표시"
+
+msgid "rankings.your_class"
+msgstr "내 클래스"
+
+msgid "rankings.where_title"
+msgstr "내가 어디 있는지"
+
+msgid "rankings.your_rating"
+msgstr "나, {0}"
+
+msgid "rankings.numbers_title"
+msgstr "숫자가 의미하는 것"
 
 msgid "settings.class_emblems"
 msgstr "클래스 엠블럼"

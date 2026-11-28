@@ -2253,6 +2253,12 @@ msgstr "Ember-website"
 msgid "about.website_detail"
 msgstr "Kamers, ranglijsten en replays op {0}. Opent in je browser achter het spel."
 
+msgid "about.guides"
+msgstr "Gidsen"
+
+msgid "about.guides_detail"
+msgstr "Hoe te installeren, online spelen, opnemen en meer, op {0}. Opent in je browser achter het spel."
+
 msgid "about.twitter"
 msgstr "Ontwikkelaar op Twitter"
 
@@ -8606,9 +8612,6 @@ msgstr "Jij"
 msgid "rankings.you_beyond_cap"
 msgstr "De ranglijst toont maximaal {0} spelers en jij staat er nu niet bij."
 
-msgid "rankings.jump"
-msgstr "Links en Rechts wisselen tussen klassen."
-
 msgid "rankings.loading_board"
 msgstr "Spelers laden..."
 
@@ -8618,11 +8621,158 @@ msgstr "Er staat nog niemand op de ranglijst."
 msgid "rankings.status_board"
 msgstr "Spelers in de lijst: {0}. Bijgewerkt {1}."
 
+msgid "rankings.points_title"
+msgstr "Puntenbord"
+
+msgid "rankings.points"
+msgstr "Puntenbord"
+
+msgid "rankings.points_detail"
+msgstr "Wie het meest gespeeld heeft, in totaal of met één karakter."
+
+msgid "rankings.points_all"
+msgstr "Alle karakters"
+
+msgid "rankings.points_value"
+msgstr "{0} pt"
+
+msgid "rankings.loading_points"
+msgstr "Puntenbord laden…"
+
+msgid "rankings.points_empty"
+msgstr "Nog niemand heeft hier punten."
+
+msgid "rankings.rating"
+msgstr "Rating"
+
+msgid "rankings.rating_value"
+msgstr "{0} ± {1}"
+
+msgid "rankings.rating_between"
+msgstr "Je klasse stijgt bij {0} en daalt onder {1}."
+
+msgid "rankings.rating_up"
+msgstr "Je klasse stijgt bij {0}."
+
+msgid "rankings.rating_down"
+msgstr "Je klasse daalt onder {0}."
+
+msgid "rankings.rating_faint"
+msgstr "Hij is vaal na {0} dagen zonder gerateerd potje."
+
 msgid "rankings.failure.unavailable"
 msgstr "Deze dienst biedt geen ranglijsten."
 
 msgid "rankings.failure.too_soon"
 msgstr "Je kunt dit één keer per dag wijzigen."
+
+msgid "rankings.rating_title"
+msgstr "Ratingdetails"
+
+msgid "rankings.rating_private"
+msgstr "Alleen jij ziet deze cijfers. Andere spelers zien je klasse, nooit je rating."
+
+msgid "rankings.deviation"
+msgstr "Afwijking"
+
+msgid "rankings.volatility"
+msgstr "Volatiliteit"
+
+msgid "rankings.rating_about"
+msgstr "Embers schatting van hoe sterk je bent. Een win verhoogt het en een verlies verlaagt het, meer als het resultaat een verrassing was. Je klasse wordt eruit gelezen."
+
+msgid "rankings.deviation_about"
+msgstr "Ho onzeker de rating is. Hij daalt als je speelt en groeit een beetje elke dag zonder spelen. Je klasse verschijnt als hij laag genoeg is."
+
+msgid "rankings.volatility_about"
+msgstr "Hoe stabiel je resultaten zijn. Hij stijgt als je tussen verrassende wins en slechte verliezen schakelt, en laat de rating sneller bewegen."
+
+msgid "rankings.up_to"
+msgstr "{0} bij {1}"
+
+msgid "rankings.down_to"
+msgstr "{0} onder {1}"
+
+msgid "rankings.next_game"
+msgstr "Wat je volgende potje zou bewegen"
+
+msgid "rankings.opponent"
+msgstr "Tegenstander"
+
+msgid "rankings.win"
+msgstr "Win"
+
+msgid "rankings.loss"
+msgstr "Verlies"
+
+msgid "rankings.rated"
+msgstr "Gerateerd {0}"
+
+msgid "rankings.example_new"
+msgstr "Een nieuwe speler"
+
+msgid "rankings.points_bp_total"
+msgstr "{0} spelers, elk karakter samen meegeteld."
+
+msgid "rankings.points_fp_total"
+msgstr "{0} spelers hebben punten met {1}."
+
+msgid "rankings.frames"
+msgstr "Frames"
+
+msgid "rankings.frames_about"
+msgstr "De frame van een speler toont hoe ver zijn punten gevorderd zijn. Hij gaat nooit terug."
+
+msgid "rankings.place"
+msgstr "Plaats"
+
+msgid "rankings.place_of"
+msgstr "{0} van {1}"
+
+msgid "rankings.class"
+msgstr "Klasse"
+
+msgid "rankings.your_place"
+msgstr "Je plaats"
+
+msgid "rankings.frame"
+msgstr "Frame"
+
+msgid "rankings.player"
+msgstr "Speler"
+
+msgid "rankings.points_column"
+msgstr "Punten"
+
+msgid "rankings.players_count"
+msgstr "{0} spelers"
+
+msgid "rankings.players_one"
+msgstr "{0} speler"
+
+msgid "rankings.classes"
+msgstr "Klassen"
+
+msgid "rankings.fighters"
+msgstr "Karakters"
+
+msgid "rankings.see_players"
+msgstr "Spelers zien"
+
+msgid "rankings.show_board"
+msgstr "Bord tonen"
+
+msgid "rankings.your_class"
+msgstr "Je klasse"
+
+msgid "rankings.where_title"
+msgstr "Waar je staat"
+
+msgid "rankings.your_rating"
+msgstr "Jij, {0}"
+
+msgid "rankings.numbers_title"
+msgstr "Wat de cijfers betekenen"
 
 msgid "settings.class_emblems"
 msgstr "Klasse-emblemen"

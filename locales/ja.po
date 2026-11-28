@@ -2253,6 +2253,12 @@ msgstr "Emberのウェブサイト"
 msgid "about.website_detail"
 msgstr "ルーム、ランキング、リプレイ：{0}。ゲームの背後でブラウザーを開きます。"
 
+msgid "about.guides"
+msgstr "ガイド"
+
+msgid "about.guides_detail"
+msgstr "{0}でのインストール、オンラインプレイ、録画などの方法です。ゲームの裏でブラウザで開きます。"
+
 msgid "about.twitter"
 msgstr "開発者のTwitter"
 
@@ -8606,9 +8612,6 @@ msgstr "あなた"
 msgid "rankings.you_beyond_cap"
 msgstr "ランキングには最大{0}人が載りますが、現在あなたは含まれていません。"
 
-msgid "rankings.jump"
-msgstr "左右でクラスを切り替えます。"
-
 msgid "rankings.loading_board"
 msgstr "プレイヤーを読み込み中..."
 
@@ -8618,11 +8621,158 @@ msgstr "まだ誰もランキングにいません。"
 msgid "rankings.status_board"
 msgstr "掲載プレイヤー：{0}人。更新：{1}。"
 
+msgid "rankings.points_title"
+msgstr "ポイントランキング"
+
+msgid "rankings.points"
+msgstr "ポイントランキング"
+
+msgid "rankings.points_detail"
+msgstr "誰が最もプレイしたか、全体でか、特定のファイターだけか。"
+
+msgid "rankings.points_all"
+msgstr "すべてのファイター"
+
+msgid "rankings.points_value"
+msgstr "{0} pt"
+
+msgid "rankings.loading_points"
+msgstr "ポイントランキングを読み込み中…"
+
+msgid "rankings.points_empty"
+msgstr "まだ誰もポイントを持っていません。"
+
+msgid "rankings.rating"
+msgstr "レーティング"
+
+msgid "rankings.rating_value"
+msgstr "{0} ± {1}"
+
+msgid "rankings.rating_between"
+msgstr "あなたのクラスは{0}で上がり、{1}を下回ると下がります。"
+
+msgid "rankings.rating_up"
+msgstr "あなたのクラスは{0}で上がります。"
+
+msgid "rankings.rating_down"
+msgstr "あなたのクラスは{0}を下回ると下がります。"
+
+msgid "rankings.rating_faint"
+msgstr "{0}日間レートのない対戦が続くと薄く表示されます。"
+
 msgid "rankings.failure.unavailable"
 msgstr "このサービスにはランキングがありません。"
 
 msgid "rankings.failure.too_soon"
 msgstr "変更は1日1回までです。"
+
+msgid "rankings.rating_title"
+msgstr "レーティングの詳細"
+
+msgid "rankings.rating_private"
+msgstr "これらの数字はあなただけが見えます。他のプレイヤーはあなたのクラスは見えますが、レーティングは見えません。"
+
+msgid "rankings.deviation"
+msgstr "偏差"
+
+msgid "rankings.volatility"
+msgstr "ボラティリティ"
+
+msgid "rankings.rating_about"
+msgstr "Emberのあなたの強さの見積もりです。勝ちはそれを上げ、負けは下げる。結果が意外だったほど大きく動きます。クラスはこれから読み取られます。"
+
+msgid "rankings.deviation_about"
+msgstr "レーティングの不確かさの度合いです。遊び続けると下がり、プレイしない日がたつと少し増えます。十分に低くなるとクラスが表示されます。"
+
+msgid "rankings.volatility_about"
+msgstr "結果の安定度です。意外な勝ちと不調な負けの間で振り切ると上がり、レーティングが速く動くことを許します。"
+
+msgid "rankings.up_to"
+msgstr "{0} は {1} のとき"
+
+msgid "rankings.down_to"
+msgstr "{0} は {1} を下回る"
+
+msgid "rankings.next_game"
+msgstr "次の対戦が動かすもの"
+
+msgid "rankings.opponent"
+msgstr "対戦相手"
+
+msgid "rankings.win"
+msgstr "勝ち"
+
+msgid "rankings.loss"
+msgstr "負け"
+
+msgid "rankings.rated"
+msgstr "レート {0}"
+
+msgid "rankings.example_new"
+msgstr "新しいプレイヤー"
+
+msgid "rankings.points_bp_total"
+msgstr "{0} プレイヤー、すべてのファイターを合算。"
+
+msgid "rankings.points_fp_total"
+msgstr "{0} プレイヤーが {1} でポイントを持っています。"
+
+msgid "rankings.frames"
+msgstr "フレーム"
+
+msgid "rankings.frames_about"
+msgstr "プレイヤーのフレームはポイントがどこまで来たかを示します。決して戻りません。"
+
+msgid "rankings.place"
+msgstr "順位"
+
+msgid "rankings.place_of"
+msgstr "{0} / {1}"
+
+msgid "rankings.class"
+msgstr "クラス"
+
+msgid "rankings.your_place"
+msgstr "あなたの順位"
+
+msgid "rankings.frame"
+msgstr "フレーム"
+
+msgid "rankings.player"
+msgstr "プレイヤー"
+
+msgid "rankings.points_column"
+msgstr "ポイント"
+
+msgid "rankings.players_count"
+msgstr "{0} プレイヤー"
+
+msgid "rankings.players_one"
+msgstr "{0} プレイヤー"
+
+msgid "rankings.classes"
+msgstr "クラス"
+
+msgid "rankings.fighters"
+msgstr "ファイター"
+
+msgid "rankings.see_players"
+msgstr "プレイヤーを見る"
+
+msgid "rankings.show_board"
+msgstr "ランキングを表示"
+
+msgid "rankings.your_class"
+msgstr "あなたのクラス"
+
+msgid "rankings.where_title"
+msgstr "あなたの位置"
+
+msgid "rankings.your_rating"
+msgstr "あなた, {0}"
+
+msgid "rankings.numbers_title"
+msgstr "数字が意味すること"
 
 msgid "settings.class_emblems"
 msgstr "クラスエンブレム"

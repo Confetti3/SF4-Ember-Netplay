@@ -578,6 +578,19 @@ const char* TierName(Tier tier) {
     return tier == Tier::None ? "" : loc::T(keys[static_cast<int>(tier)]);
 }
 
+ImU32 ClassTone(std::uint8_t band) {
+    // The site's class colours (site.css .tier-*): a letter and its plus share one.
+    switch (band) {
+    case 1: case 2: return IM_COL32(181, 169, 155, 255);
+    case 3: case 4: return IM_COL32(164, 206, 160, 255);
+    case 5: case 6: return IM_COL32(142, 193, 230, 255);
+    case 7: case 8: return IM_COL32(208, 168, 238, 255);
+    case 9: return IM_COL32(255, 177, 111, 255);
+    case 10: return Colors().accent;
+    default: return Colors().muted;
+    }
+}
+
 void Icon(ImDrawList* d, int icon, ImVec2 at, float size, ImU32 ink) {
     // The title icons by index (the worn icon's number). The awards use one for
     // each family (Awards.hxx: flag, laurel, flame, shield, medal, bracket and

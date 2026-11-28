@@ -24,6 +24,7 @@ use ember_protocol::{
     api::ErrorCode,
     levels::{CardSearch, MAX_SEARCH, OwnLevels, PlayerCard, SearchHit, is_card_token},
     sign_in::SIGN_IN_SECS,
+    skill::{OwnRating, Rules},
 };
 use rusqlite::Transaction;
 use serde::{Deserialize, Serialize};
@@ -47,7 +48,7 @@ use crate::{
     secrets::Keys,
     skill::{
         boards::Places,
-        explain::{self, OwnRating, Rules},
+        explain,
         levels,
     },
     util::random,

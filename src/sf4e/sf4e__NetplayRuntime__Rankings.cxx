@@ -48,6 +48,16 @@ void TakeBoard(std::uint64_t flight, const session::TournamentAnswer& answer) {
 	runtime->rankings.FinishBoard(flight, Failure(answer, board.has_value()), std::move(board), GetTickCount64());
 }
 
+void TakePoints(std::uint64_t flight, const session::TournamentAnswer& answer) {
+	auto board = answer.ok ? session::DecodePointsBoard(answer.data) : std::nullopt;
+	runtime->rankings.FinishPoints(flight, Failure(answer, board.has_value()), std::move(board), GetTickCount64());
+}
+
+void TakeRating(std::uint64_t flight, const session::TournamentAnswer& answer) {
+	auto details = answer.ok ? session::DecodeRatingDetails(answer.data) : std::nullopt;
+	runtime->rankings.FinishRating(flight, Failure(answer, details.has_value()), std::move(details), GetTickCount64());
+}
+
 // Sends `request` as `flight`, whose answer `take` handles.
 void Send(const json& request, bool helperReady, std::uint64_t flight, void (*take)(std::uint64_t, const session::TournamentAnswer&)) {
 	SendFlight(request, helperReady, [flight, take](const session::TournamentAnswer& answer) { take(flight, answer); });
@@ -67,6 +77,17 @@ void DispatchRankings(const Command& command, bool helperReady) {
 	case Command::Op::RankingBoard:
 		if (requests.MayReadBoard())
 			Send({{"op", "ranking_board"}, {"bridge_id", command.bridgeId}}, helperReady, requests.BeginBoard(), TakeBoard);
+		return;
+	case Command::Op::PointsBoard:
+		if (requests.MayReadPoints()) {
+			json request = {{"op", "points_board"}, {"bridge_id", command.bridgeId}};
+			if (command.fighter >= 0) request["fighter"] = command.fighter;
+			Send(request, helperReady, requests.BeginPoints(), TakePoints);
+		}
+		return;
+	case Command::Op::RankingRating:
+		if (requests.MayReadRating())
+			Send({{"op", "ranking_rating"}, {"bridge_id", command.bridgeId}}, helperReady, requests.BeginRating(), TakeRating);
 		return;
 	case Command::Op::RankingChoose:
 		if (!command.request) return;

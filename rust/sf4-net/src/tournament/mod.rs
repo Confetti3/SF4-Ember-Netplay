@@ -226,9 +226,19 @@ pub enum Request {
     RankingBoard {
         bridge_id: String,
     },
+    /// The player's own rating details.
+    RankingRating {
+        bridge_id: String,
+    },
     /// The player's own fighter levels.
     PointsMe {
         bridge_id: String,
+    },
+    /// The public points board: the account's, or with `fighter` that fighter's.
+    PointsBoard {
+        bridge_id: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        fighter: Option<u8>,
     },
     /// Other players' cards, by card token or by friend.
     CardsLookup {
@@ -405,7 +415,9 @@ requests! {
     RankingStanding => "ranking_standing", Bridge;
     RankingChoose => "ranking_choose", Bridge;
     RankingBoard => "ranking_board", Bridge;
+    RankingRating => "ranking_rating", Bridge;
     PointsMe => "points_me", Bridge;
+    PointsBoard => "points_board", Bridge;
     CardsLookup => "cards_lookup", Bridge;
     CardSave => "card_save", Bridge;
     CardsSearch => "cards_search", Bridge;
@@ -1200,7 +1212,11 @@ async fn bridge_request(shared: &Arc<Shared>, order: u64, request: Request) -> O
             ranking::choose(shared, &bridge_id, choice).await
         }
         Request::RankingBoard { bridge_id } => ranking::board(shared, &bridge_id).await,
+        Request::RankingRating { bridge_id } => ranking::rating(shared, &bridge_id).await,
         Request::PointsMe { bridge_id } => levels::own(shared, &bridge_id).await,
+        Request::PointsBoard { bridge_id, fighter } => {
+            levels::points_board(shared, &bridge_id, fighter).await
+        }
         Request::CardsLookup { bridge_id, cards } => levels::lookup(shared, &bridge_id, cards).await,
         Request::CardSave { bridge_id, card } => levels::save(shared, &bridge_id, card).await,
         Request::CardsSearch {
@@ -1296,7 +1312,7 @@ mod tests {
                 ),
             }
         }
-        assert_eq!(seen.len(), 49);
+        assert_eq!(seen.len(), 51);
         let local: Vec<_> = REQUESTS
             .iter()
             .filter(|(_, lane)| *lane == Lane::Local)

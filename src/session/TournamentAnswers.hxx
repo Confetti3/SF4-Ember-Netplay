@@ -53,6 +53,13 @@ std::optional<netplay::publicrooms::Admission> DecodeAdmission(const nlohmann::j
 // A ranking_standing or ranking_choose answer's standing, and a ranking_board answer's board.
 std::optional<netplay::rankings::Standing> DecodeStanding(const nlohmann::json& data);
 std::optional<std::vector<netplay::rankings::BoardEntry>> DecodeBoard(const nlohmann::json& data);
+// A points_board answer: the board of one fighter's or the account's points, at most
+// MaxBoard lines. A line that cannot be read is left out, never a failed answer, so
+// one bad line from a newer bridge does not cost the player the rest of the board.
+std::optional<netplay::rankings::PointsBoard> DecodePointsBoard(const nlohmann::json& data);
+// A ranking_rating answer's details: `known` false when the bridge sends no
+// rating (no rated game yet, or classes hidden), and a full decode otherwise.
+std::optional<netplay::rankings::RatingDetails> DecodeRatingDetails(const nlohmann::json& data);
 
 // An archive_list answer's page: the games it lists, their tournament sets' scores, the filter's
 // choices and where the next page starts (netplay/Archive.hxx).

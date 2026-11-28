@@ -30,7 +30,7 @@ namespace sf4e { namespace netplay { namespace rankings {
 
 class Requests {
 public:
-	enum class Kind { None, Standing, Board, Choice };
+	enum class Kind { None, Standing, Board, Choice, Points, Rating };
 
 	// The status as of `nowMs`, the runtime's clock.
 	Status Published(std::uint64_t nowMs) const {
@@ -52,18 +52,26 @@ public:
 		fresh.standing.revision = status_.standing.revision;
 		fresh.board.finished = status_.board.finished;
 		fresh.board.revision = status_.board.revision;
+		fresh.points.finished = status_.points.finished;
+		fresh.points.revision = status_.points.revision;
+		fresh.rating.finished = status_.rating.finished;
+		fresh.rating.revision = status_.rating.revision;
 		fresh.chose = status_.chose;
 		fresh.choiceFailure = status_.choiceFailure;
 		status_ = std::move(fresh);
-		standing_ = board_ = choice_ = 0;
+		standing_ = board_ = points_ = choice_ = rating_ = 0;
 	}
 
 	bool MayReadStanding() const { return !standing_ && !choice_; }
 	bool MayReadBoard() const { return !board_; }
+	bool MayReadPoints() const { return !points_; }
+	bool MayReadRating() const { return !rating_; }
 
 	// A request is going to the helper: returns the flight its answer comes back under (the Finish of its kind).
 	std::uint64_t BeginStanding() { return Start(status_.standing, standing_); }
 	std::uint64_t BeginBoard() { return Start(status_.board, board_); }
+	std::uint64_t BeginRating() { return Start(status_.rating, rating_); }
+	std::uint64_t BeginPoints() { return Start(status_.points, points_); }
 	// The interface's choice identified as `request`. A newer one supersedes one
 	// in flight, whose answer then names no request.
 	std::uint64_t BeginChoice(std::uint64_t request) {
@@ -76,7 +84,7 @@ public:
 	// Which request in flight `flight` is; None for one retired.
 	Kind Awaiting(std::uint64_t flight) const {
 		if (!flight) return Kind::None;
-		return flight == standing_ ? Kind::Standing : flight == board_ ? Kind::Board : flight == choice_ ? Kind::Choice : Kind::None;
+		return flight == standing_ ? Kind::Standing : flight == board_ ? Kind::Board : flight == choice_ ? Kind::Choice : flight == points_ ? Kind::Points : flight == rating_ ? Kind::Rating : Kind::None;
 	}
 	// The answer, at `nowMs`, to `flight`: its value, or why there is none (the
 	// helper's code, or "bridge_invalid_response"). The answer to a retired
@@ -98,6 +106,27 @@ public:
 	}
 	void FinishChoice(std::uint64_t flight, const std::string& failure, std::optional<Standing> standing, std::uint64_t nowMs) {
 		if (Awaiting(flight) == Kind::Choice) EndChoice(failure, std::move(standing), nowMs);
+	}
+	void FinishPoints(std::uint64_t flight, const std::string& failure, std::optional<netplay::rankings::PointsBoard> board, std::uint64_t nowMs) {
+		if (Awaiting(flight) != Kind::Points) return;
+		if (board) {
+			status_.points.value = std::make_shared<const netplay::rankings::PointsBoard>(std::move(*board));
+			status_.points.loaded = true;
+			status_.points.installedMs = nowMs;
+			++status_.points.revision;
+		}
+		End(status_.points, points_, failure);
+	}
+
+	void FinishRating(std::uint64_t flight, const std::string& failure, std::optional<netplay::rankings::RatingDetails> details, std::uint64_t nowMs) {
+		if (Awaiting(flight) != Kind::Rating) return;
+		if (details) {
+			status_.rating.value = std::move(*details);
+			status_.rating.loaded = true;
+			status_.rating.installedMs = nowMs;
+			++status_.rating.revision;
+		}
+		End(status_.rating, rating_, failure);
 	}
 
 private:
@@ -131,7 +160,7 @@ private:
 
 	Status status_;
 	// The requests on their way (0: none), and how many have begun.
-	std::uint64_t standing_ = 0, board_ = 0, choice_ = 0, flights_ = 0;
+	std::uint64_t standing_ = 0, board_ = 0, choice_ = 0, points_ = 0, rating_ = 0, flights_ = 0;
 };
 
 } } }

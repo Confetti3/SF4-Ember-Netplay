@@ -5,7 +5,7 @@
 use std::sync::Arc;
 
 use axum::{extract::State, http::HeaderMap, response::Response};
-use ember_protocol::skill::{Board, BoardEntry, MAX_BOARD, RankingChoice};
+use ember_protocol::skill::{Board, BoardEntry, MAX_BOARD, RankingChoice, RatingDetails};
 
 use crate::{
     AppState,
@@ -16,7 +16,7 @@ use crate::{
         play::playing,
         rooms::{self, classes_shown, developers},
     },
-    skill::ranking,
+    skill::{account, explain, ranking},
 };
 
 /// Ranking requests one player may make per window, all routes together.
@@ -50,6 +50,29 @@ pub async fn choose(
         .write(move |tx| ranking::choose(tx, &player.ember_id, chosen, shown, &developers, now))
         .await?;
     Ok(ok(&standing))
+}
+
+/// `GET /v1/ranking/rating`: the player's own rating details, as the website shows them.
+pub async fn rating(State(state): State<AppState>, headers: HeaderMap) -> Result<Response> {
+    let (player, now) = admit(&state, &headers).await?;
+    let shown = classes_shown(&state);
+    let rating = state
+        .db
+        .read(move |tx| {
+            // While classes are hidden a rating is not shown either.
+            if !shown {
+                return Ok(None);
+            }
+            let Some(account) = account(tx, &player.ember_id)? else {
+                return Ok(None);
+            };
+            explain::own_rating(tx, &account, now)
+        })
+        .await?;
+    Ok(ok(&RatingDetails {
+        rating,
+        rules: explain::RULES,
+    }))
 }
 
 /// `GET /v1/ranking/board`: empty while classes are hidden.

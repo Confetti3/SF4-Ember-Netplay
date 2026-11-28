@@ -2253,6 +2253,12 @@ msgstr "Сайт Ember"
 msgid "about.website_detail"
 msgstr "Лобби, рейтинги и записи: {0}. Страница откроется в браузере за окном игры."
 
+msgid "about.guides"
+msgstr "Гайды"
+
+msgid "about.guides_detail"
+msgstr "Как установить, играть онлайн, записывать и многое другое, по адресу {0}. Открывается в браузере за игрой."
+
 msgid "about.twitter"
 msgstr "Разработчик в Twitter"
 
@@ -8606,9 +8612,6 @@ msgstr "Вы"
 msgid "rankings.you_beyond_cap"
 msgstr "В таблице не больше {0} игроков, и сейчас вас среди них нет."
 
-msgid "rankings.jump"
-msgstr "Влево и вправо переключают классы."
-
 msgid "rankings.loading_board"
 msgstr "Загрузка игроков..."
 
@@ -8618,11 +8621,158 @@ msgstr "В таблице пока никого нет."
 msgid "rankings.status_board"
 msgstr "Игроков в списке: {0}. Обновлено {1}."
 
+msgid "rankings.points_title"
+msgstr "Таблица очков"
+
+msgid "rankings.points"
+msgstr "Таблица очков"
+
+msgid "rankings.points_detail"
+msgstr "Кто сыграл больше всего, в целом или с одним бойцом."
+
+msgid "rankings.points_all"
+msgstr "Все бойцы"
+
+msgid "rankings.points_value"
+msgstr "{0} оч."
+
+msgid "rankings.loading_points"
+msgstr "Загрузка таблицы очков…"
+
+msgid "rankings.points_empty"
+msgstr "Здесь пока никто не имеет очков."
+
+msgid "rankings.rating"
+msgstr "Рейтинг"
+
+msgid "rankings.rating_value"
+msgstr "{0} ± {1}"
+
+msgid "rankings.rating_between"
+msgstr "Ваш класс повышается при {0} и понижается ниже {1}."
+
+msgid "rankings.rating_up"
+msgstr "Ваш класс повышается при {0}."
+
+msgid "rankings.rating_down"
+msgstr "Ваш класс понижается ниже {0}."
+
+msgid "rankings.rating_faint"
+msgstr "Приглушённо показывается через {0} дней без рейтинговой игры."
+
 msgid "rankings.failure.unavailable"
 msgstr "Этот сервис не предоставляет рейтинги."
 
 msgid "rankings.failure.too_soon"
 msgstr "Менять можно раз в сутки."
+
+msgid "rankings.rating_title"
+msgstr "Детали рейтинга"
+
+msgid "rankings.rating_private"
+msgstr "Только вы видите эти цифры. Другие игроки видят ваш класс, никогда ваш рейтинг."
+
+msgid "rankings.deviation"
+msgstr "Отклонение"
+
+msgid "rankings.volatility"
+msgstr "Волатильность"
+
+msgid "rankings.rating_about"
+msgstr "Оценка Ember того, насколько силен вы. Победа повышает его, поражение снижает, сильнее, если результат был неожиданным. Ваш класс читается из него."
+
+msgid "rankings.deviation_about"
+msgstr "Насколько неопределён рейтинг. Он уменьшается по мере игры и немного растёт каждый день без игры. Ваш класс показывается, когда он достаточно низкий."
+
+msgid "rankings.volatility_about"
+msgstr "Насколько стабильны ваши результаты. Он растёт, когда вы перекидываетесь между сюрпризами-победами и плохими поражениями, и позволяет рейтингу быстрее меняться."
+
+msgid "rankings.up_to"
+msgstr "{0} при {1}"
+
+msgid "rankings.down_to"
+msgstr "{0} ниже {1}"
+
+msgid "rankings.next_game"
+msgstr "Что изменит ваша следующая игра"
+
+msgid "rankings.opponent"
+msgstr "Соперник"
+
+msgid "rankings.win"
+msgstr "Победа"
+
+msgid "rankings.loss"
+msgstr "Поражение"
+
+msgid "rankings.rated"
+msgstr "Рейтинговая {0}"
+
+msgid "rankings.example_new"
+msgstr "Новый игрок"
+
+msgid "rankings.points_bp_total"
+msgstr "{0} игроков, все бойцы вместе."
+
+msgid "rankings.points_fp_total"
+msgstr "{0} игроков имеют очки с {1}."
+
+msgid "rankings.frames"
+msgstr "Frames"
+
+msgid "rankings.frames_about"
+msgstr "Frame игрока показывает, насколько далеко продвинулись его очки. Он не возвращается назад."
+
+msgid "rankings.place"
+msgstr "Место"
+
+msgid "rankings.place_of"
+msgstr "{0} из {1}"
+
+msgid "rankings.class"
+msgstr "Класс"
+
+msgid "rankings.your_place"
+msgstr "Ваше место"
+
+msgid "rankings.frame"
+msgstr "Frame"
+
+msgid "rankings.player"
+msgstr "Игрок"
+
+msgid "rankings.points_column"
+msgstr "Очки"
+
+msgid "rankings.players_count"
+msgstr "{0} игроков"
+
+msgid "rankings.players_one"
+msgstr "{0} игрок"
+
+msgid "rankings.classes"
+msgstr "Классы"
+
+msgid "rankings.fighters"
+msgstr "Бойцы"
+
+msgid "rankings.see_players"
+msgstr "Смотреть игроков"
+
+msgid "rankings.show_board"
+msgstr "Показать таблицу"
+
+msgid "rankings.your_class"
+msgstr "Ваш класс"
+
+msgid "rankings.where_title"
+msgstr "Где вы стоите"
+
+msgid "rankings.your_rating"
+msgstr "Вы, {0}"
+
+msgid "rankings.numbers_title"
+msgstr "Что означают цифры"
 
 msgid "settings.class_emblems"
 msgstr "Эмблемы классов"

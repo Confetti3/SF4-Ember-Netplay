@@ -2253,6 +2253,12 @@ msgstr "Ember 网站"
 msgid "about.website_detail"
 msgstr "在 {0} 查看房间、排行榜和回放。浏览器将在游戏后方打开。"
 
+msgid "about.guides"
+msgstr "指南"
+
+msgid "about.guides_detail"
+msgstr "在 {0} 查看安装、联机游玩、录制等方法。在游戏背后的浏览器中打开。"
+
 msgid "about.twitter"
 msgstr "开发者的 Twitter"
 
@@ -8606,9 +8612,6 @@ msgstr "你"
 msgid "rankings.you_beyond_cap"
 msgstr "榜单最多列出 {0} 名玩家，你目前不在其中。"
 
-msgid "rankings.jump"
-msgstr "左右切换等级。"
-
 msgid "rankings.loading_board"
 msgstr "正在加载玩家..."
 
@@ -8618,11 +8621,158 @@ msgstr "榜上暂时没有人。"
 msgid "rankings.status_board"
 msgstr "已列出玩家：{0} 名。更新：{1}。"
 
+msgid "rankings.points_title"
+msgstr "积分榜"
+
+msgid "rankings.points"
+msgstr "积分榜"
+
+msgid "rankings.points_detail"
+msgstr "谁打得最多，总体上还是用某个角色。"
+
+msgid "rankings.points_all"
+msgstr "所有角色"
+
+msgid "rankings.points_value"
+msgstr "{0} 分"
+
+msgid "rankings.loading_points"
+msgstr "正在加载积分榜…"
+
+msgid "rankings.points_empty"
+msgstr "目前还没有人在这里得分。"
+
+msgid "rankings.rating"
+msgstr "评分"
+
+msgid "rankings.rating_value"
+msgstr "{0} ± {1}"
+
+msgid "rankings.rating_between"
+msgstr "你的等级在 {0} 时上升，低于 {1} 时下降。"
+
+msgid "rankings.rating_up"
+msgstr "你的等级在 {0} 时上升。"
+
+msgid "rankings.rating_down"
+msgstr "你的等级低于 {0} 时下降。"
+
+msgid "rankings.rating_faint"
+msgstr "没有评级对战后 {0} 天，显示为淡色。"
+
 msgid "rankings.failure.unavailable"
 msgstr "此服务不提供排行榜。"
 
 msgid "rankings.failure.too_soon"
 msgstr "每天只能更改一次。"
+
+msgid "rankings.rating_title"
+msgstr "评分详情"
+
+msgid "rankings.rating_private"
+msgstr "只有你能看到这些数字。其他玩家只看到你的等级，从不看到你的评分。"
+
+msgid "rankings.deviation"
+msgstr "偏差"
+
+msgid "rankings.volatility"
+msgstr "波动性"
+
+msgid "rankings.rating_about"
+msgstr "Ember 对你强度的估计。胜利会提高它，失败会降低它，结果越出乎意料，变化越大。你的等级从它读取。"
+
+msgid "rankings.deviation_about"
+msgstr "评分有多不确定。随着你玩，它会下降，每天不玩它会略微上升。它足够低时，你的等级才会显示。"
+
+msgid "rankings.volatility_about"
+msgstr "你的结果有多稳定。当你在出乎意料的胜利和糟糕的失败之间摇摆时它会上升，并让评分移动得更快。"
+
+msgid "rankings.up_to"
+msgstr "{0} 在 {1} 时"
+
+msgid "rankings.down_to"
+msgstr "{0} 在 {1} 下"
+
+msgid "rankings.next_game"
+msgstr "你的下一场对战会移动"
+
+msgid "rankings.opponent"
+msgstr "对手"
+
+msgid "rankings.win"
+msgstr "胜"
+
+msgid "rankings.loss"
+msgstr "负"
+
+msgid "rankings.rated"
+msgstr "评级 {0}"
+
+msgid "rankings.example_new"
+msgstr "新玩家"
+
+msgid "rankings.points_bp_total"
+msgstr "{0} 名玩家，所有角色合计。"
+
+msgid "rankings.points_fp_total"
+msgstr "{0} 名玩家用 {1} 积分。"
+
+msgid "rankings.frames"
+msgstr "帧"
+
+msgid "rankings.frames_about"
+msgstr "玩家的帧显示其积分走了多远。它从不后退。"
+
+msgid "rankings.place"
+msgstr "名次"
+
+msgid "rankings.place_of"
+msgstr "{0} / {1}"
+
+msgid "rankings.class"
+msgstr "等级"
+
+msgid "rankings.your_place"
+msgstr "你的名次"
+
+msgid "rankings.frame"
+msgstr "帧"
+
+msgid "rankings.player"
+msgstr "玩家"
+
+msgid "rankings.points_column"
+msgstr "积分"
+
+msgid "rankings.players_count"
+msgstr "{0} 名玩家"
+
+msgid "rankings.players_one"
+msgstr "{0} 名玩家"
+
+msgid "rankings.classes"
+msgstr "等级"
+
+msgid "rankings.fighters"
+msgstr "角色"
+
+msgid "rankings.see_players"
+msgstr "查看玩家"
+
+msgid "rankings.show_board"
+msgstr "显示榜"
+
+msgid "rankings.your_class"
+msgstr "你的等级"
+
+msgid "rankings.where_title"
+msgstr "你的位置"
+
+msgid "rankings.your_rating"
+msgstr "你, {0}"
+
+msgid "rankings.numbers_title"
+msgstr "数字的含义"
 
 msgid "settings.class_emblems"
 msgstr "等级徽章"

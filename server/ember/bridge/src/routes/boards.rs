@@ -10,7 +10,8 @@ use axum::{
     http::StatusCode,
     response::Response,
 };
-use serde::{Deserialize, Serialize};
+use ember_protocol::levels::{MAX_POINTS_BOARD, PointsBoard, PointsLine};
+use serde::Deserialize;
 
 use crate::{
     AppState, cards,
@@ -25,8 +26,6 @@ use crate::{
 /// How long the boards are answered from one read. Anyone can ask for one,
 /// and a player's place should not move between two pages of one visit.
 const SNAPSHOT_SECS: u64 = 60;
-/// The most lines of a board one answer lists.
-const MAX_BOARD_LINES: usize = 500;
 
 /// The boards as last read, one read at a time.
 #[derive(Default)]
@@ -70,54 +69,26 @@ pub struct Asked {
     fighter: Option<u8>,
 }
 
-/// One board as the website lists it.
-#[derive(Serialize)]
-struct PublicBoard<'a> {
-    listed_at: u64,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    fighter: Option<u8>,
-    /// The players on the board, which can be more than `players` lists.
-    total: usize,
-    players: Vec<PublicLine<'a>>,
-}
-
-#[derive(Serialize)]
-struct PublicLine<'a> {
-    place: u32,
-    name: &'a str,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    country: Option<&'a str>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    band: Option<u8>,
-    points: u64,
-    tier: u8,
-    /// A card token: what opens this player's card for a signed-in browser
-    /// (`routes::website::card`). Sealed when the answer is written, so it
-    /// opens for a week less the minute an answer is kept.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    card: Option<String>,
-}
-
 impl Boards {
     /// The answer for `board`, which `fighter` asked for: its first
-    /// `MAX_BOARD_LINES` lines.
+    /// `MAX_POINTS_BOARD` lines.
     fn answer(&self, keys: &Keys, board: Board, fighter: Option<u8>) -> &[u8] {
         self.answers[board.slot()].get_or_init(|| {
             let lines = self.snapshot.lines(board);
             let listed_at = self.snapshot.read_at();
-            let answer = PublicBoard {
+            let answer = PointsBoard {
                 listed_at,
                 fighter,
                 total: lines.len(),
                 players: lines
                     .iter()
-                    .take(MAX_BOARD_LINES)
+                    .take(MAX_POINTS_BOARD)
                     .map(|line| {
                         let player = self.snapshot.player(line);
-                        PublicLine {
+                        PointsLine {
                             place: line.place,
-                            name: &player.listing.name,
-                            country: player.listing.country.as_deref(),
+                            name: player.listing.name.clone(),
+                            country: player.listing.country.clone(),
                             band: player.class.map(|class| class.band),
                             points: line.points,
                             tier: line.tier,

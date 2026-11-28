@@ -271,6 +271,14 @@ static void ReadingTheAnswer() {
 	EXPECT(page->order == ar::Order::Newest && page->next.empty() && page->games[0].classes[0] == 0 && page->games[0].classes[1] == 3);
 	EXPECT(page->games[0].fighters[0] == -1 && page->games[0].fighters[1] == 2 && page->games[0].countries[0].empty());
 
+	// A replay's own round score, when it carries one; null says nothing.
+	json scored = full;
+	scored["games"][0]["rounds"] = {2, 1};
+	scored["games"][1]["rounds"] = nullptr;
+	page = session::DecodeArchivePage(scored);
+	CHECK(page && page->games.size() == 2);
+	EXPECT(page->games[0].rounds && (*page->games[0].rounds)[0] == 2 && (*page->games[0].rounds)[1] == 1 && !page->games[1].rounds);
+
 	// A game that cannot be fetched is left out; the others stay.
 	json broken = {{"games", json::array({json{{"digest", "short"}, {"url", "u"}}, json{{"url", "u"}}, "text", GameJson(Digest(4))})}};
 	page = session::DecodeArchivePage(broken);

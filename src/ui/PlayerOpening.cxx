@@ -46,6 +46,15 @@ Opening OpeningOf(const netplay::rankings::BoardEntry& entry) {
     return opening;
 }
 
+Opening OpeningOf(const netplay::rankings::PointsLine& line) {
+    Opening opening;
+    opening.key = line.card.empty() ? profiles::Key::OfName(line.listing.name, line.listing.country) : profiles::Key::OfCard(line.card);
+    opening.known.name = line.listing.name;
+    opening.known.country = line.listing.country;
+    opening.known.badge = line.band ? SkillBadge::OfClass(line.band, true) : SkillBadge{};
+    return opening;
+}
+
 Opening OpeningOf(const profiles::Hit& hit) {
     Opening opening;
     opening.key = profiles::Key::OfCard(hit.card);

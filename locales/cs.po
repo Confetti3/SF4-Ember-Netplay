@@ -2253,6 +2253,12 @@ msgstr "Web Ember"
 msgid "about.website_detail"
 msgstr "Místnosti, žebříčky a záznamy na {0}. Otevře se v prohlížeči za hrou."
 
+msgid "about.guides"
+msgstr "Návody"
+
+msgid "about.guides_detail"
+msgstr "Jak nainstalovat, hrát online, nahrávat a více, na {0}. Otevře se ve vaší prohlížeči za hrou."
+
 msgid "about.twitter"
 msgstr "Twitter vývojáře"
 
@@ -8606,9 +8612,6 @@ msgstr "Vy"
 msgid "rankings.you_beyond_cap"
 msgstr "Žebříček uvádí nejvýše {0} hráčů a vy teď mezi nimi nejste."
 
-msgid "rankings.jump"
-msgstr "Vlevo a vpravo přepínají mezi třídami."
-
 msgid "rankings.loading_board"
 msgstr "Načítání hráčů..."
 
@@ -8618,11 +8621,158 @@ msgstr "V žebříčku zatím nikdo není."
 msgid "rankings.status_board"
 msgstr "Hráčů v seznamu: {0}. Aktualizováno {1}."
 
+msgid "rankings.points_title"
+msgstr "Žebříček bodů"
+
+msgid "rankings.points"
+msgstr "Žebříček bodů"
+
+msgid "rankings.points_detail"
+msgstr "Kdo hrával nejvíce, celkem nebo s jedním bojovníkem."
+
+msgid "rankings.points_all"
+msgstr "Všichni bojovníci"
+
+msgid "rankings.points_value"
+msgstr "{0} bodů"
+
+msgid "rankings.loading_points"
+msgstr "Načítání žebříčku bodů…"
+
+msgid "rankings.points_empty"
+msgstr "Zatím nikdo nemá tady body."
+
+msgid "rankings.rating"
+msgstr "Hodnocení"
+
+msgid "rankings.rating_value"
+msgstr "{0} ± {1}"
+
+msgid "rankings.rating_between"
+msgstr "Vaše třída roste při {0} a klesá pod {1}."
+
+msgid "rankings.rating_up"
+msgstr "Vaše třída roste při {0}."
+
+msgid "rankings.rating_down"
+msgstr "Vaše třída klesá pod {0}."
+
+msgid "rankings.rating_faint"
+msgstr "Zesvětlená se zobrazuje po {0} dnech bez hodnocené hry."
+
 msgid "rankings.failure.unavailable"
 msgstr "Tato služba žebříčky nenabízí."
 
 msgid "rankings.failure.too_soon"
 msgstr "Změnit to lze jednou denně."
+
+msgid "rankings.rating_title"
+msgstr "Detaily hodnocení"
+
+msgid "rankings.rating_private"
+msgstr "Jen vy vidíte tato čísla. Ostatní hráči vidí vaši třídu, nikdy vaše hodnocení."
+
+msgid "rankings.deviation"
+msgstr "Odchylka"
+
+msgid "rankings.volatility"
+msgstr "Volatilita"
+
+msgid "rankings.rating_about"
+msgstr "Emberův odhad, jak silný jste. Vítězství ho zvyšuje, porážka snižuje, více když byl výsledek překvapení. Z něj se čte vaše třída."
+
+msgid "rankings.deviation_about"
+msgstr "Jak nejisté hodnocení je. Zmenšuje se s hraním a roste trochu každý den bez hry. Vaše třída se zobrazí, jakmile je dostatečně nízké."
+
+msgid "rankings.volatility_about"
+msgstr "Jak stabilní jsou vaše výsledky. Roste, když se pohybujete mezi překvapivými vítězstvími a špatnými porážkami, a umožňuje hodnocení jít rychleji."
+
+msgid "rankings.up_to"
+msgstr "{0} při {1}"
+
+msgid "rankings.down_to"
+msgstr "{0} pod {1}"
+
+msgid "rankings.next_game"
+msgstr "Co by vaše další hra pozměnila"
+
+msgid "rankings.opponent"
+msgstr "Oponent"
+
+msgid "rankings.win"
+msgstr "Vítězství"
+
+msgid "rankings.loss"
+msgstr "Porážka"
+
+msgid "rankings.rated"
+msgstr "Hodnocené {0}"
+
+msgid "rankings.example_new"
+msgstr "Nový hráč"
+
+msgid "rankings.points_bp_total"
+msgstr "{0} hráčů, každý bojovník dohromady."
+
+msgid "rankings.points_fp_total"
+msgstr "{0} hráčů má body s {1}."
+
+msgid "rankings.frames"
+msgstr "Frames"
+
+msgid "rankings.frames_about"
+msgstr "Frame hráče ukazuje, jak daleko se jeho body dostaly. Nikdy se nevrátí zpět."
+
+msgid "rankings.place"
+msgstr "Místo"
+
+msgid "rankings.place_of"
+msgstr "{0} z {1}"
+
+msgid "rankings.class"
+msgstr "Třída"
+
+msgid "rankings.your_place"
+msgstr "Vaše místo"
+
+msgid "rankings.frame"
+msgstr "Frame"
+
+msgid "rankings.player"
+msgstr "Hráč"
+
+msgid "rankings.points_column"
+msgstr "Body"
+
+msgid "rankings.players_count"
+msgstr "{0} hráčů"
+
+msgid "rankings.players_one"
+msgstr "{0} hráč"
+
+msgid "rankings.classes"
+msgstr "Třídy"
+
+msgid "rankings.fighters"
+msgstr "Bojovníci"
+
+msgid "rankings.see_players"
+msgstr "Zobrazit hráče"
+
+msgid "rankings.show_board"
+msgstr "Zobrazit žebříček"
+
+msgid "rankings.your_class"
+msgstr "Vaše třída"
+
+msgid "rankings.where_title"
+msgstr "Kde stojíte"
+
+msgid "rankings.your_rating"
+msgstr "Vy, {0}"
+
+msgid "rankings.numbers_title"
+msgstr "Co znamenají čísla"
 
 msgid "settings.class_emblems"
 msgstr "Emblémy tříd"

@@ -57,6 +57,11 @@ netplay::archive::Game DecodeArchiveGame(const json& entry) {
 		if (code.size() == 2 && std::all_of(code.begin(), code.end(), [](char c) { return c >= 'A' && c <= 'Z'; })) game.countries[side] = code;
 	});
 	Pair(entry, "classes", [&](int side, const json& value) { game.classes[side] = Whole(value, 0, SkillBadge::Classes, 0); });
+	// A replay's own round score: two whole numbers, each side's wins, player 1 first. A missing member, null,
+	// another shape or a number out of range leaves the game silent on it.
+	int wins[2] = {-1, -1};
+	Pair(entry, "rounds", [&](int side, const json& value) { wins[side] = Whole(value, 0, 99, -1); });
+	if (wins[0] >= 0 && wins[1] >= 0) game.rounds = std::array<unsigned, 2>{static_cast<unsigned>(wins[0]), static_cast<unsigned>(wins[1])};
 	game.set = ArchiveText(entry, "set");
 	game.event = ArchiveText(entry, "event");
 	game.round = ArchiveText(entry, "round");

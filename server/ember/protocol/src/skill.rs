@@ -27,6 +27,9 @@ pub const CHOICE_TOO_SOON: &str = "choice_too_soon";
 /// 1 (D) to 10 (Grand Master): D, D+, C, C+, B, B+, A, A+, Master, Grand Master.
 pub const SKILL_BANDS: u8 = 10;
 
+mod rating;
+pub use rating::*;
+
 /// A player's class as a room shows it beside their name, or Ember's
 /// developer mark in its place.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]

@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -109,6 +110,62 @@ struct BoardEntry {
 	bool own = false;
 };
 
+struct PointsLine {
+	std::uint32_t place = 0;
+	Listing listing;
+	// 0: no class shown
+	std::uint8_t band = 0;
+	std::uint64_t points = 0;
+	// 0 to 4, the tiers this build draws.
+	std::uint8_t tier = 0;
+	// Empty: no card to open.
+	std::string card;
+};
+
+struct PointsBoard {
+	// -1: the account board
+	int fighter = -1;
+	std::uint64_t total = 0;
+	std::vector<PointsLine> lines;
+};
+
+// One outcome (a win or a loss) in an example: its weight and the change it
+// would make, the bridge's numbers.
+struct RatingOutcome {
+	double weight = 0, change = 0;
+};
+
+// One example the bridge lists: the opponent's rating, their class band, and
+// the change a win or a loss against them would make.
+struct RatingExample {
+	double opponent = 0;
+	std::uint8_t band = 0;
+	RatingOutcome win, loss;
+};
+
+// The most examples a rating answer lists (the protocol's MAX_EXAMPLES).
+constexpr std::size_t MaxRatingExamples = 8;
+
+// The player's own rating, as the bridge counts it.
+struct OwnRating {
+	bool takesPart = false, settled = false;
+	double rating = 0, deviation = 0, volatility = 0;
+	std::uint8_t band = 0;
+	// The rating at which the class moves up, and under which it moves down;
+	// none at the top, at the bottom, and before a class.
+	std::optional<double> upAt, downBelow;
+	// Whole days without a game until the class shows faint; none while it is not settled.
+	std::optional<std::uint64_t> faintInDays;
+	// The last rated game, unix seconds.
+	std::uint64_t playedAt = 0;
+	std::vector<RatingExample> examples;
+};
+
+struct RatingDetails {
+	// None before a rated game, or while the bridge hides classes.
+	std::optional<OwnRating> rating;
+};
+
 struct Status {
 	// The service and the Ember ID the answers are for: answers belong to an
 	// account on one service, so a change of either forgets them.
@@ -118,6 +175,10 @@ struct Status {
 	// Shared and never changed once decoded, so copying the status for each
 	// frame does not copy up to MaxBoard entries.
 	Answered<std::shared_ptr<const std::vector<BoardEntry>>> board;
+	// The points board, shared and never changed once decoded like the class board.
+	Answered<std::shared_ptr<const PointsBoard>> points;
+	// The rating details, the same way the board and the points board carry values.
+	Answered<RatingDetails> rating;
 	// The identity (Command::request) of the choice in flight, 0 when none,
 	// and of the last one answered, with the helper's code when it was refused.
 	std::uint64_t choosing = 0, chose = 0;

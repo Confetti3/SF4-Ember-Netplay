@@ -2259,6 +2259,12 @@ msgstr "Ember website"
 msgid "about.website_detail"
 msgstr "Rooms, rankings and replays at {0}. Opens in your browser behind the game."
 
+msgid "about.guides"
+msgstr "Guides"
+
+msgid "about.guides_detail"
+msgstr "How to install, play online, record and more, at {0}. Opens in your browser behind the game."
+
 msgid "about.twitter"
 msgstr "Developer on Twitter"
 
@@ -8219,9 +8225,6 @@ msgstr "You"
 msgid "rankings.you_beyond_cap"
 msgstr "The board lists up to {0} players, and you are not among them right now."
 
-msgid "rankings.jump"
-msgstr "Left and Right move between classes."
-
 msgid "rankings.loading_board"
 msgstr "Loading players..."
 
@@ -8231,11 +8234,158 @@ msgstr "Nobody is on the board yet."
 msgid "rankings.status_board"
 msgstr "Players listed: {0}. Updated {1}."
 
+msgid "rankings.points_title"
+msgstr "Points board"
+
+msgid "rankings.points"
+msgstr "Points board"
+
+msgid "rankings.points_detail"
+msgstr "Who has played the most, overall or with one fighter."
+
+msgid "rankings.points_all"
+msgstr "All fighters"
+
+msgid "rankings.points_value"
+msgstr "{0} pts"
+
+msgid "rankings.loading_points"
+msgstr "Loading the points board…"
+
+msgid "rankings.points_empty"
+msgstr "Nobody has points here yet."
+
+msgid "rankings.rating"
+msgstr "Rating"
+
+msgid "rankings.rating_value"
+msgstr "{0} ± {1}"
+
+msgid "rankings.rating_between"
+msgstr "Your class moves up at {0} and down below {1}."
+
+msgid "rankings.rating_up"
+msgstr "Your class moves up at {0}."
+
+msgid "rankings.rating_down"
+msgstr "Your class moves down below {0}."
+
+msgid "rankings.rating_faint"
+msgstr "It shows faint after {0} days without a rated game."
+
 msgid "rankings.failure.unavailable"
 msgstr "This service does not offer rankings."
 
 msgid "rankings.failure.too_soon"
 msgstr "You can change this once a day."
+
+msgid "rankings.rating_title"
+msgstr "Rating details"
+
+msgid "rankings.rating_private"
+msgstr "Only you can see these numbers. Other players see your class, never your rating."
+
+msgid "rankings.deviation"
+msgstr "Deviation"
+
+msgid "rankings.volatility"
+msgstr "Volatility"
+
+msgid "rankings.rating_about"
+msgstr "Ember's estimate of how strong you are. A win raises it and a loss lowers it, by more when the result was a surprise. Your class is read from it."
+
+msgid "rankings.deviation_about"
+msgstr "How unsure the rating is. It falls as you play and grows a little each day you do not. Your class shows once it is low enough."
+
+msgid "rankings.volatility_about"
+msgstr "How steady your results are. It rises when you swing between upset wins and bad losses, and lets the rating move faster."
+
+msgid "rankings.up_to"
+msgstr "{0} at {1}"
+
+msgid "rankings.down_to"
+msgstr "{0} below {1}"
+
+msgid "rankings.next_game"
+msgstr "What your next game would move"
+
+msgid "rankings.opponent"
+msgstr "Opponent"
+
+msgid "rankings.win"
+msgstr "Win"
+
+msgid "rankings.loss"
+msgstr "Loss"
+
+msgid "rankings.rated"
+msgstr "Rated {0}"
+
+msgid "rankings.example_new"
+msgstr "A new player"
+
+msgid "rankings.points_bp_total"
+msgstr "{0} players, every fighter counted together."
+
+msgid "rankings.points_fp_total"
+msgstr "{0} players have points with {1}."
+
+msgid "rankings.frames"
+msgstr "Frames"
+
+msgid "rankings.frames_about"
+msgstr "A player's frame shows how far their points have come. It never goes back."
+
+msgid "rankings.place"
+msgstr "Place"
+
+msgid "rankings.place_of"
+msgstr "{0} of {1}"
+
+msgid "rankings.class"
+msgstr "Class"
+
+msgid "rankings.your_place"
+msgstr "Your place"
+
+msgid "rankings.frame"
+msgstr "Frame"
+
+msgid "rankings.player"
+msgstr "Player"
+
+msgid "rankings.points_column"
+msgstr "Points"
+
+msgid "rankings.players_count"
+msgstr "{0} players"
+
+msgid "rankings.players_one"
+msgstr "{0} player"
+
+msgid "rankings.classes"
+msgstr "Classes"
+
+msgid "rankings.fighters"
+msgstr "Fighters"
+
+msgid "rankings.see_players"
+msgstr "See players"
+
+msgid "rankings.show_board"
+msgstr "Show board"
+
+msgid "rankings.your_class"
+msgstr "Your class"
+
+msgid "rankings.where_title"
+msgstr "Where you stand"
+
+msgid "rankings.your_rating"
+msgstr "You, {0}"
+
+msgid "rankings.numbers_title"
+msgstr "What the numbers mean"
 
 msgid "settings.class_emblems"
 msgstr "Class emblems"

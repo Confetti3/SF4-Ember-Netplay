@@ -222,27 +222,39 @@ void BoardJourney() {
  board->push_back({{"Player 3", CountryCode()}, 3, false});
  auto& status = j.h.view.rankings;
  status.board.value = board; status.board.loaded = true; ++status.board.finished; j.h.Frame(0, 2);
- std::vector<std::string> ids;
+ const auto& nav = j.h.shell.Navigation();
+ // The classes stand down the side, highest first, and the board opens on yours with its players beside it.
+ std::vector<std::string> ids, expected{"rkb-you"};
  for (const auto& row : j.rows) ids.push_back(row.id);
- Check(ids == std::vector<std::string>{"rkb-you", "rkb-class:7", "rkb-p:0", "rkb-p:1", "rkb-class:3", "rkb-p:2"}, "The board is not grouped by class");
- Check(j.row("rkb-class:7")->value == "2" && j.row("rkb-p:1")->valueHighlighted, "Counts or your own row are wrong");
- Check(j.row("rkb-p:0")->left == "rkb-class:7" && j.row("rkb-p:0")->right == "rkb-class:3" && j.row("rkb-class:7")->left == "rkb-you",
-  "Left and Right do not move between classes");
+ for (int band = SkillBadge::Classes; band >= 1; --band) expected.push_back("rkb-c:" + std::to_string(band));
+ expected.insert(expected.end(), {"rkb-p:0", "rkb-p:1"});
+ Check(ids == expected, "The board is not its classes, highest first, then the players of the class on show");
+ Check(nav.Focus() == "rkb-c:7" && j.row("rkb-c:3")->enabled && !j.row("rkb-c:9")->enabled, "The board did not open on your class, or a class without players can be chosen");
+ Check(j.row("rkb-p:1")->valueHighlighted && !j.row("rkb-p:0")->valueHighlighted, "Your own row is not marked");
+ // A on a class goes into its players at your own; Back returns to the class, not off the board.
+ j.h.Choose("rkb-c:7");
+ Check(nav.Focus() == "rkb-p:1", "A on your class did not go to your own row");
+ j.h.Press(MenuInput::Back);
+ Check(nav.Screen() == "rankings-board" && nav.Focus() == "rkb-c:7", "Back from a class's players did not return to the class");
+ // Another class on the side shows its own players.
+ j.h.Choose("rkb-c:3");
+ Check(nav.Focus() == "rkb-p:2" && j.row("rkb-p:2") && !j.row("rkb-p:0"), "A on another class did not show its players");
  // A on a player opens their profile by the name and flag the board lists them under, shown in their class; Back returns to the board.
- Check(!j.row("rkb-p:0")->info && j.row("rkb-p:0")->hint == loc::T("room.member_card") && j.row("rkb-you")->info, "A board's player is not a row that opens a card");
- j.h.Choose("rkb-p:0");
- Check(j.h.shell.Navigation().Screen() == "player-card", "A on a ranked player did not open their profile");
+ Check(!j.row("rkb-p:2")->info && j.row("rkb-p:2")->hint == loc::T("room.member_card") && j.row("rkb-you")->info, "A board's player is not a row that opens a card");
+ j.h.Choose("rkb-p:2");
+ Check(nav.Screen() == "player-card", "A on a ranked player did not open their profile");
  j.h.Frame(0, 2);
  const commands::ProfileOpen* opened = nullptr;
  for (const auto& a : j.h.actions) if (const auto* open = As<commands::ProfileOpen>(a)) opened = open;
- Check(opened && opened->key == netplay::profiles::Key::OfName("Player 2", CountryCode::Parsed("JP")) && opened->known.badge == SkillBadge::OfClass(7, true), "A ranked player was not asked for by name and flag with their class");
+ Check(opened && opened->key == netplay::profiles::Key::OfName("Player 3", CountryCode()) && opened->known.badge == SkillBadge::OfClass(3, true), "A ranked player was not asked for by name and flag with their class");
  j.h.Press(MenuInput::Back);
- Check(j.h.shell.Navigation().Screen() == "rankings-board", "Back from a ranked player's profile did not return to the board");
+ Check(nav.Screen() == "rankings-board", "Back from a ranked player's profile did not return to the board");
  // Back on Rankings, nothing is read again; Options on the board reads the board.
  j.h.Press(MenuInput::Options);
  Check(Sent(j, Op::RankingBoard).size() == 2, "Options did not read the board again");
  j.h.Press(MenuInput::Back);
- Check(j.h.shell.Navigation().Screen() == "rankings" && Sent(j, Op::RankingStanding).size() == 1, "Coming back from the board read the standing again");
+ j.h.Press(MenuInput::Back);
+ Check(nav.Screen() == "rankings" && Sent(j, Op::RankingStanding).size() == 1, "Coming back from the board read the standing again");
 }
 }
 
