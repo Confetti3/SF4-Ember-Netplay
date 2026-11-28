@@ -1,4 +1,5 @@
 #include "RankingsBoard.hxx"
+#include "CardParts.hxx"
 #include "CountryFlag.hxx"
 #include "GameMenu.hxx"
 #include "NameMarks.hxx"
@@ -13,14 +14,15 @@
 
 namespace sf4e { namespace ui {
 namespace {
+using card_parts::Across;
 using netplay::rankings::BoardEntry;
 using netplay::rankings::Listing;
 using netplay::rankings::PointsBoard;
 using netplay::rankings::PointsLine;
 
 // The boards' measures, in logical pixels.
-constexpr float Gap = 8, Strip = 64, Rail = 300, Aside = 28, RailTitle = 40, ClassRungHeight = 54, FighterRungHeight = 52,
-    Plate = 112, Head = 96, Place = 72, TableHead = 36, Line = 46, PlayerLine = 52, Side = 400;
+constexpr float Gap = 8, Strip = 64, Rail = 300, CompactRail = 72, Narrow = 440, Aside = 28, RailTitle = 40, ClassRungHeight = 54,
+    FighterRungHeight = 52, Plate = 112, Head = 96, Place = 72, TableHead = 36, Line = 46, PlayerLine = 52, Side = 400;
 
 bool Focused(const RankingsBoardFrame& f, const MenuEntry& e) { return e.id == f.menu.navigation.Focus(); }
 
@@ -66,10 +68,11 @@ void FrameMark(ImDrawList* d, float x, float middle, float room, int tier, float
     v2::Text(d, ImVec2(x + 16 * s, middle - size * .5f), room - 16 * s, v2::TierName(t), size, v2::Colors().muted);
 }
 
-// A player's flag and name, `size` text with its middle on `middle`.
+// A player's flag and name, `size` text with its middle on `middle`. Names
+// are the players' own writing: one too long for `room` ends in an ellipsis.
 void Name(ImDrawList* d, float x, float middle, float room, const Listing& listing, float size) {
     const float top = middle - size * .5f, flag = DrawNameMarks(d, x, top, size, NameMarks{listing.country, {}}).width;
-    v2::Text(d, ImVec2(x + flag, top), room - flag, listing.name, size, v2::Colors().text);
+    v2::Text(d, ImVec2(x + flag, top), room - flag, listing.name, size, v2::Colors().text, nullptr, false, false);
 }
 
 std::string PlayersWords(int count) { return loc::Tf(loc::SingularCount(count) ? "rankings.players_one" : "rankings.players_count", count); }
@@ -79,8 +82,10 @@ std::string PlayersWords(int count) { return loc::Tf(loc::SingularCount(count) ?
 // The side list and the page beside it, from `at` to the body's bottom.
 struct Split { v2::Box rail, page; };
 
+// A page narrower than `Narrow` takes the side list down to its marks alone.
 Split SplitOf(ImVec2 at, float width, float bottom) {
-    const float s = Scale(), rail = (std::min)(Rail * s, width * .32f);
+    const float s = Scale(), full = (std::min)(Rail * s, width * .32f);
+    const float rail = width - full - Aside * s >= Narrow * s ? full : CompactRail * s;
     return {{at, ImVec2(at.x + rail, bottom)}, {ImVec2(at.x + rail + Aside * s, at.y), ImVec2(at.x + width, bottom)}};
 }
 
@@ -102,7 +107,7 @@ template <class Draw> void Column(const char* id, v2::Box b, Draw&& draw) {
 void RailHeading(ImDrawList* d, v2::Box rail, const std::string& title) {
     const auto& c = v2::Colors();
     const float s = Scale(), bottom = rail.min.y + RailTitle * s;
-    v2::Text(d, ImVec2(rail.min.x + 4 * s, rail.min.y + 8 * s), rail.W(), title, 15 * s, c.muted, HeadingFont());
+    v2::TextShrunk(d, ImVec2(rail.min.x + 4 * s, rail.min.y + 8 * s), rail.W() - 8 * s, title, 15 * s, 11 * s, c.muted, HeadingFont());
     d->AddLine(ImVec2(rail.min.x + 4 * s, bottom - 8 * s), ImVec2(rail.max.x - 4 * s, bottom - 8 * s), c.border, 1 * s);
 }
 
@@ -140,7 +145,7 @@ float YouStrip(ImDrawList* d, const MenuEntry& e, ImVec2 at, float width, std::u
     float x = at.x + 16 * s;
     x += v2::Text(d, ImVec2(x, middle - 15 * s * .5f), right - x, e.label, 15 * s, c.accent, HeadingFont()) + 16 * s;
     if (ownBand) x += ClassChip(d, x, middle, ownBand) + 12 * s;
-    if (x < right) v2::Text(d, ImVec2(x, middle - 15 * s * .5f), right - x, e.detail.substr(0, e.detail.find('\n')), 15 * s, c.muted);
+    if (x < right) v2::TextShrunk(d, ImVec2(x, middle - 15 * s * .5f), right - x, e.detail.substr(0, e.detail.find('\n')), 15 * s, 11 * s, c.muted);
     return at.y + (Strip + 2 * Gap) * s;
 }
 
@@ -157,6 +162,8 @@ float ClassRung(const RankingsBoardFrame& f, const MenuEntry& e, ImVec2 at, floa
     const v2::Box in = RailRow(f, e, box, tone, band == shown);
     const float middle = in.min.y + in.H() * .5f;
     v2::Text(d, ImVec2(in.min.x, middle - 11 * s), 52 * s, ClassShort(band), 22 * s, count ? tone : v2::color::Alpha(tone, .45f), HeadingFont());
+    // A narrow side list is the letters alone; the plate over the page has the rest.
+    if (in.W() < 100 * s) return box.max.y + 6 * s;
     float right = in.max.x - v2::TextEnd(d, ImVec2(in.min.x, middle - 8 * s), in.W(), std::to_string(count), 16 * s, count ? c.text : c.muted) - 12 * s;
     if (band == ownBand) right = YouChip(d, right, middle) - 12 * s;
     const float bar = in.min.x + 60 * s;
@@ -180,8 +187,8 @@ float ClassPlate(ImDrawList* d, ImVec2 at, float width, std::uint8_t band, int c
     d->AddRectFilled(mark.min, mark.max, v2::color::Alpha(tone, .20f), 4 * s);
     v2::Text(d, ImVec2(mark.min.x, mark.min.y + (mark.H() - 36 * s) * .5f), mark.W(), ClassShort(band), 36 * s, tone, HeadingFont(), true);
     const float x = mark.max.x + 22 * s, room = box.max.x - 18 * s - x;
-    v2::Text(d, ImVec2(x, at.y + 24 * s), room, ClassTitle(band), 28 * s, c.text, HeadingFont());
-    const float words = v2::Text(d, ImVec2(x, at.y + 66 * s), room, PlayersWords(count), 16 * s, c.muted);
+    v2::TextShrunk(d, ImVec2(x, at.y + 24 * s), room, ClassTitle(band), 28 * s, 18 * s, c.text, HeadingFont());
+    const float words = v2::TextShrunk(d, ImVec2(x, at.y + 66 * s), room, PlayersWords(count), 16 * s, 11 * s, c.muted);
     if (own) v2::Chip(d, ImVec2(x + words + 14 * s, at.y + 74 * s - (v2::ChipFont() + 8 * s) * .5f), loc::T("rankings.your_class"), c.accent);
     return box.max.y + 2 * Gap * s;
 }
@@ -208,8 +215,10 @@ void PlayerRow(const RankingsBoardFrame& f, const ClassPlayer& p, v2::Box box, b
     v2::RowGround(d, box, Focused(f, p.row), hit.hovered);
     float right = box.max.x - 18 * s;
     if (p.entry.own) right = YouChip(d, right, middle) - 16 * s;
-    if (p.entry.listing.country.Present())
-        right -= v2::TextEnd(d, ImVec2(left, middle - 15 * s * .5f), right - left, CountryName(p.entry.listing.country), 15 * s, c.muted) + 24 * s;
+    // A narrow page keeps the name and lets the country go.
+    const std::string country = p.entry.listing.country.Present() ? CountryName(p.entry.listing.country) : std::string();
+    if (!country.empty() && right - left - Across(country, 15 * s) - 24 * s >= 160 * s)
+        right -= v2::TextEnd(d, ImVec2(left, middle - 15 * s * .5f), right - left, country, 15 * s, c.muted) + 24 * s;
     Name(d, left, middle, right - left, p.entry.listing, 18 * s);
     if (rule) d->AddLine(ImVec2(box.min.x + 12 * s, box.max.y), ImVec2(box.max.x - 12 * s, box.max.y), v2::color::Alpha(c.border, .6f), 1 * s);
     if (Focused(f, p.row)) v2::Focus(d, box.min, box.max);
@@ -242,59 +251,73 @@ float FighterRung(const RankingsBoardFrame& f, const MenuEntry& e, ImVec2 at, fl
             DrawCharacterPortrait(fighter, pic, ImVec2(pic.x + face, pic.y + face));
             d->AddRect(pic, ImVec2(pic.x + face, pic.y + face), c.border, 3 * s, 0, 1 * s);
         } else v2::BrandMark(d, ImVec2(pic.x + 6 * s, pic.y + 6 * s), face - 12 * s);
+        // A narrow side list is the faces alone; the page's head names the one on show.
         const float x = pic.x + face + 14 * s;
-        v2::Text(d, ImVec2(x, middle - 17 * s * .5f), in.max.x - x, e.label, 17 * s, shown ? c.text : c.muted, HeadingFont());
+        if (in.max.x - x >= Across(e.label, 17 * s, HeadingFont()))
+            v2::Text(d, ImVec2(x, middle - 17 * s * .5f), in.max.x - x, e.label, 17 * s, shown ? c.text : c.muted, HeadingFont());
     }
     return box.max.y + 4 * s;
 }
 
-// The page's head: the fighter's face, their name over how many players have points.
+// The page's head: the fighter's face, their name over how many players have
+// points, which wraps on a narrow page and lengthens the head.
 float PointsHead(ImDrawList* d, ImVec2 at, float width, const std::string& name, const PointsBoard* board, int fighter) {
     const auto& c = v2::Colors();
-    const float s = Scale(), face = 64 * s;
-    const v2::Box box{at, ImVec2(at.x + width, at.y + Head * s)};
+    const float s = Scale(), face = 64 * s, x = at.x + 16 * s + face + 18 * s, room = at.x + width - 18 * s - x;
+    const std::string about = !board ? loc::T("rankings.points_detail")
+        : fighter < 0 ? loc::Tf("rankings.points_bp_total", board->total) : loc::Tf("rankings.points_fp_total", board->total, name);
+    const float height = (std::max)(Head * s, 56 * s + v2::Paragraph(nullptr, ImVec2(), room, about, 15 * s, 0) + 18 * s);
+    const v2::Box box{at, ImVec2(at.x + width, at.y + height)};
     PanelBox(d, box);
-    const ImVec2 pic(at.x + 16 * s, at.y + (box.H() - face) * .5f);
+    const ImVec2 pic(at.x + 16 * s, at.y + (Head * s - face) * .5f);
     if (fighter >= 0) {
         DrawCharacterPortrait(fighter, pic, ImVec2(pic.x + face, pic.y + face));
         d->AddRect(pic, ImVec2(pic.x + face, pic.y + face), c.border, 3 * s, 0, 1 * s);
     } else v2::BrandMark(d, ImVec2(pic.x + 8 * s, pic.y + 8 * s), face - 16 * s);
-    const float x = pic.x + face + 18 * s, room = box.max.x - 18 * s - x;
-    v2::Text(d, ImVec2(x, at.y + 18 * s), room, name, 28 * s, c.text, HeadingFont());
-    const std::string about = !board ? loc::T("rankings.points_detail")
-        : fighter < 0 ? loc::Tf("rankings.points_bp_total", board->total) : loc::Tf("rankings.points_fp_total", board->total, name);
-    v2::Text(d, ImVec2(x, at.y + 56 * s), room, about, 15 * s, c.muted);
+    v2::TextShrunk(d, ImVec2(x, at.y + 18 * s), room, name, 28 * s, 18 * s, c.text, HeadingFont());
+    v2::Paragraph(d, ImVec2(x, at.y + 56 * s), room, about, 15 * s, c.muted);
     return box.max.y + 2 * Gap * s;
 }
 
 // Your line of the board lifted out over it: your place of how many, your
-// name, your frame and your points.
+// name, your frame and your points. Too narrow for one line, the place
+// stands over the name and the points, and the frame gives way.
 float OwnPlace(ImDrawList* d, ImVec2 at, float width, const PointsLine& line, std::uint64_t total, const char* label) {
     const auto& c = v2::Colors();
-    const float s = Scale(), middle = at.y + Place * s * .5f, right = at.x + width - 18 * s;
-    Accented(d, v2::Box{at, ImVec2(at.x + width, at.y + Place * s)});
-    float x = at.x + 18 * s;
-    x += v2::Text(d, ImVec2(x, middle - 15 * s * .5f), right - x, loc::T("rankings.your_place"), 15 * s, c.accent, HeadingFont()) + 20 * s;
-    x += v2::Text(d, ImVec2(x, middle - 26 * s * .5f), right - x, loc::Tf("rankings.place_of", line.place, total), 26 * s, c.text, HeadingFont()) + 24 * s;
-    const float level = right - v2::LevelWidth(line.points, 30 * s, label), frame = level - 24 * s - 110 * s;
-    v2::Level(d, ImVec2(level, middle - 15 * s), 30 * s, line.points, label);
-    FrameMark(d, frame, middle, 110 * s, line.tier, 15 * s);
-    Name(d, x, middle, frame - 12 * s - x, line.listing, 17 * s);
-    return at.y + (Place + 16) * s;
+    const float s = Scale(), right = at.x + width - 18 * s, left = at.x + 18 * s;
+    const std::string yours = loc::T("rankings.your_place"), place = loc::Tf("rankings.place_of", line.place, total);
+    const float words = Across(yours, 15 * s, HeadingFont()) + 20 * s + Across(place, 26 * s, HeadingFont()) + 24 * s;
+    const bool oneLine = right - left >= words + 160 * s + 12 * s + 134 * s + v2::LevelWidth(line.points, 30 * s, label);
+    const float height = (oneLine ? Place : Place + 44) * s, top = at.y + (oneLine ? Place : 52) * s * .5f;
+    Accented(d, v2::Box{at, ImVec2(at.x + width, at.y + height)});
+    float x = left;
+    x += v2::Text(d, ImVec2(x, top - 15 * s * .5f), right - x, yours, 15 * s, c.accent, HeadingFont()) + 20 * s;
+    x += v2::TextShrunk(d, ImVec2(x, top - 26 * s * .5f), right - x, place, 26 * s, 18 * s, c.text, HeadingFont()) + 24 * s;
+    const float middle = oneLine ? top : at.y + height - 34 * s, size = oneLine ? 30 * s : 24 * s;
+    if (!oneLine) x = left;
+    const float level = right - v2::LevelWidth(line.points, size, label);
+    v2::Level(d, ImVec2(level, middle - size * .5f), size, line.points, label);
+    float nameEnd = level - 12 * s;
+    if (oneLine) { nameEnd -= 134 * s; FrameMark(d, nameEnd + 12 * s, middle, 110 * s, line.tier, 15 * s); }
+    Name(d, x, middle, nameEnd - x, line.listing, 17 * s);
+    return at.y + height + 16 * s;
 }
 
-// The table's columns, those that fit `width`: the class and the frame give way first.
+// The table's columns, those that fit `width`: the class and the frame give
+// way first, then the points narrow.
 struct Columns {
-    float place, player, playerEnd, cls, frame, pointsEnd;
+    float place, placeWidth, player, playerEnd, cls, frame, pointsEnd, pointsWidth;
     bool showClass, showFrame;
 };
 
 Columns ColumnsOf(float x, float width) {
     const float s = Scale(), pad = 16 * s;
+    const bool narrow = width < 480 * s;
     Columns k{};
-    k.place = x + pad; k.player = k.place + 64 * s; k.pointsEnd = x + width - pad;
+    k.place = x + pad; k.placeWidth = (narrow ? 36 : 60) * s; k.player = k.place + k.placeWidth + 12 * s; k.pointsEnd = x + width - pad;
     k.showFrame = width >= 560 * s; k.showClass = width >= 760 * s;
-    k.frame = k.pointsEnd - 150 * s - (k.showFrame ? 120 * s : 0);
+    k.pointsWidth = (narrow ? 100 : 150) * s;
+    k.frame = k.pointsEnd - k.pointsWidth - (k.showFrame ? 120 * s : 0);
     k.cls = k.frame - (k.showClass ? 110 * s : 0);
     k.playerEnd = k.cls - 12 * s;
     return k;
@@ -317,7 +340,7 @@ void TableLine(const RankingsBoardFrame& f, const TableRow& t, v2::Box box, cons
     if (!ImGui::IsRectVisible(box.min, box.max)) return;
     if (own) d->AddRectFilled(box.min, box.max, v2::color::Alpha(c.accent, .08f), 4 * s);
     v2::RowGround(d, box, Focused(f, t.row), hit.hovered);
-    v2::TextEnd(d, ImVec2(k.place, middle - 17 * s * .5f), 48 * s, std::to_string(line.place), 17 * s, line.place <= 3 ? c.accent : c.muted);
+    v2::TextEnd(d, ImVec2(k.place, middle - 17 * s * .5f), k.placeWidth, std::to_string(line.place), 17 * s, line.place <= 3 ? c.accent : c.muted);
     Name(d, k.player, middle, k.playerEnd - k.player, line.listing, 17 * s);
     if (k.showClass && line.band) ClassChip(d, k.cls, middle, line.band);
     if (k.showFrame) FrameMark(d, k.frame, middle, 120 * s, line.tier, 15 * s);
@@ -335,11 +358,15 @@ float PointsTable(const RankingsBoardFrame& f, const std::vector<TableRow>& line
     PanelBox(d, panel);
     const Columns k = ColumnsOf(at.x, width);
     const float words = at.y + (head - 13 * s) * .5f;
-    v2::TextEnd(d, ImVec2(k.place, words), 48 * s, loc::T("rankings.place"), 13 * s, c.muted);
+    // The place's name ends over the places and may reach back into the panel's edge, smaller if it must.
+    const std::string placeWord = loc::T("rankings.place");
+    const float placeRoom = k.place + k.placeWidth - at.x - 8 * s;
+    const float placeSize = (std::clamp)(13 * s * placeRoom / Across(placeWord, 13 * s), 10 * s, 13 * s);
+    v2::TextEnd(d, ImVec2(at.x + 8 * s, at.y + (head - placeSize) * .5f), placeRoom, placeWord, placeSize, c.muted);
     v2::Text(d, ImVec2(k.player, words), k.playerEnd - k.player, loc::T("rankings.player"), 13 * s, c.muted);
     if (k.showClass) v2::Text(d, ImVec2(k.cls, words), 110 * s, loc::T("rankings.class"), 13 * s, c.muted);
     if (k.showFrame) v2::Text(d, ImVec2(k.frame, words), 120 * s, loc::T("rankings.frame"), 13 * s, c.muted);
-    v2::TextEnd(d, ImVec2(k.pointsEnd - 150 * s, words), 150 * s, loc::T("rankings.points_column"), 13 * s, c.muted);
+    v2::TextEnd(d, ImVec2(k.pointsEnd - k.pointsWidth, words), k.pointsWidth, loc::T("rankings.points_column"), 13 * s, c.muted);
     d->AddLine(ImVec2(k.place, at.y + head), ImVec2(k.pointsEnd, at.y + head), c.border, 1 * s);
     float y = at.y + head;
     for (std::size_t i = 0; i < lines.size(); ++i, y += line)
