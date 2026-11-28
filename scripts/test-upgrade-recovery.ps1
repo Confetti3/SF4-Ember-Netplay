@@ -122,6 +122,22 @@ function NativeRecover([string]$Install) {
   return [pscustomobject]@{ExitCode=$child.ExitCode;Output=$child.StandardOutput.ReadToEnd()+$child.StandardError.ReadToEnd()}
  } finally {$child.Dispose()}
 }
+# The shipped CheckClosed over a faked process list: an Updater whose path
+# cannot be read blocks the upgrade unless it runs in session 0, where a SYSTEM
+# service's updater.exe (Dropbox, Google) runs. Another session may be another
+# user's Ember on the same folder.
+function CheckClosedSessions {
+ $ast=[Management.Automation.Language.Parser]::ParseFile($source,[ref]$null,[ref]$null)
+ . ([scriptblock]::Create($ast.Find({param($n)$n-is[Management.Automation.Language.FunctionDefinitionAst]-and$n.Name-eq'CheckClosed'},$true).Extent.Text))
+ function Get-CimInstance {[pscustomobject]@{ExecutablePath=$null}}
+ function Get-Process {[pscustomobject]@{ProcessName='Updater';Id=4;Path=$null;SessionId=$fake}}
+ foreach($case in @(@{Session=0;Blocks=$false},@{Session=1;Blocks=$true},@{Session=2;Blocks=$true})) {
+  $fake=$case.Session
+  $blocked=$false;try{CheckClosed 'C:\Ember'}catch{$blocked=$true}
+  if($blocked-ne$case.Blocks){throw "An unreadable Updater in session $fake blocked: $blocked"}
+ }
+}
+CheckClosedSessions
 try {
  $package=Join-Path $root 'package';$payload=Join-Path $package 'payload';$install=Join-Path $root 'install'
  $null=New-Item -ItemType Directory -Path $payload,$install -Force
