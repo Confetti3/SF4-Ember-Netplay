@@ -48,7 +48,7 @@ enum class Action { Select, AdvanceRecording, Record, AdvancePlayback, Play, Sto
 // the menu's choice index and -1 leaves that setting as it is. action: stand,
 // crouch, jump, cpu, human (Player 2's pad), then the menu's own record and
 // playback. guard: no block, after first hit, all, random.
-// quickStand: quick, normal, delayed, random. counterHit: off, on, random.
+// quickStand: normal, quick, delayed, random. counterHit: off, on, random.
 // stun: normal, constant, none.
 // super, revenge: the gauge settings as the menu stores them, 0 normal, 5
 // max at round start, 7 infinite, 8 refill.
