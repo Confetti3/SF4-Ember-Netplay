@@ -232,6 +232,21 @@ std::string ShortCodes(const std::string& text) {
     for (const char c:text) if (!((c>='a'&&c<='z')||(c>='0'&&c<='9')||c=='_'||c==',')) return {};
     return text;
 }
+// Whether a value starts at pos. A quote, or a backslash and a quote, counts
+// only when a value follows it; a closing quote after base64 padding does not.
+bool ValueStartsAt(const std::string& text, std::size_t pos) {
+    if (pos>=text.size()) return false;
+    const char c=text[pos];
+    if (c=='"'||c=='\'') return ValueStartsAt(text,pos+1);
+    if (c=='\\') return pos+1<text.size()&&(text[pos+1]=='"'||text[pos+1]=='\'')&&ValueStartsAt(text,pos+2);
+    if (c=='.') return pos+1<text.size()&&std::isdigit(static_cast<unsigned char>(text[pos+1]));
+    return std::isalnum(static_cast<unsigned char>(c))||std::string_view("_-/[({").find(c)!=std::string_view::npos;
+}
+// A run that '=' and a value follow is a field label. Anything else after the
+// '=' is base64 padding, and the run stays masked.
+bool LabelBeforeValue(const std::string& text, std::size_t end) {
+    return end<text.size()&&text[end]=='='&&ValueStartsAt(text,end+1);
+}
 }
 std::size_t CharacterCount(std::string_view text) {
     std::size_t count=0; for (unsigned char c:text) if ((c&0xC0)!=0x80) ++count; return count;
@@ -309,8 +324,14 @@ std::string RedactLine(std::string_view line, const Account& account) {
     // in any case, between any punctuation, and inside JSON strings.
     for(const auto& span:IdentitySpans(text,account)) spans.push_back({span.first,span.second,"<user>"});
     static const std::regex email(R"([A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9-]+(\.[A-Z0-9-]+)+)",std::regex::icase);
-    static const std::regex opaque(R"(\b[A-Za-z0-9_+/=-]{20,}\b)");
-    recognize(email,"[email]"); recognize(opaque,"[secret]");
+    static const std::regex opaque(R"(\b[A-Za-z0-9_+/-]{20,}\b)");
+    recognize(email,"[email]");
+    // A run that a '=' and a value follow is a field label, not a value.
+    for(auto it=std::sregex_iterator(text.begin(),text.end(),opaque);it!=std::sregex_iterator();++it) {
+        const auto begin=static_cast<std::size_t>(it->position());
+        const auto end=begin+static_cast<std::size_t>(it->length());
+        if(!LabelBeforeValue(text,end)) spans.push_back({begin,end,"[secret]"});
+    }
     // Use the invitation parser itself, including aliases, case and arbitrary
     // dash placement. Never consume a substring of a longer word or identifier.
     static const std::regex codeToken(R"([A-Za-z0-9_-]+)");
