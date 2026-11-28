@@ -14,6 +14,7 @@
 #include <filesystem>
 #include <cstring>
 #include <fstream>
+#include <mutex>
 #include <set>
 #include <nlohmann/json.hpp>
 
@@ -37,18 +38,11 @@ std::string NameOf(const fs::path& path) { return platform::WideToUtf8(path.wstr
 fs::path ThemeFolder(const Host& host, const std::string& name) { return fs::path(host.directory()) / platform::game_themes::Folder / fs::u8path(name); }
 fs::path HudFolder(const Host& host, const std::string& name) { return ThemeFolder(host, name) / "battle" / "hud" / "CMN"; }
 
-// A HUD file: the theme's own, else the game's, in the order the game looks (a patch folder beats the base).
+// A HUD file: the theme's own, else the game's newest.
 fs::path Find(const Host& host, const std::string& name, const std::string& relative) {
     std::error_code ignored;
     const fs::path own = ThemeFolder(host, name) / fs::u8path(relative);
-    if (fs::is_regular_file(own, ignored)) return own;
-    for (const char* folder : GameLayers) {
-        const fs::path path = fs::path(host.directory()) / folder / fs::u8path(relative);
-        // Carried over from the lab editor, which never takes cockpit.ems.emz from patch_ae2_tu2.
-        if (std::string(folder) == "patch_ae2_tu2" && relative.size() >= 15 && relative.compare(relative.size() - 15, 15, "cockpit.ems.emz") == 0) continue;
-        if (fs::is_regular_file(path, ignored)) return path;
-    }
-    return {};
+    return fs::is_regular_file(own, ignored) ? own : NewestGameFile(host.directory(), fs::u8path(relative));
 }
 bool Read(const fs::path& path, std::string& out) {
     std::vector<std::uint8_t> bytes; std::string error;
@@ -140,6 +134,27 @@ bool WriteFile(const fs::path& path, const std::string& bytes) {
     std::error_code ignored; fs::create_directories(path.parent_path(), ignored);
     return static_cast<bool>(durable::PublishReplace(path, durable::PartialPath(path), bytes.data(), bytes.size()));
 }
+// The game's own HUD layouts kept as the theme "Original": an install with no theme then has a HUD to edit, and the
+// player a copy of the game's to work from. Put together beside the themes folder and renamed in whole, one request at a
+// time (each has its own thread); a folder of that name is the player's and is left alone.
+constexpr char Original[] = "Original";
+void KeepOriginal(const Host& host) {
+    static std::mutex one;
+    std::lock_guard<std::mutex> guard(one);
+    std::error_code failed;
+    const fs::path game(host.directory()), kept = ThemeFolder(host, Original), hud = fs::path("battle") / "hud" / "CMN";
+    fs::path next = kept.parent_path(); next += ".original";      // beside the themes, where no theme can have its name
+    fs::create_directories(kept.parent_path(), failed);
+    if (failed || fs::exists(kept, failed) || failed) return;
+    fs::remove_all(next, failed);
+    if (!failed) fs::create_directories(next / hud, failed);
+    for (const std::string& file : layout::Files()) {
+        const fs::path relative = hud / fs::u8path(file + ".ems.emz"), newest = NewestGameFile(game, relative);
+        if (!failed && !newest.empty()) fs::copy_file(newest, next / relative, failed);
+    }
+    if (!failed && fs::is_regular_file(next / hud / "cockpit.ems.emz", failed)) fs::rename(next, kept, failed);
+    fs::remove_all(next, failed);
+}
 bool Save(const Host& host, const std::string& name, const layout::Layout& edits) {
     return WriteFile(ThemeFolder(host, name) / "layout.json", layout::LayoutToJson(edits).dump(1));
 }
@@ -184,6 +199,7 @@ std::string FighterOf(const Host& host, const std::string& asked) {
 }
 
 Reply Themes(const Request& r) {
+    KeepOriginal(r.host);
     nlohmann::json names = nlohmann::json::array();
     for (const std::string& name : platform::game_themes::Names(r.host.directory(), platform::game_themes::BattleHud)) {
         std::error_code ignored;

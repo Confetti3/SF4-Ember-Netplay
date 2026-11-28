@@ -71,6 +71,37 @@ int main() {
     auto themes = nlohmann::json::parse(get(hud::Order::Themes).body);
     CHECK(themes["themes"].size() == 1 && themes["themes"][0] == "Test");   // NoHud has no cockpit file
 
+    // The game had no HUD layout to keep, so opening the editor added no theme.
+    CHECK(!fs::exists(root / sf4e::platform::game_themes::Folder / "Original") && !fs::exists(root / "ember" / "themes.original"));
+    {
+        // The layout the game reads, its newest, is kept as the theme Original, whatever an earlier try left behind.
+        // A folder the player has there is never replaced.
+        const fs::path original = root / sf4e::platform::game_themes::Folder / "Original", kept = original / "battle" / "hud" / "CMN" / "cockpit.ems.emz";
+        const auto read = [&] { std::ifstream in(kept, std::ios::binary); return std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>()); };
+        const std::string newest = sf4e::platform::hud_layout::Pack(hud_fixture::OneNode());
+        for (const char* layer : { "resource", "patch_ae2_tu2" }) {
+            CHECK(fs::create_directories(root / layer / "battle" / "hud" / "CMN"));
+            std::ofstream(root / layer / "battle" / "hud" / "CMN" / "cockpit.ems.emz", std::ios::binary) << (std::string(layer) == "resource" ? std::string("older") : newest);
+        }
+        const fs::path work = root / "ember" / "themes.original";
+        CHECK(fs::create_directories(work / "battle" / "hud" / "CMN"));
+        std::ofstream(work / "battle" / "hud" / "CMN" / "cockpit.ems.emz", std::ios::binary) << "half";
+        themes = nlohmann::json::parse(get(hud::Order::Themes).body);
+        CHECK(themes["themes"].size() == 2 && themes["themes"][0] == "Original" && themes["themes"][1] == "Test" && read() == newest);
+        CHECK(!fs::exists(work));
+        std::ofstream(kept, std::ios::binary) << "the player's";
+        get(hud::Order::Themes);
+        CHECK(read() == "the player's");
+        // On an install with no themes folder at all, the folder is made with it.
+        fs::remove_all(root / sf4e::platform::game_themes::Folder / "Original");
+        fs::rename(root / sf4e::platform::game_themes::Folder, root / "aside");
+        themes = nlohmann::json::parse(get(hud::Order::Themes).body);
+        CHECK(themes["themes"].size() == 1 && themes["themes"][0] == "Original");
+        fs::remove_all(root / sf4e::platform::game_themes::Folder);
+        fs::rename(root / "aside", root / sf4e::platform::game_themes::Folder);
+        fs::remove_all(root / "patch_ae2_tu2"); fs::remove_all(root / "resource" / "battle" / "hud" / "CMN");
+    }
+
     CHECK(get(hud::Order::Theme, "name=..").status == 404);
     CHECK(get(hud::Order::Theme, "name=Missing").status == 404);
     auto theme = nlohmann::json::parse(get(hud::Order::Theme, "name=Test").body);

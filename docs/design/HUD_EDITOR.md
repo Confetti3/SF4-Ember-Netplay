@@ -4,6 +4,8 @@
 ## How it works
 - A theme keeps its original `battle\hud\CMN\*.ems.emz`. The editor saves `layout.json` beside it
   (per element: x, y, rotation, scale, hide, mirror). The theme is never rewritten.
+- Opening the editor makes `ember\themes` when it is missing and keeps the game's own newest layouts
+  (`cockpit`, `chara`, `cockpit_text`, `uc`) as the theme `Original`. A folder of that name is left alone.
 - Applying = Ember reads the theme's EMS, applies `layout.json`, writes the result into
   `ember\theme\battle\hud` (the active folder `platform::game_themes::Use` already swaps in), then reloads the battle HUD (`GameThemes::Preview`).
 - Auto-apply on: every change applies within a second. Off: changes queue, one Apply button sends all. Setting is per browser, off by default. Apply with no changes switches to the theme as it is.
