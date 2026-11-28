@@ -2253,6 +2253,12 @@ msgstr "Site web d'Ember"
 msgid "about.website_detail"
 msgstr "Salons, classements et replays sur {0}. S'ouvre dans votre navigateur derrière le jeu."
 
+msgid "about.guides"
+msgstr "Guides"
+
+msgid "about.guides_detail"
+msgstr "Installer, jouer en ligne, enregistrer et plus encore, sur {0}. S'ouvre dans votre navigateur derrière le jeu."
+
 msgid "about.twitter"
 msgstr "Développeur sur Twitter"
 
@@ -8615,11 +8621,158 @@ msgstr "Personne n'est encore au classement."
 msgid "rankings.status_board"
 msgstr "Joueurs listés : {0}. Mis à jour {1}."
 
+msgid "rankings.points_title"
+msgstr "Tableau des points"
+
+msgid "rankings.points"
+msgstr "Tableau des points"
+
+msgid "rankings.points_detail"
+msgstr "Qui a joué le plus, en tout ou avec un personnage."
+
+msgid "rankings.points_all"
+msgstr "Tous les personnages"
+
+msgid "rankings.points_value"
+msgstr "{0} pts"
+
+msgid "rankings.loading_points"
+msgstr "Chargement du tableau des points…"
+
+msgid "rankings.points_empty"
+msgstr "Personne n'a encore de points ici."
+
+msgid "rankings.rating"
+msgstr "Cote"
+
+msgid "rankings.rating_value"
+msgstr "{0} ± {1}"
+
+msgid "rankings.rating_between"
+msgstr "Votre classe monte à {0} et baisse sous {1}."
+
+msgid "rankings.rating_up"
+msgstr "Votre classe monte à {0}."
+
+msgid "rankings.rating_down"
+msgstr "Votre classe baisse sous {0}."
+
+msgid "rankings.rating_faint"
+msgstr "Elle s'affiche estompée après {0} jours sans match classé."
+
 msgid "rankings.failure.unavailable"
 msgstr "Ce service ne propose pas de classements."
 
 msgid "rankings.failure.too_soon"
 msgstr "Modifiable une fois par jour."
+
+msgid "rankings.rating_title"
+msgstr "Détail de la cote"
+
+msgid "rankings.rating_private"
+msgstr "Seul vous voyez ces nombres. Les autres joueurs voient votre classe, jamais votre cote."
+
+msgid "rankings.deviation"
+msgstr "Écart"
+
+msgid "rankings.volatility"
+msgstr "Volatilité"
+
+msgid "rankings.rating_about"
+msgstr "L'estimation d'Ember de votre force. Une victoire la fait monter, une défaite la fait baisser, davantage quand le résultat était une surprise. Votre classe en est lue."
+
+msgid "rankings.deviation_about"
+msgstr "À quel point la cote est incertaine. Elle baisse quand vous jouez et augmente un peu chaque jour sans jouer. Votre classe apparaît quand elle est assez faible."
+
+msgid "rankings.volatility_about"
+msgstr "À quelle stabilité vos résultats sont. Elle monte quand vous alternez entre victoires inattendues et défaites mauvaises, et permet à la cote de bouger plus vite."
+
+msgid "rankings.up_to"
+msgstr "{0} à {1}"
+
+msgid "rankings.down_to"
+msgstr "{0} sous {1}"
+
+msgid "rankings.next_game"
+msgstr "Ce que votre prochaine partie ferait bouger"
+
+msgid "rankings.opponent"
+msgstr "Adversaire"
+
+msgid "rankings.win"
+msgstr "Victoire"
+
+msgid "rankings.loss"
+msgstr "Défaite"
+
+msgid "rankings.rated"
+msgstr "Classé {0}"
+
+msgid "rankings.example_new"
+msgstr "Un nouveau joueur"
+
+msgid "rankings.points_bp_total"
+msgstr "{0} joueurs, tous les personnages comptés ensemble."
+
+msgid "rankings.points_fp_total"
+msgstr "{0} joueurs ont des points avec {1}."
+
+msgid "rankings.frames"
+msgstr "Cadres"
+
+msgid "rankings.frames_about"
+msgstr "Le cadre d'un joueur montre jusqu'où ses points sont allés. Il ne recule jamais."
+
+msgid "rankings.place"
+msgstr "Place"
+
+msgid "rankings.place_of"
+msgstr "{0} sur {1}"
+
+msgid "rankings.class"
+msgstr "Classe"
+
+msgid "rankings.your_place"
+msgstr "Votre place"
+
+msgid "rankings.frame"
+msgstr "Cadre"
+
+msgid "rankings.player"
+msgstr "Joueur"
+
+msgid "rankings.points_column"
+msgstr "Points"
+
+msgid "rankings.players_count"
+msgstr "{0} joueurs"
+
+msgid "rankings.players_one"
+msgstr "{0} joueur"
+
+msgid "rankings.classes"
+msgstr "Classes"
+
+msgid "rankings.fighters"
+msgstr "Personnages"
+
+msgid "rankings.see_players"
+msgstr "Voir les joueurs"
+
+msgid "rankings.show_board"
+msgstr "Afficher le tableau"
+
+msgid "rankings.your_class"
+msgstr "Votre classe"
+
+msgid "rankings.where_title"
+msgstr "Où vous en êtes"
+
+msgid "rankings.your_rating"
+msgstr "Vous, {0}"
+
+msgid "rankings.numbers_title"
+msgstr "Ce que signifient les nombres"
 
 msgid "settings.class_emblems"
 msgstr "Emblèmes de classe"

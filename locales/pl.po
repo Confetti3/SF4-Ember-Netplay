@@ -2253,6 +2253,12 @@ msgstr "Strona Ember"
 msgid "about.website_detail"
 msgstr "Pokoje, rankingi i powtórki na {0}. Otwiera się w przeglądarce za oknem gry."
 
+msgid "about.guides"
+msgstr "Przewodniki"
+
+msgid "about.guides_detail"
+msgstr "Jak zainstalować, grać online, nagrywać i więcej, pod adresem {0}. Otwiera się w Twojej przeglądarce za grą."
+
 msgid "about.twitter"
 msgstr "Twitter twórcy"
 
@@ -8615,11 +8621,158 @@ msgstr "W rankingu nikogo jeszcze nie ma."
 msgid "rankings.status_board"
 msgstr "Gracze na liście: {0}. Odświeżono {1}."
 
+msgid "rankings.points_title"
+msgstr "Ranking punktów"
+
+msgid "rankings.points"
+msgstr "Ranking punktów"
+
+msgid "rankings.points_detail"
+msgstr "Kto grał najwięcej, ogólnie lub z jednym bohaterem."
+
+msgid "rankings.points_all"
+msgstr "Wszyscy bohaterowie"
+
+msgid "rankings.points_value"
+msgstr "{0} pkt."
+
+msgid "rankings.loading_points"
+msgstr "Wczytywanie rankingu punktów…"
+
+msgid "rankings.points_empty"
+msgstr "Nikt jeszcze tu nie ma punktów."
+
+msgid "rankings.rating"
+msgstr "Rating"
+
+msgid "rankings.rating_value"
+msgstr "{0} ± {1}"
+
+msgid "rankings.rating_between"
+msgstr "Twoja klasa rośnie przy {0} i spada poniżej {1}."
+
+msgid "rankings.rating_up"
+msgstr "Twoja klasa rośnie przy {0}."
+
+msgid "rankings.rating_down"
+msgstr "Twoja klasa spada poniżej {0}."
+
+msgid "rankings.rating_faint"
+msgstr "Pokazuje się wyblakłe po {0} dniach bez gry w rankingu."
+
 msgid "rankings.failure.unavailable"
 msgstr "Ta usługa nie oferuje rankingów."
 
 msgid "rankings.failure.too_soon"
 msgstr "Zmianę można wprowadzić raz dziennie."
+
+msgid "rankings.rating_title"
+msgstr "Szczegóły ratingu"
+
+msgid "rankings.rating_private"
+msgstr "Tylko Ty widzi te liczby. Inni gracze widzą Twoją klasę, nigdy Twój rating."
+
+msgid "rankings.deviation"
+msgstr "Odchylenie"
+
+msgid "rankings.volatility"
+msgstr "Zmienność"
+
+msgid "rankings.rating_about"
+msgstr "Szacunek Ember, jak silny jesteś. Wygrana podnosi go, przegrana obniża, mocniej jeśli wynik był zaskoczeniem. Z niego czyta się Twoja klasa."
+
+msgid "rankings.deviation_about"
+msgstr "Jak bardzo niepewny jest rating. Spada wraz z grą i rośnie nieznacznie każdego dnia, gdy nie grasz. Twoja klasa pojawia się, gdy rating jest wystarczająco niski."
+
+msgid "rankings.volatility_about"
+msgstr "Jak stabilne są Twoje wyniki. Rośnie, gdy przechodzisz między niespodziankowymi zwycięstwami a kłopotliwymi porażkami, i pozwala ratingowi szybciej się zmieniać."
+
+msgid "rankings.up_to"
+msgstr "{0} przy {1}"
+
+msgid "rankings.down_to"
+msgstr "{0} poniżej {1}"
+
+msgid "rankings.next_game"
+msgstr "Co by zrobiła Twoja następna gra"
+
+msgid "rankings.opponent"
+msgstr "Przeciwnik"
+
+msgid "rankings.win"
+msgstr "Wygrana"
+
+msgid "rankings.loss"
+msgstr "Przegrana"
+
+msgid "rankings.rated"
+msgstr "W rankingu {0}"
+
+msgid "rankings.example_new"
+msgstr "Nowy gracz"
+
+msgid "rankings.points_bp_total"
+msgstr "{0} graczy, każdy bohater policzony razem."
+
+msgid "rankings.points_fp_total"
+msgstr "{0} graczy ma punkty z {1}."
+
+msgid "rankings.frames"
+msgstr "Frames"
+
+msgid "rankings.frames_about"
+msgstr "Frame gracza pokazuje, jak daleko zaszły jego punkty. Nigdy nie cofa się."
+
+msgid "rankings.place"
+msgstr "Miejsce"
+
+msgid "rankings.place_of"
+msgstr "{0} z {1}"
+
+msgid "rankings.class"
+msgstr "Klasa"
+
+msgid "rankings.your_place"
+msgstr "Twoje miejsce"
+
+msgid "rankings.frame"
+msgstr "Frame"
+
+msgid "rankings.player"
+msgstr "Gracz"
+
+msgid "rankings.points_column"
+msgstr "Punkty"
+
+msgid "rankings.players_count"
+msgstr "{0} graczy"
+
+msgid "rankings.players_one"
+msgstr "{0} gracz"
+
+msgid "rankings.classes"
+msgstr "Klasy"
+
+msgid "rankings.fighters"
+msgstr "Bohaterowie"
+
+msgid "rankings.see_players"
+msgstr "Zobacz graczy"
+
+msgid "rankings.show_board"
+msgstr "Pokaż ranking"
+
+msgid "rankings.your_class"
+msgstr "Twoja klasa"
+
+msgid "rankings.where_title"
+msgstr "Gdzie jesteś"
+
+msgid "rankings.your_rating"
+msgstr "Ty, {0}"
+
+msgid "rankings.numbers_title"
+msgstr "Co oznaczają liczby"
 
 msgid "settings.class_emblems"
 msgstr "Emblematy klas"

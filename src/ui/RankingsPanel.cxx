@@ -408,8 +408,13 @@ void RankingsPanel::DrawBoard(const ShellView& v, const std::string& screen, Gam
     const bool changed = nav.Focus() != focus_;
     focus_ = nav.Focus();
     const RankingsBoardFrame f{rows, menu, action, changed};
-    if (screen == PointsScreen) { DrawPointsBoard(f, ShownPoints(v), pointsFighter_, own_); return; }
     const auto* standing = Current(v);
+    if (screen == PointsScreen) {
+        // The board names you as the bridge lists you, which may lag a name just changed here.
+        const bool listed = standing && standing->kind == Kind::Ranked && standing->listed;
+        DrawPointsBoard(f, ShownPoints(v), pointsFighter_, listed ? &standing->listing : nullptr);
+        return;
+    }
     const bool classes = standing && standing->kind == Kind::Ranked && standing->classesShown;
     DrawClassBoard(f, board, classes ? standing->badge.ClassBand() : 0, shown);
     // Moving the focus is no action, so the class the side list stands on is

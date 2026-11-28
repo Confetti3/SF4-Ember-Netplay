@@ -327,7 +327,7 @@ void TableLine(const RankingsBoardFrame& f, const TableRow& t, v2::Box box, cons
 }
 
 // The board's lines in one panel under the columns' names.
-float PointsTable(const RankingsBoardFrame& f, const std::vector<TableRow>& lines, const Listing& own, ImVec2 at, float width, const char* label) {
+float PointsTable(const RankingsBoardFrame& f, const std::vector<TableRow>& lines, const Listing* listed, ImVec2 at, float width, const char* label) {
     auto* d = ImGui::GetWindowDrawList();
     const auto& c = v2::Colors();
     const float s = Scale(), head = TableHead * s, line = Line * s;
@@ -343,7 +343,7 @@ float PointsTable(const RankingsBoardFrame& f, const std::vector<TableRow>& line
     d->AddLine(ImVec2(k.place, at.y + head), ImVec2(k.pointsEnd, at.y + head), c.border, 1 * s);
     float y = at.y + head;
     for (std::size_t i = 0; i < lines.size(); ++i, y += line)
-        TableLine(f, lines[i], v2::Box{ImVec2(at.x + 4 * s, y), ImVec2(at.x + width - 4 * s, y + line)}, k, lines[i].line.listing == own, i + 1 < lines.size(), label);
+        TableLine(f, lines[i], v2::Box{ImVec2(at.x + 4 * s, y), ImVec2(at.x + width - 4 * s, y + line)}, k, listed && lines[i].line.listing == *listed, i + 1 < lines.size(), label);
     return panel.max.y + 2 * Gap * s;
 }
 
@@ -424,7 +424,7 @@ void DrawClassBoard(const RankingsBoardFrame& f, const std::vector<BoardEntry>* 
     ImGui::Dummy(ImVec2(width, y - top.y));
 }
 
-void DrawPointsBoard(const RankingsBoardFrame& f, const PointsBoard* board, int fighter, const Listing& own) {
+void DrawPointsBoard(const RankingsBoardFrame& f, const PointsBoard* board, int fighter, const Listing* listed) {
     auto* d = ImGui::GetWindowDrawList();
     const float s = Scale(), width = ImGui::GetContentRegionAvail().x;
     const ImVec2 top = ImGui::GetCursorScreenPos();
@@ -457,9 +457,10 @@ void DrawPointsBoard(const RankingsBoardFrame& f, const PointsBoard* board, int 
         float y = PointsHead(page, at, left, name, board, fighter);
         for (const MenuEntry* e : states) y = StateRow(f, *e, ImVec2(at.x, y), left);
         if (board && !lines.empty()) {
-            const auto mine = std::find_if(board->lines.begin(), board->lines.end(), [&](const PointsLine& line) { return line.listing == own; });
+            const auto mine = listed ? std::find_if(board->lines.begin(), board->lines.end(), [&](const PointsLine& line) { return line.listing == *listed; })
+                                     : board->lines.end();
             if (mine != board->lines.end()) y = OwnPlace(page, ImVec2(at.x, y), left, *mine, board->total, label);
-            y = PointsTable(f, lines, own, ImVec2(at.x, y), left, label);
+            y = PointsTable(f, lines, listed, ImVec2(at.x, y), left, label);
         }
         return (std::max)(y, sideBottom);
     });

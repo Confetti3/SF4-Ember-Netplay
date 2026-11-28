@@ -46,6 +46,7 @@ struct RankingsBoardFrame {
 // The class board, `board` null until it loads; `ownBand` is the class the You
 // row shows, 0 for none; `shown` is the class whose players `rows` carry.
 void DrawClassBoard(const RankingsBoardFrame& f, const std::vector<netplay::rankings::BoardEntry>* board, std::uint8_t ownBand, std::uint8_t shown);
-// The points board for `fighter` (-1: every fighter), `board` null until it loads; `own` is how boards list this player.
-void DrawPointsBoard(const RankingsBoardFrame& f, const netplay::rankings::PointsBoard* board, int fighter, const netplay::rankings::Listing& own);
+// The points board for `fighter` (-1: every fighter), `board` null until it loads;
+// `listed` is how the bridge lists this player on its boards, null when it does not.
+void DrawPointsBoard(const RankingsBoardFrame& f, const netplay::rankings::PointsBoard* board, int fighter, const netplay::rankings::Listing* listed);
 } }
