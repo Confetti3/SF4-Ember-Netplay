@@ -154,7 +154,7 @@ void Execute(const Output& output, std::uint64_t nowMs) {
 		// Not in a room, or already leaving it (the player left by hand).
 		const auto room = runtime->controller.GetSnapshot().room;
 		if (room == netplay::RoomState::Idle || room == netplay::RoomState::Closing) break;
-		RoomCommand(commands::LeaveRoom{}, "leaving the room");
+		RoomCommand(commands::LeaveRoom{{}, commands::CloseCause::Tournament}, "leaving the room");
 		break;
 	}
 	case Output::Kind::Bind:
@@ -182,7 +182,7 @@ void ExecuteWatch(const WatchOutput& output, std::uint64_t nowMs) {
 	case WatchOutput::Kind::Leave: {
 		const auto room = runtime->controller.GetSnapshot().room;
 		if (room == netplay::RoomState::Idle || room == netplay::RoomState::Closing) break;
-		RoomCommand(commands::LeaveRoom{}, "leaving the watched room");
+		RoomCommand(commands::LeaveRoom{{}, commands::CloseCause::Watch}, "leaving the watched room");
 		break;
 	}
 	}

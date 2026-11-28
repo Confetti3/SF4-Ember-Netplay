@@ -610,9 +610,7 @@ void TickMatch() {
 				if (teardownTimedOut) {
 					CancelLocalMatch(GgpoEnd::Abort(runtime->error.c_str()));
 					runtime->error = loc::T("runtime.teardown_timeout");
-                    runtime->controller.Execute({netplay::CommandKind::LeaveRoom,
-                        runtime->controller.GetSnapshot().generation, {}});
-                    CloseRoom();
+                    LeaveRoomNow(commands::CloseCause::TeardownTimeout);
 				} else AbortLocalMatch(runtime->error.c_str());
 			} else {
 				const auto matchState = runtime->controller.GetSnapshot().match;

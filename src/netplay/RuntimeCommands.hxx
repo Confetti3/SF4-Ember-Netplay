@@ -39,6 +39,41 @@ namespace sf4e { namespace commands {
 // ticket (a refusal or failure is worded for it), or a tournament match's
 // watcher (the room admits it only if it names it).
 enum class JoinKind : std::uint8_t { Private, Public, Observer };
+// Why the room closed, which the log names in the `Room: closing` line
+// (CloseCauseName). A leave command carries who asked for it: the Leave room
+// or Stop joining row, a Discord invitation or a friend's room taking this
+// one's place, the tournament match or its watcher, or the in-game self-test.
+// The rest are the runtime's own: the room went away, the client or router
+// failed, the teardown ran out of time, a replacement or a shutdown.
+// Unknown is first, so a leave nobody stamped logs as what it is.
+enum class CloseCause : std::uint8_t {
+    Unknown, Menu, Discord, FriendVisit, Tournament, Watch, SelfTest,
+    ClientRetired, HookRetired, RoomClosed, RoomUnreachable, Removed, RouterFailed, TeardownTimeout,
+    Replacement, Shutdown, LeaveSettled, SessionEffect
+};
+inline const char* CloseCauseName(CloseCause cause) {
+    switch (cause) {
+    case CloseCause::Unknown: break;
+    case CloseCause::Menu: return "menu";
+    case CloseCause::Discord: return "discord";
+    case CloseCause::FriendVisit: return "friend_visit";
+    case CloseCause::Tournament: return "tournament";
+    case CloseCause::Watch: return "watch";
+    case CloseCause::SelfTest: return "self_test";
+    case CloseCause::ClientRetired: return "client_retired";
+    case CloseCause::HookRetired: return "hook_retired";
+    case CloseCause::RoomClosed: return "room_closed";
+    case CloseCause::RoomUnreachable: return "room_unreachable";
+    case CloseCause::Removed: return "removed";
+    case CloseCause::RouterFailed: return "router_failed";
+    case CloseCause::TeardownTimeout: return "teardown_timeout";
+    case CloseCause::Replacement: return "replacement";
+    case CloseCause::Shutdown: return "shutdown";
+    case CloseCause::LeaveSettled: return "leave_settled";
+    case CloseCause::SessionEffect: return "session_effect";
+    }
+    return "unknown";
+}
 
 // An identity or bridge request. Endpoint-level: no room generation applies.
 struct Identity { netplay::IdentityRequest identity; };
@@ -172,6 +207,7 @@ struct JoinRoom {
 };
 struct LeaveRoom {
     netplay::Generation generation;
+    CloseCause cause = CloseCause::Unknown;
     // From a Discord invitation, whose join follows: checked again when it runs.
     std::uint64_t discordRevision = 0;
 };

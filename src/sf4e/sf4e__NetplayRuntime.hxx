@@ -499,7 +499,8 @@ bool AtMainMenu();
 void SetAtMainMenuForTest(std::optional<bool> value);
 // The post-match prompt's WIN (or DRAW) screen (sf4e__NetplayRuntime__Status.cxx).
 bool PostMatchPromptDue();
-void CloseRoom();
+void CloseRoom(commands::CloseCause cause);
+void LeaveRoomNow(commands::CloseCause cause);
 void Apply(netplay::EventKind kind, const std::string& error = {});
 bool CanEditLobby();
 bool CanBeginReplacement();

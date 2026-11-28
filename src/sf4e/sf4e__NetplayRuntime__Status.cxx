@@ -869,7 +869,7 @@ void PublishAndTickDiscordInvite() {
         // Another room replaces the one being watched, as Leave does.
         runtime->watch.Stop();
         const auto revision=runtime->discordInvite.Revision();
-        if (next==discord::Next::Leave) SubmitRuntimeCommand(commands::LeaveRoom{view.session.generation,revision});
+        if (next==discord::Next::Leave) SubmitRuntimeCommand(commands::LeaveRoom{view.session.generation,commands::CloseCause::Discord,revision});
         else {
             commands::JoinRoom join;
             join.generation=view.session.generation; join.invitation=runtime->discordInvite.Secret(); join.discordRevision=revision;
